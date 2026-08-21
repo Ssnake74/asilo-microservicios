@@ -1,0 +1,14 @@
+# Bases de datos locales
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor y sistema
+.vscode/
+.DS_Store
+Thumbs.db
