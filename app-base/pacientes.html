@@ -16,46 +16,86 @@
   *{box-sizing:border-box;}
   body{margin:0;background:var(--fondo);color:var(--tinta);
        font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;}
-  h1,h2{font-family:"Bitter",Georgia,serif;margin:0;}
+  h1,h2,h3{font-family:"Bitter",Georgia,serif;margin:0;}
   header{background:var(--pino);color:#EDF3F0;padding:18px 24px;border-bottom:3px solid #14382F;}
   header h1{font-size:20px;}
   header p{margin:4px 0 0;font-size:13px;color:#B6CCC4;}
   .chip{display:inline-flex;align-items:center;gap:8px;background:#14382F;border:1px solid #2C6A5A;
         border-radius:999px;padding:5px 12px;font-size:12.5px;font-family:"IBM Plex Mono",monospace;margin-top:12px;}
   .punto{width:8px;height:8px;border-radius:50%;background:#7C8C86;}
-  .punto.arriba{background:#5BC08C;}
+  .punto.arriba{background:#5BC08C;box-shadow:0 0 0 3px rgba(91,192,140,.22);}
   .punto.abajo{background:#E0616F;}
 
-  main{max-width:1180px;margin:0 auto;padding:22px 24px 60px;}
+  main{max-width:1080px;margin:0 auto;padding:22px 24px 60px;}
   section{background:var(--superficie);border:1px solid var(--linea);border-radius:var(--radio);
-          padding:18px;margin-bottom:20px;}
-  section > h2{font-size:16px;padding-bottom:10px;border-bottom:1px solid var(--linea);margin-bottom:14px;}
+          padding:0;margin-bottom:20px;overflow:hidden;}
+  section > h2{font-size:16px;padding:14px 18px;border-bottom:1px solid var(--linea);
+               background:#F2F6F3;display:flex;align-items:center;gap:10px;}
 
-  label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta-suave);margin-bottom:4px;margin-top:12px;}
-  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--linea);border-radius:6px;
+  /* --- MEJORA 4: el formulario se agrupa en bloques, como una ficha de papel --- */
+  fieldset{border:none;border-bottom:1px dashed var(--linea);margin:0;padding:18px;}
+  fieldset:last-of-type{border-bottom:none;}
+  legend{font-family:"Bitter",Georgia,serif;font-size:14.5px;font-weight:700;color:var(--pino);
+         padding:0;margin-bottom:4px;display:flex;align-items:center;gap:9px;}
+  .paso{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
+        border-radius:50%;background:var(--pino);color:#fff;font-family:"IBM Plex Mono",monospace;
+        font-size:12px;font-weight:500;}
+  .ayuda-seccion{font-size:12.5px;color:var(--tinta-suave);margin:0 0 14px 31px;}
+
+  .rejilla{display:grid;gap:14px;}
+  .c2{grid-template-columns:1fr 1fr;}
+  .c3{grid-template-columns:1fr 1fr 1fr;}
+  @media (max-width:720px){.c2,.c3{grid-template-columns:1fr;}}
+
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta-suave);margin-bottom:5px;}
+  .obligatorio{color:var(--granate);}
+  input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--linea);border-radius:6px;
         background:#fff;color:var(--tinta);font-size:14px;font-family:"IBM Plex Sans",sans-serif;}
-  input:focus,select:focus,textarea:focus{outline:2px solid var(--pino);outline-offset:1px;}
-  textarea{resize:vertical;min-height:60px;}
-  .check{display:flex;align-items:center;gap:8px;margin-top:14px;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--pino);outline-offset:1px;border-color:var(--pino);}
+  textarea{resize:vertical;min-height:66px;}
+  /* --- MEJORA 5: el campo con problema se marca en el campo mismo --- */
+  input.malo,select.malo,textarea.malo{border-color:var(--granate);background:#FDF6F7;}
+  .error-campo{display:none;font-size:12px;color:var(--granate);margin-top:4px;}
+  .error-campo.visible{display:block;}
+  .pista{font-size:11.5px;color:var(--tinta-suave);margin-top:4px;}
+
+  .edad-calculada{background:var(--pino-claro);border-radius:6px;padding:9px 12px;
+        font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--pino);}
+  .check{display:flex;align-items:center;gap:9px;margin-top:6px;}
   .check input{width:auto;}
-  .check label{margin:0;font-weight:500;color:var(--tinta);}
+  .check label{margin:0;font-weight:500;color:var(--tinta);font-size:14px;}
 
-  button{border:none;border-radius:6px;padding:9px 16px;font-size:13.5px;font-weight:600;
-         background:var(--pino);color:#fff;cursor:pointer;font-family:"IBM Plex Sans",sans-serif;margin-top:16px;}
+  .pie-form{padding:18px;background:#F2F6F3;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  button{border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:600;
+         background:var(--pino);color:#fff;cursor:pointer;font-family:"IBM Plex Sans",sans-serif;}
   button:hover{background:#16443A;}
-  button.mini{padding:5px 10px;font-size:12px;margin:0;}
+  button:disabled{opacity:.6;cursor:progress;}
+  button.secundario{background:transparent;color:var(--pino);border:1px solid var(--pino);}
+  button.mini{padding:5px 11px;font-size:12px;}
   button.peligro{background:transparent;color:var(--granate);border:1px solid var(--granate);}
+  button.peligro:hover{background:#F7E9EB;}
+  .nota-obligatorios{font-size:12.5px;color:var(--tinta-suave);}
 
-  table{width:100%;border-collapse:collapse;font-size:13px;}
-  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--tinta-suave);
-     border-bottom:1px solid var(--linea);padding:8px;font-weight:600;white-space:nowrap;}
-  td{padding:8px;border-bottom:1px solid #E6EBE7;white-space:nowrap;}
-  .tabla-scroll{overflow-x:auto;}
-  .mono{font-family:"IBM Plex Mono",monospace;}
-  .aviso{padding:10px 12px;border-radius:6px;font-size:13.5px;margin-top:14px;display:none;}
-  .aviso.ok{background:#DDEBE4;color:#14382F;border-left:3px solid var(--pino);display:block;}
-  .aviso.error{background:#F6E7E9;color:#6E1B26;border-left:3px solid var(--granate);display:block;}
-  .vacio{color:var(--tinta-suave);font-size:13.5px;font-style:italic;padding:10px 0;}
+  .aviso{margin:0 18px 18px;padding:12px 14px;border-radius:6px;font-size:13.5px;display:none;}
+  .aviso.ok{background:#DDEBE4;color:#14382F;border-left:4px solid var(--pino);display:block;}
+  .aviso.error{background:#F6E7E9;color:#6E1B26;border-left:4px solid var(--granate);display:block;}
+  .aviso ul{margin:6px 0 0;padding-left:20px;}
+
+  /* --- MEJORA 2: fichas en lugar de tabla con scroll horizontal --- */
+  .buscador{padding:14px 18px;border-bottom:1px solid var(--linea);display:flex;gap:10px;align-items:center;}
+  .buscador input{max-width:340px;}
+  .fichas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:18px;}
+  .ficha{border:1px solid var(--linea);border-radius:8px;padding:14px;background:#fff;}
+  .ficha-cab{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;flex-wrap:wrap;}
+  .ficha-cod{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--pino-claro);
+             color:var(--pino);padding:2px 8px;border-radius:4px;}
+  .ficha h3{font-size:15.5px;}
+  .ficha-datos{font-size:13px;color:var(--tinta-suave);display:grid;gap:3px;margin-bottom:10px;}
+  .ficha-datos b{color:var(--tinta);font-weight:600;}
+  .etiqueta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:2px 7px;border-radius:4px;
+            background:#F7EEDA;color:var(--ocre);}
+  .etiqueta.fund{background:#DDEBE4;color:var(--pino);}
+  .vacio{color:var(--tinta-suave);font-size:13.5px;font-style:italic;padding:24px 18px;text-align:center;}
 </style>
 </head>
 <body>
@@ -71,68 +111,165 @@
   <section>
     <h2>Ficha de ingreso</h2>
 
-    <label for="nombres">Nombres</label>
-    <input id="nombres">
+    <!-- ============ 1. DATOS PERSONALES ============ -->
+    <fieldset>
+      <legend><span class="paso">1</span> Datos personales</legend>
+      <p class="ayuda-seccion">Información del anciano tal como aparece en su documento de identificación.</p>
 
-    <label for="apellidos">Apellidos</label>
-    <input id="apellidos">
+      <div class="rejilla c2">
+        <div>
+          <label for="nombres">Nombres <span class="obligatorio">*</span></label>
+          <input id="nombres" autocomplete="off">
+          <div class="error-campo" id="e-nombres"></div>
+        </div>
+        <div>
+          <label for="apellidos">Apellidos <span class="obligatorio">*</span></label>
+          <input id="apellidos" autocomplete="off">
+          <div class="error-campo" id="e-apellidos"></div>
+        </div>
+      </div>
 
-    <label for="dpi">DPI</label>
-    <input id="dpi">
+      <div class="rejilla c3" style="margin-top:14px;">
+        <div>
+          <label for="dpi">DPI</label>
+          <input id="dpi" inputmode="numeric" maxlength="13">
+          <div class="pista">13 dígitos, sin espacios</div>
+          <div class="error-campo" id="e-dpi"></div>
+        </div>
+        <div>
+          <label for="sexo">Sexo <span class="obligatorio">*</span></label>
+          <select id="sexo">
+            <option value="">Seleccione…</option>
+            <option value="F">Femenino</option>
+            <option value="M">Masculino</option>
+          </select>
+          <div class="error-campo" id="e-sexo"></div>
+        </div>
+        <div>
+          <!-- MEJORA 3: dominio cerrado, ya no se escribe a mano -->
+          <label for="tipo_sangre">Tipo de sangre</label>
+          <select id="tipo_sangre">
+            <option value="">No registrado</option>
+            <option>O+</option><option>O-</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option>
+          </select>
+        </div>
+      </div>
 
-    <label for="fecha_nacimiento">Fecha de nacimiento</label>
-    <input id="fecha_nacimiento" placeholder="AAAA-MM-DD">
+      <div class="rejilla c2" style="margin-top:14px;">
+        <div>
+          <!-- MEJORA 1: calendario nativo en lugar de texto libre -->
+          <label for="fecha_nacimiento">Fecha de nacimiento <span class="obligatorio">*</span></label>
+          <input id="fecha_nacimiento" type="date" onchange="mostrarEdad()">
+          <div class="pista">El asilo recibe personas de 60 años en adelante</div>
+          <div class="error-campo" id="e-fecha_nacimiento"></div>
+        </div>
+        <div>
+          <label>Edad</label>
+          <div class="edad-calculada" id="edad">Se calcula automáticamente</div>
+        </div>
+      </div>
+    </fieldset>
 
-    <label for="sexo">Sexo</label>
-    <select id="sexo">
-      <option value="">Seleccione</option>
-      <option value="M">M</option>
-      <option value="F">F</option>
-    </select>
+    <!-- ============ 2. INGRESO AL ASILO ============ -->
+    <fieldset>
+      <legend><span class="paso">2</span> Ingreso al asilo</legend>
+      <p class="ayuda-seccion">Datos administrativos de la estadía dentro de la institución.</p>
 
-    <label for="tipo_sangre">Tipo de sangre</label>
-    <input id="tipo_sangre">
+      <div class="rejilla c3">
+        <div>
+          <label for="fecha_ingreso">Fecha de ingreso <span class="obligatorio">*</span></label>
+          <input id="fecha_ingreso" type="date">
+          <div class="error-campo" id="e-fecha_ingreso"></div>
+        </div>
+        <div>
+          <label for="habitacion">Habitación</label>
+          <input id="habitacion" placeholder="A-3">
+        </div>
+        <div>
+          <label for="procedencia">Procedencia</label>
+          <input id="procedencia" placeholder="Mazatenango, Suchitepéquez">
+        </div>
+      </div>
 
-    <label for="fecha_ingreso">Fecha de ingreso</label>
-    <input id="fecha_ingreso" placeholder="AAAA-MM-DD">
+      <div class="check" style="margin-top:16px;">
+        <input type="checkbox" id="cubierto_fundacion" checked>
+        <label for="cubierto_fundacion">Cubierto por la fundación (aplica descuento en cobros)</label>
+      </div>
+    </fieldset>
 
-    <label for="habitacion">Habitación</label>
-    <input id="habitacion">
+    <!-- ============ 3. FAMILIAR RESPONSABLE ============ -->
+    <fieldset>
+      <legend><span class="paso">3</span> Familiar responsable</legend>
+      <p class="ayuda-seccion">Persona a quien se notifican las solicitudes médicas y los cobros.</p>
 
-    <label for="procedencia">Procedencia</label>
-    <input id="procedencia">
+      <div class="rejilla c2">
+        <div>
+          <label for="familiar_nombre">Nombre completo <span class="obligatorio">*</span></label>
+          <input id="familiar_nombre" autocomplete="off">
+          <div class="error-campo" id="e-familiar_nombre"></div>
+        </div>
+        <div>
+          <label for="familiar_parentesco">Parentesco</label>
+          <select id="familiar_parentesco">
+            <option value="">Seleccione…</option>
+            <option>Hijo</option><option>Hija</option>
+            <option>Nieto</option><option>Nieta</option>
+            <option>Sobrino</option><option>Sobrina</option>
+            <option>Hermano</option><option>Hermana</option>
+            <option>Otro</option>
+          </select>
+        </div>
+      </div>
 
-    <label for="familiar_nombre">Nombre del familiar responsable</label>
-    <input id="familiar_nombre">
+      <div class="rejilla c2" style="margin-top:14px;">
+        <div>
+          <label for="familiar_telefono">Teléfono <span class="obligatorio">*</span></label>
+          <input id="familiar_telefono" inputmode="tel" placeholder="5555-1234">
+          <div class="error-campo" id="e-familiar_telefono"></div>
+        </div>
+        <div>
+          <label for="familiar_email">Correo electrónico</label>
+          <input id="familiar_email" type="email" placeholder="familiar@correo.com">
+          <div class="error-campo" id="e-familiar_email"></div>
+        </div>
+      </div>
+    </fieldset>
 
-    <label for="familiar_parentesco">Parentesco</label>
-    <input id="familiar_parentesco">
+    <!-- ============ 4. SALUD ============ -->
+    <fieldset>
+      <legend><span class="paso">4</span> Información de salud</legend>
+      <p class="ayuda-seccion">Antecedentes que el personal médico debe conocer desde el ingreso.</p>
 
-    <label for="familiar_telefono">Teléfono del familiar</label>
-    <input id="familiar_telefono">
+      <div class="rejilla c2">
+        <div>
+          <label for="padecimientos">Padecimientos</label>
+          <textarea id="padecimientos" placeholder="Hipertensión arterial, diabetes tipo 2…"></textarea>
+        </div>
+        <div>
+          <label for="alergias">Alergias</label>
+          <textarea id="alergias" placeholder="Penicilina…"></textarea>
+        </div>
+      </div>
+    </fieldset>
 
-    <label for="familiar_email">Correo del familiar</label>
-    <input id="familiar_email">
-
-    <label for="padecimientos">Padecimientos</label>
-    <textarea id="padecimientos"></textarea>
-
-    <label for="alergias">Alergias</label>
-    <input id="alergias">
-
-    <div class="check">
-      <input type="checkbox" id="cubierto_fundacion" checked>
-      <label for="cubierto_fundacion">Cubierto por la fundación</label>
+    <div class="pie-form">
+      <button id="btn-guardar" onclick="guardar()">Guardar ficha</button>
+      <button class="secundario" onclick="limpiar()">Limpiar formulario</button>
+      <span class="nota-obligatorios">Los campos con <span class="obligatorio">*</span> son obligatorios.</span>
     </div>
-
-    <button onclick="guardar()">Guardar</button>
 
     <div class="aviso" id="aviso"></div>
   </section>
 
   <section>
-    <h2>Ancianos registrados</h2>
-    <div class="tabla-scroll" id="lista"><p class="vacio">Cargando…</p></div>
+    <h2>Ancianos registrados <span id="conteo" class="etiqueta fund"></span></h2>
+    <div class="buscador">
+      <input id="buscar" placeholder="Buscar por nombre, apellido o código…" oninput="listar()">
+    </div>
+    <div id="lista"><p class="vacio">Cargando…</p></div>
   </section>
 
 </main>
@@ -140,105 +277,214 @@
 <script>
 const MS_PACIENTES = "http://localhost:8083";
 
-const campos = ["nombres","apellidos","dpi","fecha_nacimiento","sexo","tipo_sangre",
+const CAMPOS = ["nombres","apellidos","dpi","fecha_nacimiento","sexo","tipo_sangre",
   "fecha_ingreso","habitacion","procedencia","familiar_nombre","familiar_parentesco",
   "familiar_telefono","familiar_email","padecimientos","alergias"];
 
-function avisar(texto, ok) {
-  const caja = document.getElementById("aviso");
-  caja.className = "aviso " + (ok ? "ok" : "error");
-  caja.textContent = texto;
+// MEJORA 5: nombre humano de cada campo, para traducir los errores del servicio
+const ETIQUETAS = {
+  nombres:"Nombres", apellidos:"Apellidos", dpi:"DPI",
+  fecha_nacimiento:"Fecha de nacimiento", sexo:"Sexo", tipo_sangre:"Tipo de sangre",
+  fecha_ingreso:"Fecha de ingreso", habitacion:"Habitación", procedencia:"Procedencia",
+  familiar_nombre:"Nombre del familiar", familiar_parentesco:"Parentesco",
+  familiar_telefono:"Teléfono del familiar", familiar_email:"Correo del familiar",
+  padecimientos:"Padecimientos", alergias:"Alergias"
+};
+const OBLIGATORIOS = ["nombres","apellidos","fecha_nacimiento","sexo","fecha_ingreso",
+                      "familiar_nombre","familiar_telefono"];
+
+// Límites del calendario: entre 60 y 120 años de edad
+(function topesDeFecha(){
+  const hoy = new Date();
+  const iso = (d) => d.toISOString().slice(0,10);
+  const nac = document.getElementById("fecha_nacimiento");
+  nac.max = iso(new Date(hoy.getFullYear()-60, hoy.getMonth(), hoy.getDate()));
+  nac.min = iso(new Date(hoy.getFullYear()-120, hoy.getMonth(), hoy.getDate()));
+  document.getElementById("fecha_ingreso").max = iso(hoy);
+})();
+
+function mostrarEdad(){
+  const v = document.getElementById("fecha_nacimiento").value;
+  const caja = document.getElementById("edad");
+  if(!v){ caja.textContent = "Se calcula automáticamente"; return; }
+  const n = new Date(v + "T00:00:00"), h = new Date();
+  let e = h.getFullYear() - n.getFullYear();
+  if(h.getMonth() < n.getMonth() || (h.getMonth() === n.getMonth() && h.getDate() < n.getDate())) e--;
+  caja.textContent = e + " años";
 }
 
-async function revisar() {
-  try {
+function limpiarErrores(){
+  CAMPOS.forEach(c => {
+    document.getElementById(c).classList.remove("malo");
+    const e = document.getElementById("e-" + c);
+    if(e){ e.classList.remove("visible"); e.textContent = ""; }
+  });
+  document.getElementById("aviso").className = "aviso";
+}
+
+function marcarError(campo, mensaje){
+  const input = document.getElementById(campo);
+  if(input) input.classList.add("malo");
+  const caja = document.getElementById("e-" + campo);
+  if(caja){ caja.textContent = mensaje; caja.classList.add("visible"); }
+}
+
+function avisoResumen(titulo, faltantes, ok){
+  const caja = document.getElementById("aviso");
+  caja.className = "aviso " + (ok ? "ok" : "error");
+  caja.innerHTML = faltantes && faltantes.length
+    ? `<strong>${titulo}</strong><ul>${faltantes.map(f => `<li>${f}</li>`).join("")}</ul>`
+    : `<strong>${titulo}</strong>`;
+}
+
+// MEJORA 5: valida en el navegador ANTES de enviar y habla en español
+function validarLocalmente(){
+  const faltantes = [];
+  OBLIGATORIOS.forEach(c => {
+    if(!document.getElementById(c).value.trim()){
+      marcarError(c, "Este dato es obligatorio.");
+      faltantes.push(ETIQUETAS[c]);
+    }
+  });
+  const tel = document.getElementById("familiar_telefono").value.trim();
+  if(tel && tel.replace(/\D/g,"").length < 8){
+    marcarError("familiar_telefono", "El teléfono debe tener al menos 8 dígitos.");
+    faltantes.push("Teléfono del familiar (incompleto)");
+  }
+  const dpi = document.getElementById("dpi").value.trim();
+  if(dpi && dpi.replace(/\D/g,"").length !== 13){
+    marcarError("dpi", "El DPI debe tener 13 dígitos.");
+    faltantes.push("DPI (incompleto)");
+  }
+  return faltantes;
+}
+
+// MEJORA 5: traduce la respuesta técnica del microservicio a español
+function traducirErrorDelServicio(detail){
+  if(typeof detail === "string") return [detail];
+  if(!Array.isArray(detail)) return ["No se pudo guardar la ficha."];
+  return detail.map(d => {
+    const campo = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : null;
+    const nombre = ETIQUETAS[campo] || "Dato";
+    let msg = d.msg || "valor no válido";
+    msg = msg.replace(/^Value error,\s*/i, "");
+    if(d.type === "missing") msg = "hace falta llenarlo";
+    if(campo) marcarError(campo, msg.charAt(0).toUpperCase() + msg.slice(1) + ".");
+    return `${nombre}: ${msg}`;
+  });
+}
+
+async function revisar(){
+  try{
     const r = await fetch(MS_PACIENTES + "/health");
     const d = await r.json();
     document.getElementById("punto").className = "punto arriba";
     document.getElementById("detalle").textContent = "· " + d.ancianos_activos + " activos";
-  } catch {
+  }catch{
     document.getElementById("punto").className = "punto abajo";
     document.getElementById("detalle").textContent = "· sin conexión";
   }
 }
 
-async function guardar() {
+async function guardar(){
+  limpiarErrores();
+
+  const faltantes = validarLocalmente();
+  if(faltantes.length){
+    avisoResumen("No se guardó la ficha. Falta completar:", faltantes, false);
+    document.querySelector(".malo").scrollIntoView({behavior:"smooth", block:"center"});
+    return;
+  }
+
   const cuerpo = { cubierto_fundacion: document.getElementById("cubierto_fundacion").checked };
-  campos.forEach(c => {
+  CAMPOS.forEach(c => {
     const v = document.getElementById(c).value.trim();
     cuerpo[c] = v === "" ? null : v;
   });
 
-  try {
+  const btn = document.getElementById("btn-guardar");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+
+  try{
     const r = await fetch(MS_PACIENTES + "/pacientes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(cuerpo)
     });
     const d = await r.json();
-    if (!r.ok) {
-      avisar(JSON.stringify(d.detail), false);
+
+    if(!r.ok){
+      const mensajes = traducirErrorDelServicio(d.detail);
+      avisoResumen("No se pudo guardar la ficha:", mensajes, false);
+      const primero = document.querySelector(".malo");
+      if(primero) primero.scrollIntoView({behavior:"smooth", block:"center"});
       return;
     }
-    avisar("Guardado con el código " + d.codigo, true);
-    campos.forEach(c => document.getElementById(c).value = "");
+
+    avisoResumen(`Ficha guardada. A ${d.nombres} ${d.apellidos} se le asignó el código ${d.codigo}.`, null, true);
+    limpiar();
     listar();
     revisar();
-  } catch (e) {
-    avisar("Error: " + e.message, false);
+  }catch(e){
+    avisoResumen("No se pudo contactar al servicio de pacientes. Verifique que esté encendido.", null, false);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Guardar ficha";
   }
 }
 
-async function listar() {
+function limpiar(){
+  CAMPOS.forEach(c => document.getElementById(c).value = "");
+  document.getElementById("cubierto_fundacion").checked = true;
+  limpiarErrores();
+  mostrarEdad();
+}
+
+async function listar(){
   const contenedor = document.getElementById("lista");
-  try {
-    const r = await fetch(MS_PACIENTES + "/pacientes");
+  const q = document.getElementById("buscar").value.trim();
+  try{
+    const url = MS_PACIENTES + "/pacientes" + (q ? "?buscar=" + encodeURIComponent(q) : "");
+    const r = await fetch(url);
     const datos = await r.json();
-    if (!datos.length) {
-      contenedor.innerHTML = '<p class="vacio">Sin registros.</p>';
+
+    document.getElementById("conteo").textContent = datos.length
+      ? datos.length + (datos.length === 1 ? " ficha" : " fichas") : "";
+
+    if(!datos.length){
+      contenedor.innerHTML = q
+        ? `<p class="vacio">Ningún anciano coincide con «${q}».</p>`
+        : '<p class="vacio">Todavía no hay ancianos registrados. Llene la ficha de arriba para agregar el primero.</p>';
       return;
     }
-    contenedor.innerHTML = `
-      <table>
-        <thead><tr>
-          <th>Código</th><th>Nombres</th><th>Apellidos</th><th>DPI</th><th>Nacimiento</th>
-          <th>Edad</th><th>Sexo</th><th>Sangre</th><th>Ingreso</th><th>Habitación</th>
-          <th>Procedencia</th><th>Familiar</th><th>Parentesco</th><th>Teléfono</th>
-          <th>Correo</th><th>Padecimientos</th><th>Alergias</th><th>Fundación</th>
-          <th>Estado</th><th></th>
-        </tr></thead>
-        <tbody>${datos.map(p => `
-          <tr>
-            <td class="mono">${p.codigo}</td>
-            <td>${p.nombres}</td>
-            <td>${p.apellidos}</td>
-            <td class="mono">${p.dpi || ""}</td>
-            <td class="mono">${p.fecha_nacimiento}</td>
-            <td class="mono">${p.edad}</td>
-            <td>${p.sexo}</td>
-            <td>${p.tipo_sangre || ""}</td>
-            <td class="mono">${p.fecha_ingreso}</td>
-            <td>${p.habitacion || ""}</td>
-            <td>${p.procedencia || ""}</td>
-            <td>${p.familiar_nombre}</td>
-            <td>${p.familiar_parentesco || ""}</td>
-            <td class="mono">${p.familiar_telefono}</td>
-            <td>${p.familiar_email || ""}</td>
-            <td>${p.padecimientos || ""}</td>
-            <td>${p.alergias || ""}</td>
-            <td>${p.cubierto_fundacion ? "Sí" : "No"}</td>
-            <td>${p.estado}</td>
-            <td><button class="mini peligro" onclick="eliminar('${p.codigo}')">Eliminar</button></td>
-          </tr>`).join("")}
-        </tbody>
-      </table>`;
-  } catch (e) {
-    contenedor.innerHTML = '<p class="vacio">No se pudo cargar el listado.</p>';
+
+    contenedor.innerHTML = '<div class="fichas">' + datos.map(p => `
+      <article class="ficha">
+        <div class="ficha-cab">
+          <span class="ficha-cod">${p.codigo}</span>
+          ${p.cubierto_fundacion ? '<span class="etiqueta fund">FUNDACIÓN</span>' : ""}
+          ${p.estado !== "ACTIVO" ? `<span class="etiqueta">${p.estado}</span>` : ""}
+        </div>
+        <h3>${p.nombres} ${p.apellidos}</h3>
+        <div class="ficha-datos">
+          <span><b>${p.edad} años</b> · ${p.sexo === "F" ? "Femenino" : "Masculino"}${p.tipo_sangre ? " · " + p.tipo_sangre : ""}</span>
+          <span>Habitación ${p.habitacion || "sin asignar"} · ingresó el ${p.fecha_ingreso}</span>
+          <span>Familiar: <b>${p.familiar_nombre}</b>${p.familiar_parentesco ? " (" + p.familiar_parentesco + ")" : ""} · ${p.familiar_telefono}</span>
+          ${p.padecimientos ? `<span>Padecimientos: ${p.padecimientos}</span>` : ""}
+          ${p.alergias ? `<span>Alergias: ${p.alergias}</span>` : ""}
+        </div>
+        <button class="mini peligro" onclick="eliminar('${p.codigo}','${p.nombres} ${p.apellidos}')">Eliminar ficha</button>
+      </article>`).join("") + '</div>';
+  }catch(e){
+    contenedor.innerHTML = '<p class="vacio">No se pudo cargar el listado. Verifique que el servicio esté encendido.</p>';
   }
 }
 
-async function eliminar(codigo) {
-  await fetch(MS_PACIENTES + "/pacientes/" + codigo, { method: "DELETE" });
+async function eliminar(codigo, nombre){
+  // Confirmación antes de una acción que no se puede deshacer
+  if(!confirm(`¿Eliminar la ficha de ${nombre} (${codigo})?\n\nEsta acción no se puede deshacer.`)) return;
+  await fetch(MS_PACIENTES + "/pacientes/" + codigo, { method:"DELETE" });
   listar();
   revisar();
 }
