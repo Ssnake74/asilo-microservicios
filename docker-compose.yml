@@ -30,6 +30,17 @@ services:
       - ms-cobros
     restart: unless-stopped
 
+  ms-pacientes:
+    build: ./ms-pacientes
+    container_name: asilo-ms-pacientes
+    ports:
+      - "8083:8083"
+    environment:
+      - DB_PATH=/data/pacientes.db
+    volumes:
+      - pacientes-datos:/data
+    restart: unless-stopped
+    
   app-base:
     build: ./app-base
     container_name: asilo-app-base
@@ -38,8 +49,10 @@ services:
     depends_on:
       - ms-solicitudes
       - ms-cobros
+      - ms-pacientes
     restart: unless-stopped
 
 volumes:
   cobros-datos:
   solicitudes-datos:
+  pacientes-datos:
