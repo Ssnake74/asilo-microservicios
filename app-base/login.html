@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ingresar · Asilo Cabeza de Algodón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --fondo:#E7EBE6; --superficie:#FBFCFA; --tinta:#17231F; --tinta-suave:#5A6A64;
+    --pino:#1E5245; --pino-claro:#DCE7E2; --ocre:#B07A19; --granate:#8C2230;
+    --linea:#C8D2CC; --radio:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--fondo); color:var(--tinta);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  h1,h2{font-family:"Bitter",Georgia,serif; margin:0;}
+
+  .tarjeta{
+    width:100%; max-width:400px; background:var(--superficie);
+    border:1px solid var(--linea); border-radius:var(--radio); overflow:hidden;
+  }
+  .encabezado{background:var(--pino); color:#fff; padding:24px;}
+  .encabezado h1{font-size:20px; line-height:1.3;}
+  .encabezado p{margin:6px 0 0; font-size:13px; opacity:.85;}
+
+  form{padding:24px;}
+  .campo{margin-bottom:16px;}
+  label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
+  input{
+    width:100%; padding:10px 12px; border:1px solid var(--linea);
+    border-radius:8px; font-size:15px; font-family:"IBM Plex Sans",sans-serif;
+    background:#fff; color:var(--tinta);
+  }
+  input:focus{outline:2px solid var(--pino); outline-offset:-1px;}
+  input.malo{border-color:var(--granate); background:#FDF6F7;}
+
+  button{
+    width:100%; padding:11px; border:0; border-radius:8px;
+    background:var(--pino); color:#fff; font-size:15px; font-weight:600;
+    font-family:"IBM Plex Sans",sans-serif; cursor:pointer;
+  }
+  button:hover{background:#17423806;}
+  button:disabled{opacity:.6; cursor:progress;}
+
+  .aviso{
+    margin-top:16px; padding:11px 13px; border-radius:8px; font-size:13.5px;
+    border-left:3px solid var(--granate); background:#FBEEF0; color:var(--granate);
+  }
+  .aviso.oculto{display:none;}
+
+  .ayuda{
+    padding:16px 24px 22px; border-top:1px solid var(--linea);
+    background:var(--pino-claro); font-size:12.5px; color:var(--tinta-suave);
+  }
+  .ayuda strong{color:var(--tinta); display:block; margin-bottom:8px; font-size:13px;}
+  .ayuda table{width:100%; border-collapse:collapse; font-family:"IBM Plex Mono",monospace; font-size:11.5px;}
+  .ayuda td{padding:3px 0;}
+  .ayuda td:first-child{color:var(--pino); font-weight:500;}
+  .ayuda .clave{margin-top:10px; font-family:"IBM Plex Mono",monospace; font-size:11.5px;}
+</style>
+</head>
+<body>
+
+<div class="tarjeta">
+  <div class="encabezado">
+    <h1>Asilo de Ancianos<br>«Cabeza de Algodón»</h1>
+    <p>Sistema de administración · Ingreso al sistema</p>
+  </div>
+
+  <form id="formulario" autocomplete="on">
+    <div class="campo">
+      <label for="usuario">Usuario</label>
+      <input id="usuario" name="usuario" autocomplete="username" autofocus>
+    </div>
+    <div class="campo">
+      <label for="contrasena">Contraseña</label>
+      <input id="contrasena" name="contrasena" type="password" autocomplete="current-password">
+    </div>
+    <button type="submit" id="boton">Ingresar</button>
+    <div class="aviso oculto" id="aviso"></div>
+  </form>
+
+  <div class="ayuda">
+    <strong>Usuarios de demostración</strong>
+    <table>
+      <tr><td>admin</td><td>Administrador</td></tr>
+      <tr><td>secretaria</td><td>Secretaria del asilo</td></tr>
+      <tr><td>medico</td><td>Médico general</td></tr>
+      <tr><td>fundacion</td><td>Fundación</td></tr>
+      <tr><td>caja</td><td>Caja y cobros</td></tr>
+    </table>
+    <div class="clave">Contraseña de todos: <strong style="display:inline">asilo2026</strong></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function mostrarError(texto){
+  const aviso = $("aviso");
+  aviso.textContent = texto;
+  aviso.classList.remove("oculto");
+}
+
+function limpiar(){
+  $("aviso").classList.add("oculto");
+  $("usuario").classList.remove("malo");
+  $("contrasena").classList.remove("malo");
+}
+
+// El navegador ya trae la cookie de sesion si el usuario entro antes.
+// Si sigue siendo valida, no tiene sentido pedirle que escriba de nuevo.
+(async function saltarSiYaEntro(){
+  try{
+    const r = await fetch("/api/yo");
+    if(r.ok) location.replace("/panel");
+  }catch{ /* sin conexion: que use el formulario */ }
+})();
+
+$("formulario").addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+  limpiar();
+
+  const usuario = $("usuario").value.trim();
+  const contrasena = $("contrasena").value;
+
+  // Revision en el navegador antes de enviar: si falta algo, el error
+  // sale de inmediato y no se gasta una peticion.
+  if(!usuario){ $("usuario").classList.add("malo"); return mostrarError("Escriba su usuario."); }
+  if(!contrasena){ $("contrasena").classList.add("malo"); return mostrarError("Escriba su contraseña."); }
+
+  $("boton").disabled = true;
+  $("boton").textContent = "Verificando...";
+
+  try{
+    const respuesta = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario, contrasena })
+    });
+    const datos = await respuesta.json();
+
+    if(!respuesta.ok){
+      // El servidor responde lo mismo si el usuario no existe o si la
+      // contraseña esta mal, para no confirmar cuales usuarios son validos.
+      $("usuario").classList.add("malo");
+      $("contrasena").classList.add("malo");
+      $("contrasena").value = "";
+      mostrarError(typeof datos.detail === "string" ? datos.detail : "No se pudo ingresar.");
+      return;
+    }
+
+    location.replace("/panel");
+  }catch{
+    mostrarError("No se pudo contactar al servidor. Verifique que el sistema esté encendido.");
+  }finally{
+    $("boton").disabled = false;
+    $("boton").textContent = "Ingresar";
+  }
+});
+</script>
+
+</body>
+</html>

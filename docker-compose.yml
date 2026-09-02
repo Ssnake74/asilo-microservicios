@@ -1,18 +1,120 @@
-# Orquestacion de los microservicios del proyecto
+# =====================================================================
 # Sistema para Administracion Asilo de Ancianos "Cabeza de Algodon"
-# Levantar todo con:  docker compose up --build
+# Universidad Mariano Galvez de Guatemala - Centro Regional de Mazatenango
+#
+# Etapa 1.1 - Infraestructura
+#
+# En este paso se agregan tres contenedores nuevos (MySQL, Mailpit y
+# Adminer) SIN tocar los microservicios que ya funcionan. Ellos siguen
+# usando SQLite por ahora; los migramos uno por uno en el paso 1.2.
+#
+# Levantar todo:            docker compose up -d
+# Levantar solo la infra:   docker compose up -d mysql mailpit adminer
+# Ver el estado:            docker compose ps
+# Apagar todo:              docker compose down
+# Apagar y BORRAR datos:    docker compose down -v
+# =====================================================================
 
 services:
 
+  # -------------------------------------------------------------------
+  # Motor de base de datos relacional
+  #
+  # El enunciado exige MySQL, SQL Server u Oracle. Se usa MySQL 8.
+  #
+  # Se publica en el puerto 3307 del equipo (no 3306) a proposito: si
+  # usted ya tiene XAMPP, Laragon o un MySQL instalado en Windows, ese
+  # ocupa el 3306 y el contenedor no podria arrancar. Dentro de la red
+  # de Docker los servicios lo siguen viendo en el 3306 normal.
+  # -------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: asilo-mysql
+    command: --default-time-zone=-06:00
+    environment:
+      MYSQL_ROOT_PASSWORD: root_asilo_2026
+      TZ: America/Guatemala
+    ports:
+      - "3307:3306"
+    volumes:
+      # Datos persistentes: sobreviven a un "docker compose down"
+      - mysql-datos:/var/lib/mysql
+      # Los .sql de esta carpeta se ejecutan solo la primera vez
+      - ./infra/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Sirve para que mas adelante los servicios esperen a que MySQL
+      # este REALMENTE listo, y no solo "arrancando".
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_asilo_2026"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------
+  # Servidor de correo de pruebas
+  #
+  # El enunciado pide enviar un correo al familiar cuando se crea una
+  # solicitud medica. Mailpit finge ser un servidor SMTP: recibe los
+  # correos pero NO los manda a internet, los muestra en una bandeja
+  # web. Asi la funcionalidad se puede demostrar sin configurar Gmail
+  # y sin conexion.
+  #
+  #   1025 -> puerto SMTP (al que le escriben los servicios)
+  #   8025 -> bandeja web (http://localhost:8025)
+  # -------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: asilo-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------
+  # Administrador web de la base de datos
+  #
+  # Para ver las tablas sin instalar MySQL Workbench. Util mientras
+  # desarrollamos y para mostrar el modelo en el video.
+  #
+  #   http://localhost:8091
+  #   Motor: MySQL / Servidor: mysql / Usuario: root / Clave: root_asilo_2026
+  # -------------------------------------------------------------------
+  adminer:
+    image: adminer:latest
+    container_name: asilo-adminer
+    ports:
+      - "8091:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  # ===================================================================
+  # Microservicios existentes - SIN CAMBIOS todavia
+  # Siguen guardando en SQLite. Se migran en el paso 1.2.
+  # ===================================================================
+
+  # -------------------------------------------------------------------
+  # MIGRADO A MySQL (paso 1.3)
+  # Sus datos viven ahora en el esquema asilo_cobros.
+  # -------------------------------------------------------------------
   ms-cobros:
     build: ./ms-cobros
     container_name: asilo-ms-cobros
     ports:
       - "8082:8082"
     environment:
-      - DB_PATH=/data/cobros.db
-    volumes:
-      - cobros-datos:/data
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=u_cobros
+      - DB_PASSWORD=cobros_2026
+      - DB_NAME=asilo_cobros
+      - TZ=America/Guatemala
+    depends_on:
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
 
   ms-solicitudes:
@@ -22,7 +124,6 @@ services:
       - "8081:8081"
     environment:
       - DB_PATH=/data/solicitudes.db
-      # Dentro de la red de Docker los servicios se llaman por su nombre
       - MS_COBROS_URL=http://ms-cobros:8082
     volumes:
       - solicitudes-datos:/data
@@ -30,17 +131,73 @@ services:
       - ms-cobros
     restart: unless-stopped
 
+  # -------------------------------------------------------------------
+  # MIGRADO A MySQL (paso 1.2)
+  #
+  # Ya no tiene volumen propio: sus datos viven en el esquema
+  # asilo_pacientes dentro del contenedor de MySQL.
+  #
+  # Se conecta con su propio usuario, que solo tiene permiso sobre ese
+  # esquema. El host es "mysql" (el nombre del servicio) y el puerto
+  # 3306, no 3307: el 3307 es solo la puerta hacia afuera, para su
+  # maquina. Entre contenedores se usa el puerto interno.
+  # -------------------------------------------------------------------
   ms-pacientes:
     build: ./ms-pacientes
     container_name: asilo-ms-pacientes
     ports:
       - "8083:8083"
     environment:
-      - DB_PATH=/data/pacientes.db
-    volumes:
-      - pacientes-datos:/data
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=u_pacientes
+      - DB_PASSWORD=pacientes_2026
+      - DB_NAME=asilo_pacientes
+      - TZ=America/Guatemala
+    depends_on:
+      mysql:
+        # Espera a que el healthcheck de MySQL pase, no solo a que el
+        # contenedor exista. Aun asi el servicio reintenta por su cuenta
+        # en init_db(), por si acaso.
+        condition: service_healthy
     restart: unless-stopped
-    
+
+  # -------------------------------------------------------------------
+  # GATEWAY - la unica puerta del sistema
+  #
+  # El navegador entra por http://localhost:8080 y solo habla con este
+  # servicio. El gateway autentica, revisa permisos por rol y reenvia
+  # a los microservicios usando la red interna de Docker.
+  #
+  # La carpeta app-base se MONTA como volumen en lugar de copiarse a la
+  # imagen: asi se puede editar un HTML y ver el cambio con solo
+  # refrescar el navegador, sin reconstruir el contenedor.
+  # -------------------------------------------------------------------
+  gateway:
+    build: ./gateway
+    container_name: asilo-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=u_gateway
+      - DB_PASSWORD=gateway_2026
+      - DB_NAME=asilo_gateway
+      - MS_PACIENTES_URL=http://ms-pacientes:8083
+      - MS_SOLICITUDES_URL=http://ms-solicitudes:8081
+      - MS_COBROS_URL=http://ms-cobros:8082
+      - TZ=America/Guatemala
+    volumes:
+      - ./app-base:/code/publico:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # La aplicacion base sigue en el 8090 durante la transicion, para
+  # poder comparar. Cuando las pantallas pasen por el gateway, este
+  # contenedor desaparece.
   app-base:
     build: ./app-base
     container_name: asilo-app-base
@@ -52,7 +209,9 @@ services:
       - ms-pacientes
     restart: unless-stopped
 
+
 volumes:
-  cobros-datos:
+  mysql-datos:
+  # solicitudes-datos es el ultimo volumen de SQLite que queda.
+  # Desaparece cuando migremos ms-solicitudes.
   solicitudes-datos:
-  pacientes-datos:

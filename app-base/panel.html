@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel · Asilo Cabeza de Algodón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --fondo:#E7EBE6; --superficie:#FBFCFA; --tinta:#17231F; --tinta-suave:#5A6A64;
+    --pino:#1E5245; --pino-claro:#DCE7E2; --ocre:#B07A19; --granate:#8C2230;
+    --linea:#C8D2CC; --radio:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--fondo); color:var(--tinta);
+    font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px;
+  }
+  h1,h2,h3{font-family:"Bitter",Georgia,serif; margin:0;}
+  .mono{font-family:"IBM Plex Mono",monospace;}
+
+  /* ---------- encabezado ---------- */
+  header{background:var(--pino); color:#fff; padding:18px 24px;}
+  .barra{
+    max-width:1080px; margin:0 auto; display:flex; align-items:center;
+    gap:16px; flex-wrap:wrap;
+  }
+  header h1{font-size:19px;}
+  header .sub{font-size:12.5px; opacity:.8; margin-top:2px;}
+  .identidad{margin-left:auto; text-align:right; font-size:13px;}
+  .identidad .rol{
+    display:inline-block; margin-top:4px; padding:3px 9px; border-radius:20px;
+    background:rgba(255,255,255,.15); font-size:11.5px;
+    font-family:"IBM Plex Mono",monospace;
+  }
+  .salir{
+    margin-left:14px; padding:7px 14px; border:1px solid rgba(255,255,255,.35);
+    background:transparent; color:#fff; border-radius:8px; cursor:pointer;
+    font-size:13px; font-family:"IBM Plex Sans",sans-serif;
+  }
+  .salir:hover{background:rgba(255,255,255,.12);}
+
+  /* ---------- contenido ---------- */
+  main{max-width:1080px; margin:0 auto; padding:24px;}
+  section{margin-bottom:26px;}
+  section > h2{font-size:15px; margin-bottom:12px; color:var(--tinta-suave); font-weight:500;}
+
+  .rejilla{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px;}
+
+  .modulo{
+    background:var(--superficie); border:1px solid var(--linea);
+    border-radius:var(--radio); padding:18px; text-decoration:none;
+    color:var(--tinta); display:block; transition:border-color .15s;
+  }
+  .modulo:hover{border-color:var(--pino);}
+  .modulo h3{font-size:16px; margin-bottom:6px;}
+  .modulo p{margin:0; font-size:13px; color:var(--tinta-suave); line-height:1.45;}
+  .modulo .cifra{
+    font-family:"IBM Plex Mono",monospace; font-size:26px;
+    color:var(--pino); margin:8px 0 2px;
+  }
+  .modulo.apagado{opacity:.5; pointer-events:none;}
+  .etiqueta{
+    display:inline-block; margin-bottom:8px; padding:3px 8px; border-radius:4px;
+    background:var(--pino-claro); color:var(--pino);
+    font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500;
+  }
+  .etiqueta.pendiente{background:#F5EBD8; color:var(--ocre);}
+
+  /* ---------- estado de servicios ---------- */
+  .servicios{display:flex; gap:10px; flex-wrap:wrap;}
+  .servicio{
+    display:flex; align-items:center; gap:8px; padding:8px 14px;
+    background:var(--superficie); border:1px solid var(--linea);
+    border-radius:20px; font-family:"IBM Plex Mono",monospace; font-size:12.5px;
+  }
+  .punto{width:9px; height:9px; border-radius:50%; background:var(--tinta-suave);}
+  .punto.arriba{background:#2E7D5B;}
+  .punto.abajo{background:var(--granate);}
+  .servicio .dato{color:var(--tinta-suave); font-size:11.5px;}
+
+  .cargando{color:var(--tinta-suave); font-size:13.5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="barra">
+    <div>
+      <h1>Asilo de Ancianos «Cabeza de Algodón»</h1>
+      <div class="sub">Sistema de administración · Todo pasa por el gateway (puerto 8080)</div>
+    </div>
+    <div class="identidad">
+      <div id="nombre">…</div>
+      <span class="rol mono" id="rol">…</span>
+      <button class="salir" id="salir">Salir</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section>
+    <h2>Estado de los microservicios</h2>
+    <div class="servicios" id="servicios"><span class="cargando">Consultando…</span></div>
+  </section>
+
+  <section>
+    <h2>Módulos disponibles para su rol</h2>
+    <div class="rejilla" id="modulos"><span class="cargando">Cargando…</span></div>
+  </section>
+
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------------
+// Todas las llamadas van a /api/... del MISMO origen. El navegador ya no
+// conoce los puertos 8081, 8082 ni 8083: eso ahora es asunto interno del
+// gateway. La cookie de sesion viaja sola en cada peticion.
+// ---------------------------------------------------------------------
+
+async function api(ruta, opciones = {}){
+  const respuesta = await fetch(ruta, opciones);
+  if(respuesta.status === 401){
+    location.replace("/");           // sesion vencida: de vuelta al login
+    throw new Error("sin sesion");
+  }
+  if(!respuesta.ok){
+    const cuerpo = await respuesta.json().catch(() => ({}));
+    throw new Error(typeof cuerpo.detail === "string" ? cuerpo.detail : "Error del servidor.");
+  }
+  return respuesta.status === 204 ? null : respuesta.json();
+}
+
+// ---------------------------------------------------------------------
+// Catalogo de modulos. "recurso" es el mismo nombre que usa la tabla de
+// permisos del gateway: si el rol no puede hacerle GET, el modulo no se
+// dibuja. El menu no esta escrito a mano por rol; sale de los permisos.
+// ---------------------------------------------------------------------
+
+const MODULOS = [
+  { recurso:"pacientes", titulo:"Registro de internos", servicio:"ms-pacientes",
+    texto:"Fichas de los ancianos, familiar responsable y padecimientos.",
+    enlace:"/pacientes.html", cifra:(s)=>s["ms-pacientes"]?.detalle?.ancianos_activos,
+    pie:"internos activos" },
+
+  { recurso:"solicitudes", titulo:"Solicitudes y visitas", servicio:"ms-solicitudes",
+    texto:"Remisiones del médico general y su conversión en visita médica.",
+    enlace:"/index.html", cifra:(s)=>s["ms-solicitudes"]?.detalle?.solicitudes_pendientes,
+    pie:"solicitudes pendientes" },
+
+  { recurso:"tarifas", titulo:"Cobros y tarifario", servicio:"ms-cobros",
+    texto:"Precios, descuento de la fundación y estado de cuenta del familiar.",
+    enlace:"/index.html", cifra:(s)=>s["ms-cobros"]?.detalle?.tarifas_registradas,
+    pie:"conceptos en el tarifario" },
+
+  // Todavia no existen. Se muestran apagados para que se vea el alcance
+  // completo del sistema y lo que falta por construir.
+  { recurso:null, titulo:"Catálogo médico", texto:"Médicos, especialidades, enfermeros, exámenes y medicamentos.", pendiente:true },
+  { recurso:null, titulo:"Laboratorio y farmacia", texto:"Resultados de exámenes y despacho de medicamentos.", pendiente:true },
+  { recurso:null, titulo:"Reportes", texto:"Los siete informes estadísticos que pide el asilo.", pendiente:true }
+];
+
+function dibujarServicios(estado){
+  $("servicios").innerHTML = Object.entries(estado).map(([nombre, info]) => {
+    const detalle = info.arriba
+      ? Object.entries(info.detalle)
+          .filter(([k]) => !["servicio","estado","motor"].includes(k))
+          .map(([,v]) => v).join(" · ")
+      : "sin respuesta";
+    return `<div class="servicio">
+              <span class="punto ${info.arriba ? "arriba" : "abajo"}"></span>
+              ${nombre}
+              <span class="dato">· ${detalle}</span>
+            </div>`;
+  }).join("");
+}
+
+function dibujarModulos(recursosPermitidos, estado){
+  const tarjetas = MODULOS.filter(m => m.pendiente || recursosPermitidos.includes(m.recurso));
+
+  $("modulos").innerHTML = tarjetas.map(m => {
+    if(m.pendiente){
+      return `<div class="modulo apagado">
+                <span class="etiqueta pendiente">POR CONSTRUIR</span>
+                <h3>${m.titulo}</h3>
+                <p>${m.texto}</p>
+              </div>`;
+    }
+
+    const valor = m.cifra ? m.cifra(estado) : undefined;
+    const arriba = estado[m.servicio]?.arriba;
+    const cifra = (arriba && valor !== undefined)
+      ? `<div class="cifra">${valor}</div><p>${m.pie}</p>`
+      : `<p style="color:var(--granate);margin-top:8px;">Servicio no disponible</p>`;
+
+    return `<a class="modulo" href="${m.enlace}">
+              <span class="etiqueta">${m.servicio}</span>
+              <h3>${m.titulo}</h3>
+              <p>${m.texto}</p>
+              ${cifra}
+            </a>`;
+  }).join("");
+}
+
+$("salir").addEventListener("click", async () => {
+  try{ await fetch("/api/logout", { method:"POST" }); }catch{}
+  location.replace("/");
+});
+
+(async function arrancar(){
+  try{
+    const yo = await api("/api/yo");
+    $("nombre").textContent = yo.nombre;
+    $("rol").textContent = yo.rol_nombre;
+
+    const estado = await api("/api/salud");
+    dibujarServicios(estado);
+    dibujarModulos(yo.recursos, estado);
+
+    // Refresca el estado cada 15 segundos, para que se note en vivo
+    // cuando un servicio se cae o vuelve.
+    setInterval(async () => {
+      try{
+        const nuevo = await api("/api/salud");
+        dibujarServicios(nuevo);
+        dibujarModulos(yo.recursos, nuevo);
+      }catch{}
+    }, 15000);
+
+  }catch(e){
+    if(e.message !== "sin sesion"){
+      $("modulos").innerHTML = `<p style="color:var(--granate)">${e.message}</p>`;
+    }
+  }
+})();
+</script>
+
+</body>
+</html>

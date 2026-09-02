@@ -74,6 +74,7 @@
   .puerto{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--tinta-suave);}
 
   label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta-suave);margin-bottom:4px;}
+  .obligatorio{color:var(--granate);}
   input,select,textarea{
     width:100%;padding:8px 10px;border:1px solid var(--linea);
     border-radius:6px;background:#fff;color:var(--tinta);font-size:14px;
@@ -119,7 +120,14 @@
   .aviso{padding:10px 12px;border-radius:6px;font-size:13.5px;margin-top:14px;display:none;}
   .aviso.ok{background:#DDEBE4;color:#14382F;border-left:3px solid var(--pino);display:block;}
   .aviso.error{background:#F6E7E9;color:#6E1B26;border-left:3px solid var(--granate);display:block;}
+  .aviso ul{margin:6px 0 0;padding-left:20px;}
   .vacio{color:var(--tinta-suave);font-size:13.5px;font-style:italic;padding:10px 0;}
+
+  /* Marcado de errores por campo. Son las mismas reglas de pacientes.html,
+     donde este patron ya estaba resuelto. */
+  input.malo,select.malo,textarea.malo{border-color:var(--granate);background:#FDF6F7;}
+  .error-campo{display:none;font-size:12px;color:var(--granate);margin-top:4px;}
+  .error-campo.visible{display:block;}
 
   .resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0;}
   .resumen div{background:var(--pino-claro);border-radius:8px;padding:10px 12px;}
@@ -175,12 +183,36 @@
     <section class="tarjeta">
       <h2><span class="etiqueta-ms">ms-solicitudes</span> Nueva solicitud de consulta <span class="puerto">POST /solicitudes</span></h2>
       <div class="rejilla">
-        <div class="campo"><label for="s-paciente-id">Código del paciente</label><input id="s-paciente-id" value="PAC-001"></div>
-        <div class="campo"><label for="s-paciente">Nombre del paciente</label><input id="s-paciente" value="Rosa Elena Coronado"></div>
-        <div class="campo"><label for="s-familiar">Correo del familiar</label><input id="s-familiar" type="email" value="familiar@correo.com"></div>
-        <div class="campo"><label for="s-medico">Médico general que remite</label><input id="s-medico" value="Dr. Luis Marroquín"></div>
-        <div class="campo"><label for="s-especialidad">Especialidad remitida</label><input id="s-especialidad" value="Cardiología"></div>
-        <div class="campo"><label for="s-motivo">Motivo de la remisión</label><input id="s-motivo" value="Presión arterial elevada en control semanal"></div>
+        <div class="campo">
+          <label for="s-paciente-id">Código del paciente <span class="obligatorio">*</span></label>
+          <input id="s-paciente-id" value="PAC-001">
+          <div class="error-campo" id="e-s-paciente-id"></div>
+        </div>
+        <div class="campo">
+          <label for="s-paciente">Nombre del paciente <span class="obligatorio">*</span></label>
+          <input id="s-paciente" value="Rosa Elena Coronado">
+          <div class="error-campo" id="e-s-paciente"></div>
+        </div>
+        <div class="campo">
+          <label for="s-familiar">Correo del familiar</label>
+          <input id="s-familiar" type="email" value="familiar@correo.com">
+          <div class="error-campo" id="e-s-familiar"></div>
+        </div>
+        <div class="campo">
+          <label for="s-medico">Médico general que remite <span class="obligatorio">*</span></label>
+          <input id="s-medico" value="Dr. Luis Marroquín">
+          <div class="error-campo" id="e-s-medico"></div>
+        </div>
+        <div class="campo">
+          <label for="s-especialidad">Especialidad remitida <span class="obligatorio">*</span></label>
+          <input id="s-especialidad" value="Cardiología">
+          <div class="error-campo" id="e-s-especialidad"></div>
+        </div>
+        <div class="campo">
+          <label for="s-motivo">Motivo de la remisión <span class="obligatorio">*</span></label>
+          <input id="s-motivo" value="Presión arterial elevada en control semanal">
+          <div class="error-campo" id="e-s-motivo"></div>
+        </div>
       </div>
       <div class="fila-check">
         <input type="checkbox" id="s-fundacion" checked>
@@ -207,12 +239,26 @@
       <details class="conversion" style="margin-top:14px;">
         <summary>Agregar una tarifa</summary>
         <div class="rejilla">
-          <div class="campo"><label for="t-concepto">Concepto</label><input id="t-concepto" placeholder="Electrocardiograma"></div>
-          <div class="campo"><label for="t-tipo">Tipo</label>
-            <select id="t-tipo"><option>CITA</option><option>EXAMEN</option><option>MEDICAMENTO</option></select>
+          <div class="campo">
+            <label for="t-concepto">Concepto <span class="obligatorio">*</span></label>
+            <input id="t-concepto" placeholder="Electrocardiograma">
+            <div class="error-campo" id="e-t-concepto"></div>
           </div>
-          <div class="campo"><label for="t-precio">Precio (Q)</label><input id="t-precio" type="number" step="0.01" value="150"></div>
-          <div class="campo"><label for="t-descuento">Cubre la fundación (%)</label><input id="t-descuento" type="number" step="1" min="0" max="100" value="40"></div>
+          <div class="campo">
+            <label for="t-tipo">Tipo <span class="obligatorio">*</span></label>
+            <select id="t-tipo"><option>CITA</option><option>EXAMEN</option><option>MEDICAMENTO</option></select>
+            <div class="error-campo" id="e-t-tipo"></div>
+          </div>
+          <div class="campo">
+            <label for="t-precio">Precio (Q) <span class="obligatorio">*</span></label>
+            <input id="t-precio" type="number" step="0.01" value="150">
+            <div class="error-campo" id="e-t-precio"></div>
+          </div>
+          <div class="campo">
+            <label for="t-descuento">Cubre la fundación (%) <span class="obligatorio">*</span></label>
+            <input id="t-descuento" type="number" step="1" min="0" max="100" value="40">
+            <div class="error-campo" id="e-t-descuento"></div>
+          </div>
         </div>
         <div class="acciones"><button onclick="crearTarifa()">Guardar tarifa</button></div>
       </details>
@@ -223,7 +269,11 @@
     <section class="tarjeta">
       <h2><span class="etiqueta-ms">ms-cobros</span> Estado de cuenta del familiar <span class="puerto">GET /estado-cuenta/{id}</span></h2>
       <div class="rejilla">
-        <div class="campo"><label for="c-paciente-id">Código del paciente</label><input id="c-paciente-id" value="PAC-001"></div>
+        <div class="campo">
+          <label for="c-paciente-id">Código del paciente <span class="obligatorio">*</span></label>
+          <input id="c-paciente-id" value="PAC-001">
+          <div class="error-campo" id="e-c-paciente-id"></div>
+        </div>
         <div class="campo" style="align-self:end;"><button onclick="cargarEstadoCuenta()">Consultar cuenta</button></div>
       </div>
       <div id="resumen-cuenta"></div>
@@ -232,8 +282,16 @@
       <details class="conversion" style="margin-top:14px;">
         <summary>Cargar un examen o medicamento a la cuenta</summary>
         <div class="rejilla">
-          <div class="campo"><label for="g-tarifa">Concepto del tarifario</label><select id="g-tarifa"></select></div>
-          <div class="campo"><label for="g-cantidad">Cantidad</label><input id="g-cantidad" type="number" min="1" value="1"></div>
+          <div class="campo">
+            <label for="g-tarifa">Concepto del tarifario <span class="obligatorio">*</span></label>
+            <select id="g-tarifa"></select>
+            <div class="error-campo" id="e-g-tarifa"></div>
+          </div>
+          <div class="campo">
+            <label for="g-cantidad">Cantidad <span class="obligatorio">*</span></label>
+            <input id="g-cantidad" type="number" min="1" value="1">
+            <div class="error-campo" id="e-g-cantidad"></div>
+          </div>
         </div>
         <div class="fila-check">
           <input type="checkbox" id="g-fundacion" checked>
@@ -286,7 +344,15 @@ async function api(base, ruta, opciones = {}) {
   if (respuesta.status === 204) return null;
   const cuerpo = await respuesta.json();
   if (!respuesta.ok) {
-    throw new Error(typeof cuerpo.detail === "string" ? cuerpo.detail : JSON.stringify(cuerpo.detail));
+    // Antes aqui habia un JSON.stringify(cuerpo.detail), y por eso al
+    // usuario le aparecia en pantalla el arreglo crudo de Pydantic.
+    // Ahora el detalle se conserva TAL CUAL en la propiedad .detalle,
+    // para que cada formulario lo traduzca con sus propias etiquetas.
+    const error = new Error(
+      typeof cuerpo.detail === "string" ? cuerpo.detail : "El servicio rechazó los datos enviados."
+    );
+    error.detalle = cuerpo.detail;
+    throw error;
   }
   return cuerpo;
 }
@@ -313,6 +379,226 @@ function avisar(id, texto, ok = true) {
 
 const q = (n) => "Q " + Number(n).toFixed(2);
 
+// =========================================================================
+// Errores de validación en español
+//
+// Cuando un microservicio rechaza los datos, FastAPI responde con un
+// arreglo de Pydantic como este:
+//
+//   [{"type":"string_too_short","loc":["body","paciente_id"],
+//     "msg":"String should have at least 1 character", ...}]
+//
+// Eso es lo que el usuario veía en pantalla. El patrón para traducirlo ya
+// estaba resuelto en pacientes.html; aquí hay que generalizarlo porque en
+// esta página conviven CUATRO formularios, y porque allá el id del input
+// era igual al nombre del campo (nombres -> id="nombres") mientras que
+// aquí llevan prefijo para no chocar entre sí (paciente_id ->
+// id="s-paciente-id").
+//
+// Por eso cada formulario se describe con cuatro cosas:
+//   ids          - de qué input sale cada campo de la API
+//   ETIQUETAS    - cómo se llama ese campo en español, para el usuario
+//   OBLIGATORIOS - qué no puede ir vacío
+//   MINIMOS      - largo mínimo que exige el schemas.py del servicio
+// =========================================================================
+
+// Formulario 1: nueva solicitud de consulta (SolicitudCrear de ms-solicitudes)
+const FORM_SOLICITUD = {
+  aviso: "aviso-solicitud",
+  ids: {
+    paciente_id:           "s-paciente-id",
+    paciente_nombre:       "s-paciente",
+    familiar_email:        "s-familiar",
+    medico_general:        "s-medico",
+    especialidad_remitida: "s-especialidad",
+    motivo:                "s-motivo"
+  },
+  ETIQUETAS: {
+    paciente_id:           "Código del paciente",
+    paciente_nombre:       "Nombre del paciente",
+    familiar_email:        "Correo del familiar",
+    medico_general:        "Médico general que remite",
+    especialidad_remitida: "Especialidad remitida",
+    motivo:                "Motivo de la remisión"
+  },
+  OBLIGATORIOS: ["paciente_id","paciente_nombre","medico_general","especialidad_remitida","motivo"],
+  MINIMOS: { paciente_nombre:3, medico_general:3, especialidad_remitida:3, motivo:5 }
+};
+
+// Formulario 2: agregar tarifa al tarifario (TarifaCrear de ms-cobros)
+const FORM_TARIFA = {
+  aviso: "aviso-tarifa",
+  ids: {
+    concepto:            "t-concepto",
+    tipo:                "t-tipo",
+    precio:              "t-precio",
+    descuento_fundacion: "t-descuento"
+  },
+  ETIQUETAS: {
+    concepto:            "Concepto",
+    tipo:                "Tipo",
+    precio:              "Precio (Q)",
+    descuento_fundacion: "Cubre la fundación (%)"
+  },
+  OBLIGATORIOS: ["concepto","precio","descuento_fundacion"],
+  MINIMOS: { concepto:3 }
+};
+
+// Formulario 3: cargar examen o medicamento a la cuenta (CargoCrear de ms-cobros)
+//
+// tarifa_id NO va en OBLIGATORIOS a propósito: si el tarifario todavía no
+// tiene exámenes ni medicamentos, el <select> sale vacío y el mensaje útil
+// no es "este dato es obligatorio" sino "primero registre una tarifa".
+const FORM_CARGO = {
+  aviso: "aviso-cargo",
+  ids: {
+    paciente_id: "c-paciente-id",
+    tarifa_id:   "g-tarifa",
+    cantidad:    "g-cantidad"
+  },
+  ETIQUETAS: {
+    paciente_id: "Código del paciente",
+    tarifa_id:   "Concepto del tarifario",
+    cantidad:    "Cantidad"
+  },
+  OBLIGATORIOS: ["paciente_id","cantidad"],
+  MINIMOS: {}
+};
+
+// Formulario 4: convertir una solicitud en visita médica.
+//
+// Este es una función y no una constante porque el formulario se dibuja
+// una vez por cada solicitud pendiente, y sus inputs llevan el id de la
+// solicitud pegado (mt-7, es-7, fv-7). El aviso sí es uno solo, porque
+// solo se convierte una solicitud a la vez.
+function formConversion(solicitudId) {
+  return {
+    aviso: "aviso-conversion",
+    ids: {
+      medico_tratante: `mt-${solicitudId}`,
+      especialidad:    `es-${solicitudId}`,
+      fecha_visita:    `fv-${solicitudId}`,
+      observaciones:   `ob-${solicitudId}`
+    },
+    ETIQUETAS: {
+      medico_tratante: "Médico tratante",
+      especialidad:    "Especialidad asignada",
+      fecha_visita:    "Fecha y hora",
+      observaciones:   "Observaciones"
+    },
+    OBLIGATORIOS: ["medico_tratante","especialidad","fecha_visita"],
+    MINIMOS: { medico_tratante:3, especialidad:3 }
+  };
+}
+
+// "1 caracteres" se lee mal, y varios campos tienen minimo 1.
+const caracteres = (n) => (Number(n) === 1 ? "1 carácter" : `${n} caracteres`);
+
+// Traduccion de los tipos de error que devuelve Pydantic. Sin esta tabla
+// el mensaje llegaria en ingles: "String should have at least 3 characters".
+const MENSAJES_PYDANTIC = {
+  missing:            ()  => "hace falta llenarlo",
+  string_too_short:   (d) => `debe tener al menos ${caracteres(d.ctx && d.ctx.min_length)}`,
+  string_too_long:    (d) => `no puede pasar de ${caracteres(d.ctx && d.ctx.max_length)}`,
+  greater_than:       (d) => `debe ser mayor que ${d.ctx && d.ctx.gt}`,
+  greater_than_equal: (d) => `no puede ser menor que ${d.ctx && d.ctx.ge}`,
+  less_than_equal:    (d) => `no puede pasar de ${d.ctx && d.ctx.le}`,
+  int_parsing:        ()  => "debe ser un número entero",
+  float_parsing:      ()  => "debe ser un número",
+  literal_error:      (d) => `debe ser uno de estos valores: ${String((d.ctx && d.ctx.expected) || "").replace(/'/g, "")}`
+};
+
+const inputDe = (form, campo) => document.getElementById(form.ids[campo]);
+
+function limpiarErrores(form) {
+  Object.keys(form.ids).forEach(campo => {
+    const input = inputDe(form, campo);
+    if (input) input.classList.remove("malo");
+    const caja = document.getElementById("e-" + form.ids[campo]);
+    if (caja) { caja.classList.remove("visible"); caja.textContent = ""; }
+  });
+  document.getElementById(form.aviso).className = "aviso";
+}
+
+function marcarError(form, campo, mensaje) {
+  const input = inputDe(form, campo);
+  if (input) input.classList.add("malo");
+  const caja = document.getElementById("e-" + form.ids[campo]);
+  if (caja) { caja.textContent = mensaje; caja.classList.add("visible"); }
+}
+
+function avisoResumen(form, titulo, faltantes, ok) {
+  const caja = document.getElementById(form.aviso);
+  caja.className = "aviso " + (ok ? "ok" : "error");
+  caja.innerHTML = faltantes && faltantes.length
+    ? `<strong>${titulo}</strong><ul>${faltantes.map(f => `<li>${f}</li>`).join("")}</ul>`
+    : `<strong>${titulo}</strong>`;
+}
+
+// Lleva la pantalla hasta el primer campo marcado DE ESTE formulario, para
+// no saltar a un error viejo que haya quedado en otra tarjeta de la pagina.
+function irAlPrimerError(form) {
+  const campo = Object.keys(form.ids)
+    .map(c => inputDe(form, c))
+    .find(el => el && el.classList.contains("malo"));
+  if (!campo) return;
+  // Tres de los cuatro formularios viven dentro de un <details>. Si esta
+  // cerrado hay que abrirlo, o el usuario no veria el campo marcado.
+  const plegable = campo.closest("details");
+  if (plegable) plegable.open = true;
+  campo.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// Revisa en el navegador ANTES de enviar. Asi el error sale de inmediato,
+// sin gastar un viaje al servidor, y ya viene escrito en español.
+function validarLocalmente(form) {
+  const faltantes = [];
+  form.OBLIGATORIOS.forEach(campo => {
+    const input = inputDe(form, campo);
+    if (!input || !String(input.value).trim()) {
+      marcarError(form, campo, "Este dato es obligatorio.");
+      faltantes.push(form.ETIQUETAS[campo]);
+    }
+  });
+  Object.keys(form.MINIMOS).forEach(campo => {
+    const input = inputDe(form, campo);
+    const valor = input ? String(input.value).trim() : "";
+    if (valor && valor.length < form.MINIMOS[campo]) {
+      marcarError(form, campo, `Debe tener al menos ${caracteres(form.MINIMOS[campo])}.`);
+      faltantes.push(`${form.ETIQUETAS[campo]} (muy corto)`);
+    }
+  });
+  return faltantes;
+}
+
+// Traduce la respuesta tecnica del microservicio y marca el campo culpable.
+function traducirErrorDelServicio(form, detalle) {
+  if (typeof detalle === "string") return [detalle];
+  if (!Array.isArray(detalle)) return ["El servicio rechazó los datos enviados."];
+  return detalle.map(d => {
+    const campo = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : null;
+    const nombre = form.ETIQUETAS[campo] || "Dato";
+    const traductor = MENSAJES_PYDANTIC[d.type];
+    let msg = traductor ? traductor(d) : (d.msg || "valor no válido");
+    msg = msg.replace(/^Value error,\s*/i, "");
+    if (campo && form.ids[campo]) {
+      marcarError(form, campo, msg.charAt(0).toUpperCase() + msg.slice(1) + ".");
+    }
+    return `${nombre}: ${msg}`;
+  });
+}
+
+// Un servicio caido devuelve un Error sin .detalle; uno que rechaza los
+// datos si lo trae. Se distinguen aqui para no mezclar los dos mensajes.
+function mostrarFallo(form, titulo, error) {
+  if (error.detalle) {
+    avisoResumen(form, titulo, traducirErrorDelServicio(form, error.detalle), false);
+    irAlPrimerError(form);
+  } else {
+    avisoResumen(form, error.message, null, false);
+  }
+}
+
 // ------------------------------------------------------------ estado de servicios
 async function revisarServicios() {
   const revisar = async (base, punto, detalle, texto) => {
@@ -331,10 +617,28 @@ async function revisarServicios() {
 
 // ------------------------------------------------------------ solicitudes
 async function crearSolicitud() {
+  limpiarErrores(FORM_SOLICITUD);
+
+  const faltantes = validarLocalmente(FORM_SOLICITUD);
+
+  // El correo es opcional, pero si viene escrito debe tener forma de correo,
+  // porque el schema lo declara como EmailStr.
+  const correo = inputDe(FORM_SOLICITUD, "familiar_email").value.trim();
+  if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+    marcarError(FORM_SOLICITUD, "familiar_email", "Escriba un correo válido, por ejemplo hija@correo.com.");
+    faltantes.push("Correo del familiar (no parece un correo)");
+  }
+
+  if (faltantes.length) {
+    avisoResumen(FORM_SOLICITUD, "No se registró la solicitud. Falta corregir:", faltantes, false);
+    irAlPrimerError(FORM_SOLICITUD);
+    return;
+  }
+
   const cuerpo = {
     paciente_id: document.getElementById("s-paciente-id").value.trim(),
     paciente_nombre: document.getElementById("s-paciente").value.trim(),
-    familiar_email: document.getElementById("s-familiar").value.trim() || null,
+    familiar_email: correo || null,
     medico_general: document.getElementById("s-medico").value.trim(),
     especialidad_remitida: document.getElementById("s-especialidad").value.trim(),
     motivo: document.getElementById("s-motivo").value.trim(),
@@ -342,11 +646,12 @@ async function crearSolicitud() {
   };
   try {
     const s = await api(MS_SOLICITUDES, "/solicitudes", { method: "POST", body: JSON.stringify(cuerpo) });
-    avisar("aviso-solicitud", `Solicitud ${s.id} registrada para ${s.paciente_nombre}, remitida a ${s.especialidad_remitida}.`);
+    avisoResumen(FORM_SOLICITUD,
+      `Solicitud ${s.id} registrada para ${s.paciente_nombre}, remitida a ${s.especialidad_remitida}.`, null, true);
     cargarSolicitudes();
     revisarServicios();
   } catch (e) {
-    avisar("aviso-solicitud", e.message, false);
+    mostrarFallo(FORM_SOLICITUD, "No se registró la solicitud:", e);
   }
 }
 
@@ -370,10 +675,26 @@ function dibujarSolicitud(s) {
     <details class="conversion">
       <summary>Convertir en visita médica</summary>
       <div class="rejilla">
-        <div class="campo"><label>Médico tratante</label><input id="mt-${s.id}" value="Dra. Ana Sical"></div>
-        <div class="campo"><label>Especialidad asignada</label><input id="es-${s.id}" value="${s.especialidad_remitida}"></div>
-        <div class="campo"><label>Fecha y hora</label><input id="fv-${s.id}" value="2026-08-25 09:30"></div>
-        <div class="campo"><label>Observaciones</label><input id="ob-${s.id}" placeholder="Opcional"></div>
+        <div class="campo">
+          <label for="mt-${s.id}">Médico tratante <span class="obligatorio">*</span></label>
+          <input id="mt-${s.id}" value="Dra. Ana Sical">
+          <div class="error-campo" id="e-mt-${s.id}"></div>
+        </div>
+        <div class="campo">
+          <label for="es-${s.id}">Especialidad asignada <span class="obligatorio">*</span></label>
+          <input id="es-${s.id}" value="${s.especialidad_remitida}">
+          <div class="error-campo" id="e-es-${s.id}"></div>
+        </div>
+        <div class="campo">
+          <label for="fv-${s.id}">Fecha y hora <span class="obligatorio">*</span></label>
+          <input id="fv-${s.id}" value="2026-08-25 09:30">
+          <div class="error-campo" id="e-fv-${s.id}"></div>
+        </div>
+        <div class="campo">
+          <label for="ob-${s.id}">Observaciones</label>
+          <input id="ob-${s.id}" placeholder="Opcional">
+          <div class="error-campo" id="e-ob-${s.id}"></div>
+        </div>
       </div>
       <div class="acciones">
         <button class="mini" onclick="convertir(${s.id})">Confirmar visita</button>
@@ -398,20 +719,41 @@ function dibujarSolicitud(s) {
 }
 
 async function convertir(id) {
+  const form = formConversion(id);
+  limpiarErrores(form);
+
+  const faltantes = validarLocalmente(form);
+
+  // Mismo formato que acepta normalizar_fecha_visita() en el reglas.py de
+  // ms-solicitudes. Revisarlo aqui evita el viaje al servidor.
+  const fecha = inputDe(form, "fecha_visita").value.trim();
+  if (fecha && !/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$/.test(fecha)) {
+    marcarError(form, "fecha_visita", "Escríbala como AAAA-MM-DD HH:MM, por ejemplo 2026-09-15 09:30.");
+    faltantes.push("Fecha y hora (formato incorrecto)");
+  }
+
+  if (faltantes.length) {
+    avisoResumen(form, "No se asignó la visita médica. Falta corregir:", faltantes, false);
+    irAlPrimerError(form);
+    return;
+  }
+
   const cuerpo = {
     medico_tratante: document.getElementById(`mt-${id}`).value.trim(),
     especialidad: document.getElementById(`es-${id}`).value.trim(),
-    fecha_visita: document.getElementById(`fv-${id}`).value.trim(),
+    fecha_visita: fecha,
     observaciones: document.getElementById(`ob-${id}`).value.trim() || null
   };
   try {
     const r = await api(MS_SOLICITUDES, `/solicitudes/${id}/convertir`, { method: "POST", body: JSON.stringify(cuerpo) });
-    avisar("aviso-conversion", `Visita ${r.visita.id} asignada a ${r.visita.medico_tratante}. ${r.mensaje_cobro}`, r.visita.cargo_generado);
+    avisoResumen(form,
+      `Visita ${r.visita.id} asignada a ${r.visita.medico_tratante}. ${r.mensaje_cobro}`,
+      null, r.visita.cargo_generado);
     cargarSolicitudes();
     cargarEstadoCuenta();
     revisarServicios();
   } catch (e) {
-    avisar("aviso-conversion", e.message, false);
+    mostrarFallo(form, "No se pudo asignar la visita médica:", e);
   }
 }
 
@@ -456,20 +798,47 @@ async function cargarTarifas() {
 }
 
 async function crearTarifa() {
+  limpiarErrores(FORM_TARIFA);
+
+  const faltantes = validarLocalmente(FORM_TARIFA);
+
+  // Ojo con los campos numericos: parseFloat("") devuelve NaN, y NaN se
+  // convierte en null al armar el JSON. Ese null es justo lo que Pydantic
+  // rechazaba con el mensaje tecnico. Se revisa aqui.
+  const textoPrecio = inputDe(FORM_TARIFA, "precio").value.trim();
+  const precio = parseFloat(textoPrecio);
+  if (textoPrecio && !(precio > 0)) {
+    marcarError(FORM_TARIFA, "precio", "El precio debe ser un número mayor que cero.");
+    faltantes.push("Precio (Q) (debe ser mayor que cero)");
+  }
+
+  const textoDescuento = inputDe(FORM_TARIFA, "descuento_fundacion").value.trim();
+  const descuento = parseFloat(textoDescuento);
+  if (textoDescuento && !(descuento >= 0 && descuento <= 100)) {
+    marcarError(FORM_TARIFA, "descuento_fundacion", "El porcentaje va de 0 a 100.");
+    faltantes.push("Cubre la fundación (%) (debe ir de 0 a 100)");
+  }
+
+  if (faltantes.length) {
+    avisoResumen(FORM_TARIFA, "No se guardó la tarifa. Falta corregir:", faltantes, false);
+    irAlPrimerError(FORM_TARIFA);
+    return;
+  }
+
   const cuerpo = {
     concepto: document.getElementById("t-concepto").value.trim(),
     tipo: document.getElementById("t-tipo").value,
-    precio: parseFloat(document.getElementById("t-precio").value),
-    descuento_fundacion: parseFloat(document.getElementById("t-descuento").value)
+    precio: precio,
+    descuento_fundacion: descuento
   };
   try {
     const t = await api(MS_COBROS, "/tarifas", { method: "POST", body: JSON.stringify(cuerpo) });
-    avisar("aviso-tarifa", `Tarifa ${t.id} «${t.concepto}» agregada al tarifario.`);
+    avisoResumen(FORM_TARIFA, `Tarifa ${t.id} «${t.concepto}» agregada al tarifario.`, null, true);
     document.getElementById("t-concepto").value = "";
     cargarTarifas();
     revisarServicios();
   } catch (e) {
-    avisar("aviso-tarifa", e.message, false);
+    mostrarFallo(FORM_TARIFA, "No se guardó la tarifa:", e);
   }
 }
 
@@ -500,23 +869,48 @@ async function eliminarTarifa(id) {
 
 // ------------------------------------------------------------ cobros
 async function agregarCargo() {
+  limpiarErrores(FORM_CARGO);
+
+  const faltantes = validarLocalmente(FORM_CARGO);
+
+  // El <select> se llena desde el tarifario. Si esta vacio no es que el
+  // usuario olvidara escoger, es que todavia no hay que escoger.
   const opcion = document.getElementById("g-tarifa").selectedOptions[0];
-  if (!opcion) { avisar("aviso-cargo", "Primero registre una tarifa de examen o medicamento.", false); return; }
+  if (!opcion) {
+    marcarError(FORM_CARGO, "tarifa_id", "Primero registre una tarifa de examen o medicamento.");
+    faltantes.push("Concepto del tarifario (el tarifario no tiene exámenes ni medicamentos)");
+  }
+
+  const textoCantidad = inputDe(FORM_CARGO, "cantidad").value.trim();
+  const cantidad = parseInt(textoCantidad, 10);
+  if (textoCantidad && !(Number.isInteger(cantidad) && cantidad >= 1 && cantidad <= 100)) {
+    marcarError(FORM_CARGO, "cantidad", "Debe ser un número entero de 1 a 100.");
+    faltantes.push("Cantidad (debe ir de 1 a 100)");
+  }
+
+  if (faltantes.length) {
+    avisoResumen(FORM_CARGO, "No se agregó el cargo. Falta corregir:", faltantes, false);
+    irAlPrimerError(FORM_CARGO);
+    return;
+  }
+
   const cuerpo = {
     paciente_id: document.getElementById("c-paciente-id").value.trim(),
     paciente_nombre: document.getElementById("s-paciente").value.trim(),
     familiar_email: document.getElementById("s-familiar").value.trim() || null,
     tipo: opcion.dataset.tipo,
     tarifa_id: parseInt(opcion.value, 10),
-    cantidad: parseInt(document.getElementById("g-cantidad").value, 10),
+    cantidad: cantidad,
     cubierto_fundacion: document.getElementById("g-fundacion").checked
   };
   try {
     const c = await api(MS_COBROS, "/cargos", { method: "POST", body: JSON.stringify(cuerpo) });
-    avisar("aviso-cargo", `${c.concepto}: bruto ${q(c.monto_bruto)}, la fundación cubre ${q(c.descuento_aplicado)}, el familiar paga ${q(c.monto_neto)}.`);
+    avisoResumen(FORM_CARGO,
+      `${c.concepto}: bruto ${q(c.monto_bruto)}, la fundación cubre ${q(c.descuento_aplicado)}, el familiar paga ${q(c.monto_neto)}.`,
+      null, true);
     cargarEstadoCuenta();
   } catch (e) {
-    avisar("aviso-cargo", e.message, false);
+    mostrarFallo(FORM_CARGO, "No se agregó el cargo:", e);
   }
 }
 
