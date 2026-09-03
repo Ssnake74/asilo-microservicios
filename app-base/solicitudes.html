@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remisiones médicas · Asilo Cabeza de Algodón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: la lista de remisiones ya hechas. */
+  .remision{padding:14px 0;border-bottom:1px solid #E6EBE7;}
+  .remision:last-child{border-bottom:none;}
+  .remision-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;}
+  .remision-cab strong{font-size:15px;}
+  .remision-detalle{font-size:13px;color:var(--tinta-suave);margin-top:4px;}
+  .remision-detalle b{color:var(--tinta);font-weight:600;}
+  .remision .acciones{margin-top:8px;}
+  .filtros{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:4px;}
+  .filtros select{max-width:220px;}
+  .correo-familiar{font-size:12px;color:var(--tinta-suave);margin-top:6px;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+
+  <!-- ============ Registrar una remisión ============ -->
+  <section class="tarjeta">
+    <h2>Remitir a un interno con un especialista</h2>
+    <p class="ayuda">Llene esta hoja cuando, después de evaluar al interno, considere que
+       debe verlo un especialista. La fundación se encarga después de asignarle médico y fecha.</p>
+
+    <div class="rejilla">
+      <div class="campo">
+        <label for="s-interno">Interno que se remite <span class="obligatorio">*</span></label>
+        <select id="s-interno" onchange="alCambiarInterno()"></select>
+        <div class="error-campo" id="e-s-interno"></div>
+        <div class="correo-familiar" id="dato-interno"></div>
+      </div>
+      <div class="campo">
+        <label for="s-medico">Médico general que remite <span class="obligatorio">*</span></label>
+        <input id="s-medico" autocomplete="off">
+        <div class="error-campo" id="e-s-medico"></div>
+      </div>
+      <div class="campo">
+        <label for="s-especialidad">Especialidad a la que se remite <span class="obligatorio">*</span></label>
+        <input id="s-especialidad" list="especialidades" placeholder="Cardiología" autocomplete="off">
+        <datalist id="especialidades">
+          <option>Cardiología</option><option>Neurología</option><option>Traumatología</option>
+          <option>Oftalmología</option><option>Geriatría</option><option>Nefrología</option>
+          <option>Dermatología</option><option>Endocrinología</option><option>Urología</option>
+        </datalist>
+        <div class="error-campo" id="e-s-especialidad"></div>
+        <div class="pista">La fundación debe asignar un médico de esta misma especialidad.</div>
+      </div>
+    </div>
+
+    <div class="campo" style="margin-top:14px;">
+      <label for="s-motivo">Motivo de la remisión <span class="obligatorio">*</span></label>
+      <textarea id="s-motivo" placeholder="Qué se le encontró al interno y por qué debe verlo el especialista."></textarea>
+      <div class="error-campo" id="e-s-motivo"></div>
+    </div>
+
+    <div class="check">
+      <input type="checkbox" id="s-fundacion" checked>
+      <label for="s-fundacion">El interno recibe el descuento de la fundación</label>
+    </div>
+
+    <div class="acciones">
+      <button id="btn-remitir" onclick="crearSolicitud()">Registrar la remisión</button>
+      <button class="secundario" onclick="limpiarFormulario()">Limpiar</button>
+      <span class="nota-obligatorios">Los campos con <span class="obligatorio">*</span> son obligatorios.</span>
+    </div>
+
+    <div class="aviso" id="aviso-solicitud"></div>
+  </section>
+
+  <!-- ============ Remisiones hechas ============ -->
+  <section class="plana">
+    <h2>Remisiones hechas <span class="conteo" id="conteo"></span></h2>
+    <div class="cuerpo">
+      <div class="filtros">
+        <select id="filtro" onchange="pintarSolicitudes()">
+          <option value="">Todas las remisiones</option>
+          <option value="PENDIENTE">Solo las que esperan visita</option>
+          <option value="CONVERTIDA">Solo las que ya tienen visita programada</option>
+          <option value="ANULADA">Solo las anuladas</option>
+        </select>
+        <button class="secundario mini" onclick="cargarSolicitudes()">Actualizar</button>
+      </div>
+      <div id="lista"><p class="vacio">Cargando…</p></div>
+      <div class="aviso" id="aviso-lista"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/comun.js"></script>
+<script>
+// Descriptor del formulario: de que casilla sale cada dato, como se
+// llama en espanol y que exige el sistema. Lo usa la validacion comun.
+const FORM = {
+  aviso: "aviso-solicitud",
+  ids: {
+    paciente_id:           "s-interno",
+    medico_general:        "s-medico",
+    especialidad_remitida: "s-especialidad",
+    motivo:                "s-motivo"
+  },
+  ETIQUETAS: {
+    paciente_id:           "Interno que se remite",
+    paciente_nombre:       "Nombre del interno",
+    familiar_email:        "Correo del familiar",
+    medico_general:        "Médico general que remite",
+    especialidad_remitida: "Especialidad a la que se remite",
+    motivo:                "Motivo de la remisión"
+  },
+  OBLIGATORIOS: ["paciente_id", "medico_general", "especialidad_remitida", "motivo"],
+  MINIMOS: { medico_general: 3, especialidad_remitida: 3, motivo: 5 }
+};
+
+let internos = [];      // fichas de los internos, para sacar nombre y fundacion
+let solicitudes = [];   // lo ultimo que se leyo, para filtrar sin volver a pedir
+
+const internoDe = (codigo) => internos.find(p => p.codigo === codigo);
+
+// Al escoger al interno se completa solo lo que ya esta en su ficha: si
+// le cubre la fundacion y a que correo se avisa al familiar. Son datos
+// del asilo, no hay por que volver a preguntarlos.
+function alCambiarInterno(){
+  const ficha = internoDe(porId("s-interno").value);
+  const nota = porId("dato-interno");
+
+  if(!ficha){ nota.textContent = ""; return; }
+
+  porId("s-fundacion").checked = !!ficha.cubierto_fundacion;
+  nota.textContent = ficha.familiar_email
+    ? `Se avisará a ${ficha.familiar_email} (${ficha.familiar_nombre}).`
+    : `Su familiar responsable es ${ficha.familiar_nombre}, sin correo registrado.`;
+}
+
+async function crearSolicitud(){
+  limpiarErrores(FORM);
+
+  const faltantes = validarLocalmente(FORM);
+  if(faltantes.length){
+    avisoResumen(FORM, "No se registró la remisión. Falta corregir:", faltantes, false);
+    irAlPrimerError(FORM);
+    return;
+  }
+
+  const ficha = internoDe(porId("s-interno").value);
+  const cuerpo = {
+    paciente_id:           ficha.codigo,
+    paciente_nombre:       `${ficha.nombres} ${ficha.apellidos}`.trim(),
+    familiar_email:        ficha.familiar_email || null,
+    medico_general:        porId("s-medico").value.trim(),
+    especialidad_remitida: porId("s-especialidad").value.trim(),
+    motivo:                porId("s-motivo").value.trim(),
+    cubierto_fundacion:    porId("s-fundacion").checked
+  };
+
+  const boton = porId("btn-remitir");
+  boton.disabled = true;
+  boton.textContent = "Registrando…";
+
+  try{
+    const s = await api("/api/solicitudes", { method: "POST", body: JSON.stringify(cuerpo) });
+    avisoResumen(FORM,
+      `Remisión registrada: ${s.paciente_nombre} queda en espera de una cita con ${s.especialidad_remitida}.`,
+      null, true);
+    porId("s-motivo").value = "";
+    cargarSolicitudes();
+  }catch(e){
+    mostrarFallo(FORM, "No se registró la remisión:", e);
+  }finally{
+    boton.disabled = false;
+    boton.textContent = "Registrar la remisión";
+  }
+}
+
+function limpiarFormulario(){
+  porId("s-interno").value = "";
+  porId("s-especialidad").value = "";
+  porId("s-motivo").value = "";
+  porId("s-fundacion").checked = true;
+  porId("dato-interno").textContent = "";
+  limpiarErrores(FORM);
+}
+
+// ------------------------------------------------------------- listado
+
+async function cargarSolicitudes(){
+  try{
+    solicitudes = await api("/api/solicitudes");
+    pintarSolicitudes();
+  }catch(e){
+    porId("lista").innerHTML = `<p class="vacio">${e.message}</p>`;
+    porId("conteo").textContent = "";
+  }
+}
+
+function pintarSolicitudes(){
+  const filtro = porId("filtro").value;
+  const visibles = filtro ? solicitudes.filter(s => s.estado === filtro) : solicitudes;
+
+  porId("conteo").textContent = solicitudes.length
+    ? (solicitudes.length === 1 ? "1 remisión" : `${solicitudes.length} remisiones`)
+    : "";
+
+  if(!visibles.length){
+    porId("lista").innerHTML = solicitudes.length
+      ? '<p class="vacio">Ninguna remisión está en esa situación.</p>'
+      : '<p class="vacio">Todavía no ha remitido a ningún interno.</p>';
+    return;
+  }
+
+  // La ultima remision hecha es la que interesa ver primero.
+  porId("lista").innerHTML = visibles.slice().reverse().map(dibujar).join("");
+}
+
+function dibujar(s){
+  const anular = s.estado === "PENDIENTE"
+    ? `<div class="acciones">
+         <button class="mini peligro" onclick="anular(${s.id}, '${texto(s.paciente_nombre).replace(/'/g, "\\'")}')">
+           Anular esta remisión
+         </button>
+       </div>`
+    : "";
+
+  return `
+    <div class="remision">
+      <div class="remision-cab">
+        <strong>${texto(s.paciente_nombre)}</strong>
+        ${insignia(s.estado, ESTADO_SOLICITUD)}
+        ${s.cubierto_fundacion ? '<span class="estado convertida">Fundación</span>' : ""}
+      </div>
+      <div class="remision-detalle">
+        Remitido a <b>${texto(s.especialidad_remitida)}</b> por ${texto(s.medico_general)}
+      </div>
+      <div class="remision-detalle">${texto(s.motivo)}</div>
+      ${anular}
+    </div>`;
+}
+
+async function anular(id, nombre){
+  if(!confirm(`¿Anular la remisión de ${nombre}?\n\nEsta acción no se puede deshacer.`)) return;
+  try{
+    await api(`/api/solicitudes/${id}`, { method: "DELETE" });
+    avisar("aviso-lista", `Se anuló la remisión de ${nombre}.`);
+    cargarSolicitudes();
+  }catch(e){
+    avisar("aviso-lista", e.message, false);
+  }
+}
+
+// ------------------------------------------------------------- arranque
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({
+    subtitulo: "Remisiones a especialistas",
+    requiere: "solicitudes"
+  });
+  if(!yo) return;
+
+  // Quien esta trabajando es casi siempre el medico que remite: se deja
+  // escrito y se puede cambiar si firma otro.
+  porId("s-medico").value = yo.nombre;
+
+  internos = await llenarInternos("s-interno");
+  if(!internos.length){
+    avisar("aviso-solicitud",
+      "Todavía no hay internos registrados. Pida a la secretaría que abra la ficha del interno antes de remitirlo.",
+      false);
+  }
+
+  cargarSolicitudes();
+})();
+</script>
+
+</body>
+</html>

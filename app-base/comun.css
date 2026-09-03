@@ -1,0 +1,225 @@
+/* =====================================================================
+   Hoja de estilos comun del Sistema del Asilo «Cabeza de Algodon»
+   =====================================================================
+
+   Antes cada pantalla llevaba su propio bloque <style> con la misma
+   paleta, la misma tipografia y los mismos formularios copiados. Con
+   seis pantallas eso eran seis copias que se desincronizaban solas.
+
+   Aqui vive lo que TODAS las pantallas comparten. Lo propio de cada
+   una (las fichas del registro de internos, las tarjetas del panel)
+   se queda en el <style> de esa pantalla.
+   ===================================================================== */
+
+:root{
+  --fondo:#E7EBE6;
+  --superficie:#FBFCFA;
+  --tinta:#17231F;
+  --tinta-suave:#5A6A64;
+  --pino:#1E5245;
+  --pino-oscuro:#14382F;
+  --pino-claro:#DCE7E2;
+  --ocre:#B07A19;
+  --granate:#8C2230;
+  --linea:#C8D2CC;
+  --radio:10px;
+  --ancho:1120px;
+}
+
+*{box-sizing:border-box;}
+
+body{
+  margin:0;
+  background:var(--fondo);
+  color:var(--tinta);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+}
+
+h1,h2,h3{font-family:"Bitter",Georgia,serif;margin:0;}
+.mono{font-family:"IBM Plex Mono",monospace;}
+
+
+/* ---------------------------------------------------------------------
+   Encabezado
+
+   Lo dibuja comun.js con montarEncabezado(), asi que sale identico en
+   las seis pantallas: nombre del asilo, de que trata la pantalla, y a
+   la derecha quien esta trabajando con su rol y su salida.
+   --------------------------------------------------------------------- */
+
+header{
+  background:var(--pino);
+  color:#EDF3F0;
+  padding:16px 24px;
+  border-bottom:3px solid var(--pino-oscuro);
+}
+.barra{
+  max-width:var(--ancho); margin:0 auto;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+}
+header h1{font-size:19px;letter-spacing:.2px;}
+header .sub{font-size:13px;color:#B6CCC4;margin-top:3px;}
+
+.identidad{margin-left:auto;text-align:right;font-size:13px;}
+.identidad .quien{font-weight:600;}
+.identidad-pie{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:5px;}
+.identidad .rol{
+  padding:3px 9px; border-radius:20px; background:rgba(255,255,255,.15);
+  font-size:11.5px;
+}
+.boton-barra{
+  padding:6px 13px; border:1px solid rgba(255,255,255,.35); border-radius:8px;
+  background:transparent; color:#fff; cursor:pointer; font-size:12.5px;
+  font-family:"IBM Plex Sans",sans-serif; text-decoration:none; display:inline-block;
+}
+.boton-barra:hover{background:rgba(255,255,255,.12);}
+
+
+/* --------------------------------------------------------------------- */
+/* Cuerpo y tarjetas                                                     */
+/* --------------------------------------------------------------------- */
+
+main{max-width:var(--ancho);margin:0 auto;padding:22px 24px 60px;}
+@media (max-width:720px){main{padding:18px 14px 40px;}}
+
+/* Tarjeta con relleno propio: la que usan los formularios sueltos. */
+section.tarjeta{
+  background:var(--superficie);
+  border:1px solid var(--linea);
+  border-radius:var(--radio);
+  padding:18px;
+  margin-bottom:20px;
+}
+section.tarjeta > h2{
+  font-size:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding-bottom:10px; border-bottom:1px solid var(--linea); margin-bottom:14px;
+}
+
+/* Tarjeta con cabecera de color y contenido a sangre: la de las listas
+   largas, donde el titulo debe quedar pegado al borde. */
+section.plana{
+  background:var(--superficie);
+  border:1px solid var(--linea);
+  border-radius:var(--radio);
+  padding:0; margin-bottom:20px; overflow:hidden;
+}
+section.plana > h2{
+  font-size:16px; padding:14px 18px; background:#F2F6F3;
+  border-bottom:1px solid var(--linea);
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+section.plana .cuerpo{padding:18px;}
+
+.ayuda{font-size:12.5px;color:var(--tinta-suave);margin:0 0 14px;}
+.conteo{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
+  background:var(--pino-claro); color:var(--pino);
+  border-radius:4px; padding:2px 8px;
+}
+
+
+/* --------------------------------------------------------------------- */
+/* Formularios                                                           */
+/* --------------------------------------------------------------------- */
+
+label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta-suave);margin-bottom:5px;}
+.obligatorio{color:var(--granate);}
+
+input,select,textarea{
+  width:100%; padding:9px 10px; border:1px solid var(--linea); border-radius:6px;
+  background:#fff; color:var(--tinta); font-size:14px;
+  font-family:"IBM Plex Sans",sans-serif;
+}
+input:focus,select:focus,textarea:focus{
+  outline:2px solid var(--pino); outline-offset:1px; border-color:var(--pino);
+}
+textarea{resize:vertical;min-height:66px;}
+
+.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+.campo{margin-bottom:0;}
+.pista{font-size:11.5px;color:var(--tinta-suave);margin-top:4px;}
+
+.check{display:flex;align-items:center;gap:9px;margin-top:14px;}
+.check input{width:auto;}
+.check label{margin:0;font-weight:500;color:var(--tinta);font-size:14px;}
+
+/* El campo con problema se marca en el campo mismo, no solo en el
+   resumen de arriba: asi la persona ve donde corregir sin buscar. */
+input.malo,select.malo,textarea.malo{border-color:var(--granate);background:#FDF6F7;}
+.error-campo{display:none;font-size:12px;color:var(--granate);margin-top:4px;}
+.error-campo.visible{display:block;}
+
+
+/* --------------------------------------------------------------------- */
+/* Botones                                                               */
+/* --------------------------------------------------------------------- */
+
+button{
+  border:none; border-radius:6px; padding:9px 17px; font-size:13.5px; font-weight:600;
+  background:var(--pino); color:#fff; cursor:pointer;
+  font-family:"IBM Plex Sans",sans-serif;
+}
+button:hover{background:#16443A;}
+button:focus-visible{outline:2px solid var(--ocre);outline-offset:2px;}
+button:disabled{opacity:.6;cursor:progress;}
+button.secundario{background:transparent;color:var(--pino);border:1px solid var(--pino);}
+button.secundario:hover{background:var(--pino-claro);}
+button.peligro{background:transparent;color:var(--granate);border:1px solid var(--granate);}
+button.peligro:hover{background:#F7E9EB;}
+button.mini{padding:5px 11px;font-size:12px;}
+.acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center;}
+.nota-obligatorios{font-size:12.5px;color:var(--tinta-suave);}
+
+
+/* --------------------------------------------------------------------- */
+/* Tablas                                                                */
+/* --------------------------------------------------------------------- */
+
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{
+  text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.6px;
+  color:var(--tinta-suave); border-bottom:1px solid var(--linea);
+  padding:8px; font-weight:600;
+}
+td{padding:9px 8px;border-bottom:1px solid #E6EBE7;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.num{font-family:"IBM Plex Mono",monospace;text-align:right;white-space:nowrap;}
+.tabla-scroll{overflow-x:auto;}
+
+
+/* --------------------------------------------------------------------- */
+/* Avisos, estados y vacios                                              */
+/* --------------------------------------------------------------------- */
+
+.aviso{padding:11px 13px;border-radius:6px;font-size:13.5px;margin-top:14px;display:none;}
+.aviso.ok{background:#DDEBE4;color:var(--pino-oscuro);border-left:4px solid var(--pino);display:block;}
+.aviso.error{background:#F6E7E9;color:#6E1B26;border-left:4px solid var(--granate);display:block;}
+.aviso ul{margin:6px 0 0;padding-left:20px;}
+
+.estado{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
+  padding:2px 7px; border-radius:4px; white-space:nowrap; display:inline-block;
+}
+.estado.pendiente{background:#F7EEDA;color:var(--ocre);}
+.estado.convertida,.estado.pagado,.estado.programada{background:#DDEBE4;color:var(--pino);}
+.estado.anulada{background:#F1E4E6;color:var(--granate);}
+
+.vacio{color:var(--tinta-suave);font-size:13.5px;font-style:italic;padding:16px 0;}
+
+/* Resumen de cifras: los recuadros del estado de cuenta. */
+.resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0;}
+.resumen div{background:var(--pino-claro);border-radius:8px;padding:10px 12px;}
+.resumen span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--pino);}
+.resumen strong{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500;}
+.resumen .saldo{background:#F7EEDA;}
+.resumen .saldo span{color:var(--ocre);}
+
+/* Bloque plegable: los formularios que no se usan todo el tiempo. */
+details.plegable{
+  margin-top:14px; background:#F2F6F3; border:1px solid var(--linea);
+  border-radius:8px; padding:12px 14px;
+}
+details.plegable summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--pino);}
+details.plegable .rejilla{margin-top:14px;}

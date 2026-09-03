@@ -1,20 +1,3 @@
-"""
-Capa de Acceso a Datos del microservicio de Cobros.
-
-Corresponde a la "Capa de Acceso a Datos (Repositorio)" del documento de
-Estructura de Capas. Es el unico archivo del servicio que contiene SQL.
-
-Dos cosas que este servicio hace distinto a ms-pacientes, porque aqui se
-maneja dinero:
-
-  1. Los montos son DECIMAL(10,2), no REAL. DECIMAL guarda el numero
-     exacto; REAL es punto flotante y arrastra error al sumar.
-
-  2. Los totales del estado de cuenta se calculan con SUM() en MySQL, no
-     sumando en Python. Asi la suma tambien ocurre en DECIMAL, y ademas
-     el motor recorre la tabla una sola vez.
-"""
-
 import os
 import time
 from datetime import date, datetime
@@ -134,15 +117,7 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
 
 
 def _normalizar(fila: dict | None) -> dict | None:
-    """
-    Traduce los tipos de MySQL a los que espera Pydantic.
 
-    Los DECIMAL llegan como objetos Decimal. Se convierten a float aqui,
-    en la frontera de salida, porque el JSON de la API y la pantalla
-    trabajan con numeros normales. Lo importante es que el guardado y
-    las sumas ya ocurrieron en Decimal: la conversion a float es solo
-    para mostrar.
-    """
     if fila is None:
         return None
     limpia = dict(fila)
@@ -197,13 +172,7 @@ def obtener_tarifa(tarifa_id: int) -> dict | None:
 
 
 def buscar_tarifa_para_cargo(tarifa_id: int | None, tipo: str) -> dict | None:
-    """
-    Devuelve la tarifa activa que corresponde al cargo.
 
-    Si viene tarifa_id se usa esa; si no, se toma la mas barata del tipo
-    solicitado. Asi ms-solicitudes puede pedir "una CITA" sin conocer
-    los ids del tarifario.
-    """
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
@@ -284,12 +253,7 @@ def eliminar_tarifa(tarifa_id: int) -> bool:
 # =====================================================================
 
 def crear_cargo(datos: dict, tarifa: dict, montos: dict) -> dict:
-    """
-    Guarda el cargo ya calculado.
 
-    Los montos llegan como Decimal desde reglas.py y se entregan asi a
-    MySQL: no pasan por float en ningun momento del camino.
-    """
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
@@ -362,17 +326,7 @@ def eliminar_cargo(cargo_id: int) -> bool:
 
 
 def totales_paciente(paciente_id: str) -> dict:
-    """
-    Calcula el corte de cuenta con SUM() de MySQL.
 
-    Se hace en la base y no en Python por dos razones: la suma ocurre en
-    DECIMAL (exacta), y el motor recorre la tabla una sola vez en lugar
-    de traer todas las filas para sumarlas afuera. Cuando lleguen los
-    reportes por rango de fecha, este es el camino que vamos a seguir.
-
-    COALESCE devuelve 0 cuando no hay cargos, porque SUM() sobre cero
-    filas devuelve NULL, no cero.
-    """
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:

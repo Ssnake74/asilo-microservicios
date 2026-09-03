@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuentas de internos · Asilo Cabeza de Algodón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: la cabecera con el interno consultado. */
+  .quien-debe{
+    background:var(--pino-claro); border-radius:8px; padding:12px 14px; margin-bottom:4px;
+  }
+  .quien-debe h3{font-size:15.5px;color:var(--pino);}
+  .quien-debe p{margin:4px 0 0;font-size:13px;color:var(--tinta-suave);}
+  .origen{font-size:12px;color:var(--tinta-suave);}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+
+  <!-- ============ A quién se le consulta ============ -->
+  <section class="tarjeta">
+    <h2>Cuenta del interno</h2>
+    <p class="ayuda">Escoja al interno para ver lo que su familiar responsable debe al asilo,
+       agregarle un cobro o anotar un pago recibido.</p>
+    <div class="rejilla">
+      <div class="campo">
+        <label for="c-interno">Interno <span class="obligatorio">*</span></label>
+        <select id="c-interno" onchange="cargarCuenta()"></select>
+        <div class="error-campo" id="e-c-interno"></div>
+      </div>
+      <div class="campo" style="align-self:end;">
+        <button class="secundario" onclick="cargarCuenta()">Actualizar la cuenta</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Estado de cuenta ============ -->
+  <section class="plana">
+    <h2>Estado de cuenta</h2>
+    <div class="cuerpo">
+      <div id="cabecera"></div>
+      <div id="resumen"></div>
+      <div class="tabla-scroll" id="cargos">
+        <p class="vacio">Escoja al interno para ver su cuenta.</p>
+      </div>
+      <div class="aviso" id="aviso-cuenta"></div>
+    </div>
+  </section>
+
+  <!-- ============ Agregar un cobro ============ -->
+  <section class="tarjeta">
+    <h2>Agregar un cobro a la cuenta</h2>
+    <p class="ayuda">Para exámenes y medicamentos. El costo de las consultas se carga solo
+       cuando la fundación programa la visita.</p>
+
+    <div class="rejilla">
+      <div class="campo">
+        <label for="g-concepto">Concepto del tarifario <span class="obligatorio">*</span></label>
+        <select id="g-concepto"></select>
+        <div class="error-campo" id="e-g-concepto"></div>
+      </div>
+      <div class="campo">
+        <label for="g-cantidad">Cantidad <span class="obligatorio">*</span></label>
+        <input id="g-cantidad" type="number" min="1" max="100" value="1">
+        <div class="error-campo" id="e-g-cantidad"></div>
+      </div>
+    </div>
+
+    <div class="check">
+      <input type="checkbox" id="g-fundacion">
+      <label for="g-fundacion">Aplicar el descuento de la fundación</label>
+    </div>
+
+    <div class="acciones">
+      <button id="btn-cargo" onclick="agregarCargo()">Agregar a la cuenta</button>
+      <span class="nota-obligatorios">Los campos con <span class="obligatorio">*</span> son obligatorios.</span>
+    </div>
+
+    <div class="aviso" id="aviso-cargo"></div>
+  </section>
+
+</main>
+
+<script src="/comun.js"></script>
+<script>
+const FORM_CARGO = {
+  aviso: "aviso-cargo",
+  ids: {
+    paciente_id: "c-interno",
+    tarifa_id:   "g-concepto",
+    cantidad:    "g-cantidad"
+  },
+  ETIQUETAS: {
+    paciente_id:     "Interno",
+    paciente_nombre: "Nombre del interno",
+    tarifa_id:       "Concepto del tarifario",
+    cantidad:        "Cantidad",
+    tipo:            "Clase de cobro"
+  },
+  // tarifa_id NO va aqui a proposito: si el tarifario todavia no tiene
+  // examenes ni medicamentos, la lista sale vacia y lo util no es decir
+  // «este dato es obligatorio» sino «primero registre una tarifa».
+  OBLIGATORIOS: ["paciente_id", "cantidad"],
+  MINIMOS: {}
+};
+
+let internos = [];
+
+const internoDe = (codigo) => internos.find(p => p.codigo === codigo);
+
+// De dónde salió cada cobro, dicho en palabras del asilo. El sistema lo
+// guarda como «VISITA-7».
+function origenDe(referencia){
+  if(!referencia) return "Cargado en caja";
+  return /^VISITA-/i.test(referencia) ? "Visita médica" : texto(referencia);
+}
+
+// --------------------------------------------------------- la cuenta
+
+async function cargarCuenta(){
+  const codigo = porId("c-interno").value;
+  const cabecera = porId("cabecera");
+  const resumen = porId("resumen");
+  const caja = porId("cargos");
+
+  if(!codigo){
+    cabecera.innerHTML = "";
+    resumen.innerHTML = "";
+    caja.innerHTML = '<p class="vacio">Escoja al interno para ver su cuenta.</p>';
+    return;
+  }
+
+  const ficha = internoDe(codigo);
+  if(ficha){
+    // El descuento se propone según lo que dice la ficha del interno,
+    // pero quien cobra puede quitarlo si ese cobro no lo cubre.
+    porId("g-fundacion").checked = !!ficha.cubierto_fundacion;
+    cabecera.innerHTML = `
+      <div class="quien-debe">
+        <h3>${texto(ficha.nombres)} ${texto(ficha.apellidos)}</h3>
+        <p>Responsable: <strong>${texto(ficha.familiar_nombre)}</strong>
+           ${ficha.familiar_parentesco ? "(" + texto(ficha.familiar_parentesco) + ")" : ""}
+           · ${texto(ficha.familiar_telefono)}
+           ${ficha.cubierto_fundacion ? " · Beneficiario de la fundación" : ""}</p>
+      </div>`;
+  }
+
+  try{
+    const cuenta = await api(`/api/estado-cuenta/${encodeURIComponent(codigo)}`);
+
+    resumen.innerHTML = `
+      <div class="resumen">
+        <div><span>Cobros</span><strong>${cuenta.cantidad_cargos}</strong></div>
+        <div><span>Total sin descuento</span><strong>${q(cuenta.total_bruto)}</strong></div>
+        <div><span>Cubre la fundación</span><strong>${q(cuenta.total_descuento_fundacion)}</strong></div>
+        <div><span>Ya pagado</span><strong>${q(cuenta.total_pagado)}</strong></div>
+        <div class="saldo"><span>Saldo pendiente</span><strong>${q(cuenta.saldo_pendiente)}</strong></div>
+      </div>`;
+
+    if(!cuenta.cargos.length){
+      caja.innerHTML = '<p class="vacio">Este interno no tiene cobros registrados.</p>';
+      return;
+    }
+
+    caja.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Concepto</th><th>Origen</th><th class="num">Cantidad</th>
+              <th class="num">Precio</th><th class="num">Descuento</th>
+              <th class="num">A pagar</th><th>Situación</th><th></th></tr>
+        </thead>
+        <tbody>${cuenta.cargos.map(c => `
+          <tr>
+            <td>${texto(c.concepto)}</td>
+            <td class="origen">${origenDe(c.referencia)}</td>
+            <td class="num">${c.cantidad}</td>
+            <td class="num">${q(c.monto_bruto)}</td>
+            <td class="num">−${q(c.descuento_aplicado)}</td>
+            <td class="num"><strong>${q(c.monto_neto)}</strong></td>
+            <td>${insignia(c.estado, ESTADO_CARGO)}</td>
+            <td class="num">${c.estado === "PENDIENTE"
+              ? `<button class="mini secundario" onclick="registrarPago(${c.id}, ${c.monto_neto})">Registrar pago</button>`
+              : ""}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }catch(e){
+    resumen.innerHTML = "";
+    caja.innerHTML = `<p class="vacio">${e.message}</p>`;
+  }
+}
+
+async function registrarPago(id, monto){
+  if(!confirm(`¿Anotar que el familiar ya pagó ${q(monto)}?`)) return;
+  try{
+    const c = await api(`/api/cargos/${id}/pagar`, { method: "POST" });
+    avisar("aviso-cuenta", `Queda anotado el pago de ${q(c.monto_neto)} por «${c.concepto}».`);
+    cargarCuenta();
+  }catch(e){
+    avisar("aviso-cuenta", e.message, false);
+  }
+}
+
+// ---------------------------------------------------- agregar un cobro
+
+async function cargarConceptos(){
+  const selector = porId("g-concepto");
+  try{
+    const tarifas = await api("/api/tarifas?solo_activas=true");
+    // Las consultas no se cobran a mano: las carga sola la visita
+    // médica cuando la fundación la programa.
+    const cobrables = tarifas.filter(t => t.tipo !== "CITA");
+
+    selector.innerHTML = cobrables.map(t =>
+      `<option value="${t.id}" data-tipo="${t.tipo}">${texto(t.concepto)} — ${q(t.precio)}</option>`
+    ).join("");
+
+    if(!cobrables.length){
+      selector.innerHTML = '<option value="">— El tarifario no tiene exámenes ni medicamentos —</option>';
+    }
+  }catch(e){
+    selector.innerHTML = "";
+    avisar("aviso-cargo", e.message, false);
+  }
+}
+
+async function agregarCargo(){
+  limpiarErrores(FORM_CARGO);
+
+  const faltantes = validarLocalmente(FORM_CARGO);
+
+  const opcion = porId("g-concepto").selectedOptions[0];
+  if(!opcion || !opcion.value){
+    marcarError(FORM_CARGO, "tarifa_id",
+      "Primero agregue un examen o un medicamento al tarifario.");
+    faltantes.push("Concepto del tarifario (el tarifario no tiene exámenes ni medicamentos)");
+  }
+
+  const textoCantidad = porId("g-cantidad").value.trim();
+  const cantidad = parseInt(textoCantidad, 10);
+  if(textoCantidad && !(Number.isInteger(cantidad) && cantidad >= 1 && cantidad <= 100)){
+    marcarError(FORM_CARGO, "cantidad", "Debe ser un número entero de 1 a 100.");
+    faltantes.push("Cantidad (debe ir de 1 a 100)");
+  }
+
+  if(faltantes.length){
+    avisoResumen(FORM_CARGO, "No se agregó el cobro. Falta corregir:", faltantes, false);
+    irAlPrimerError(FORM_CARGO);
+    return;
+  }
+
+  const ficha = internoDe(porId("c-interno").value);
+  const boton = porId("btn-cargo");
+  boton.disabled = true;
+  boton.textContent = "Agregando…";
+
+  try{
+    const c = await api("/api/cargos", {
+      method: "POST",
+      body: JSON.stringify({
+        paciente_id:        ficha.codigo,
+        paciente_nombre:    `${ficha.nombres} ${ficha.apellidos}`.trim(),
+        familiar_email:     ficha.familiar_email || null,
+        tipo:               opcion.dataset.tipo,
+        tarifa_id:          parseInt(opcion.value, 10),
+        cantidad:           cantidad,
+        cubierto_fundacion: porId("g-fundacion").checked
+      })
+    });
+
+    avisoResumen(FORM_CARGO,
+      `«${c.concepto}» agregado: cuesta ${q(c.monto_bruto)}, la fundación cubre `
+      + `${q(c.descuento_aplicado)} y el familiar paga ${q(c.monto_neto)}.`,
+      null, true);
+
+    porId("g-cantidad").value = "1";
+    cargarCuenta();
+  }catch(e){
+    mostrarFallo(FORM_CARGO, "No se agregó el cobro:", e);
+  }finally{
+    boton.disabled = false;
+    boton.textContent = "Agregar a la cuenta";
+  }
+}
+
+// ------------------------------------------------------------- arranque
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({
+    subtitulo: "Cuentas de los internos",
+    requiere: "estado-cuenta"
+  });
+  if(!yo) return;
+
+  internos = await llenarInternos("c-interno");
+  if(!internos.length){
+    avisar("aviso-cuenta", "Todavía no hay internos registrados.", false);
+  }
+
+  cargarConceptos();
+})();
+</script>
+
+</body>
+</html>

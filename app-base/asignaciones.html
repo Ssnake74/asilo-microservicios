@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asignación de visitas · Asilo Cabeza de Algodón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: cada solicitud en espera es una tarjeta con
+     su propio formulario, porque se atienden de una en una. */
+  .espera{border:1px solid var(--linea);border-radius:8px;padding:14px;margin-bottom:14px;background:#fff;}
+  .espera-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;}
+  .espera-cab strong{font-size:15.5px;}
+  .espera-motivo{font-size:13px;color:var(--tinta-suave);margin-top:5px;}
+  .espera-motivo b{color:var(--tinta);font-weight:600;}
+  .nota-cobro{font-size:12px;color:var(--tinta-suave);margin-top:10px;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+
+  <!-- ============ Solicitudes en espera ============ -->
+  <section class="plana">
+    <h2>Internos en espera de una cita <span class="conteo" id="conteo-espera"></span></h2>
+    <div class="cuerpo">
+      <p class="ayuda">Estas son las remisiones que hizo el médico general y que todavía no tienen
+         fecha. Al programar la visita se le asigna médico y hora al interno, y el costo de la
+         consulta se carga automáticamente a su cuenta.</p>
+      <div id="espera"><p class="vacio">Cargando…</p></div>
+      <div class="aviso" id="aviso-conversion"></div>
+    </div>
+  </section>
+
+  <!-- ============ Visitas ya programadas ============ -->
+  <section class="plana">
+    <h2>Visitas programadas <span class="conteo" id="conteo-visitas"></span></h2>
+    <div class="cuerpo">
+      <div class="acciones" style="margin:0 0 12px;">
+        <button class="secundario mini" onclick="cargarTodo()">Actualizar</button>
+      </div>
+      <div class="tabla-scroll" id="visitas"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/comun.js"></script>
+<script>
+// El formulario de programar se dibuja una vez por cada interno en
+// espera, asi que sus casillas llevan pegado el numero de la solicitud
+// (mt-7, es-7, fv-7). El aviso si es uno solo: se programa una visita a
+// la vez.
+function formVisita(solicitudId){
+  return {
+    aviso: "aviso-conversion",
+    ids: {
+      medico_tratante: `mt-${solicitudId}`,
+      especialidad:    `es-${solicitudId}`,
+      fecha_visita:    `fv-${solicitudId}`,
+      observaciones:   `ob-${solicitudId}`
+    },
+    ETIQUETAS: {
+      medico_tratante: "Médico que la atenderá",
+      especialidad:    "Especialidad",
+      fecha_visita:    "Fecha y hora de la cita",
+      observaciones:   "Indicaciones"
+    },
+    OBLIGATORIOS: ["medico_tratante", "especialidad", "fecha_visita"],
+    MINIMOS: { medico_tratante: 3, especialidad: 3 }
+  };
+}
+
+// -------------------------------------------------- internos en espera
+
+async function cargarEspera(){
+  const caja = porId("espera");
+  try{
+    const solicitudes = await api("/api/solicitudes");
+    const pendientes = solicitudes.filter(s => s.estado === "PENDIENTE");
+
+    porId("conteo-espera").textContent = pendientes.length
+      ? (pendientes.length === 1 ? "1 en espera" : `${pendientes.length} en espera`)
+      : "";
+
+    caja.innerHTML = pendientes.length
+      ? pendientes.map(dibujarEspera).join("")
+      : '<p class="vacio">No hay internos esperando cita. Todas las remisiones ya tienen su visita programada.</p>';
+  }catch(e){
+    caja.innerHTML = `<p class="vacio">${e.message}</p>`;
+    porId("conteo-espera").textContent = "";
+  }
+}
+
+function dibujarEspera(s){
+  return `
+    <div class="espera">
+      <div class="espera-cab">
+        <strong>${texto(s.paciente_nombre)}</strong>
+        ${insignia(s.estado, ESTADO_SOLICITUD)}
+        ${s.cubierto_fundacion ? '<span class="estado convertida">Fundación</span>' : ""}
+      </div>
+      <div class="espera-motivo">
+        ${texto(s.medico_general)} lo remite a <b>${texto(s.especialidad_remitida)}</b>
+      </div>
+      <div class="espera-motivo">${texto(s.motivo)}</div>
+
+      <details class="plegable">
+        <summary>Programar la visita</summary>
+        <div class="rejilla">
+          <div class="campo">
+            <label for="mt-${s.id}">Médico que la atenderá <span class="obligatorio">*</span></label>
+            <input id="mt-${s.id}" placeholder="Dra. Ana Sical" autocomplete="off">
+            <div class="error-campo" id="e-mt-${s.id}"></div>
+          </div>
+          <div class="campo">
+            <label for="es-${s.id}">Especialidad <span class="obligatorio">*</span></label>
+            <input id="es-${s.id}" value="${texto(s.especialidad_remitida)}">
+            <div class="error-campo" id="e-es-${s.id}"></div>
+            <div class="pista">Debe ser la misma a la que se remitió al interno.</div>
+          </div>
+          <div class="campo">
+            <label for="fv-${s.id}">Fecha y hora de la cita <span class="obligatorio">*</span></label>
+            <input id="fv-${s.id}" type="datetime-local">
+            <div class="error-campo" id="e-fv-${s.id}"></div>
+          </div>
+          <div class="campo">
+            <label for="ob-${s.id}">Indicaciones</label>
+            <input id="ob-${s.id}" placeholder="Opcional: cómo llega, qué lleva" autocomplete="off">
+            <div class="error-campo" id="e-ob-${s.id}"></div>
+          </div>
+        </div>
+        <div class="acciones">
+          <button class="mini" onclick="programar(${s.id})">Confirmar la visita</button>
+        </div>
+        <p class="nota-cobro">Al confirmarla, el costo de la consulta queda cargado a la cuenta del interno.</p>
+      </details>
+    </div>`;
+}
+
+async function programar(id){
+  const form = formVisita(id);
+  limpiarErrores(form);
+
+  const faltantes = validarLocalmente(form);
+  if(faltantes.length){
+    avisoResumen(form, "No se programó la visita. Falta corregir:", faltantes, false);
+    irAlPrimerError(form);
+    return;
+  }
+
+  const cuerpo = {
+    medico_tratante: porId(`mt-${id}`).value.trim(),
+    especialidad:    porId(`es-${id}`).value.trim(),
+    fecha_visita:    porId(`fv-${id}`).value.trim(),
+    observaciones:   porId(`ob-${id}`).value.trim() || null
+  };
+
+  try{
+    const r = await api(`/api/solicitudes/${id}/convertir`, {
+      method: "POST", body: JSON.stringify(cuerpo)
+    });
+
+    // El aviso del cobro se redacta aqui, en palabras del asilo, a
+    // partir de si el cargo quedo hecho o no.
+    const cobro = r.visita.cargo_generado
+      ? "El costo de la consulta ya quedó cargado a su cuenta."
+      : "El costo de la consulta no pudo cargarse todavía; revíselo en Cuentas de internos.";
+
+    avisoResumen(form,
+      `Visita programada: ${r.visita.paciente_nombre} verá a ${r.visita.medico_tratante} `
+      + `(${r.visita.especialidad}) el ${fechaLegible(r.visita.fecha_visita)}. ${cobro}`,
+      null, true);
+
+    cargarTodo();
+  }catch(e){
+    mostrarFallo(form, "No se programó la visita:", e);
+  }
+}
+
+// -------------------------------------------------- visitas programadas
+
+async function cargarVisitas(){
+  const caja = porId("visitas");
+  try{
+    const visitas = await api("/api/visitas");
+
+    porId("conteo-visitas").textContent = visitas.length
+      ? (visitas.length === 1 ? "1 visita" : `${visitas.length} visitas`)
+      : "";
+
+    if(!visitas.length){
+      caja.innerHTML = '<p class="vacio">Todavía no se ha programado ninguna visita.</p>';
+      return;
+    }
+
+    caja.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Interno</th><th>Especialidad</th><th>Médico</th>
+              <th>Fecha y hora</th><th>Indicaciones</th><th>Costo de la consulta</th></tr>
+        </thead>
+        <tbody>${visitas.slice().reverse().map(v => `
+          <tr>
+            <td>${texto(v.paciente_nombre)}</td>
+            <td>${texto(v.especialidad)}</td>
+            <td>${texto(v.medico_tratante)}</td>
+            <td>${fechaLegible(v.fecha_visita)}</td>
+            <td style="color:var(--tinta-suave);">${texto(v.observaciones) || "—"}</td>
+            <td>${v.cargo_generado
+                  ? '<span class="estado convertida">Cargado a su cuenta</span>'
+                  : '<span class="estado pendiente">Sin cargar</span>'}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }catch(e){
+    caja.innerHTML = `<p class="vacio">${e.message}</p>`;
+    porId("conteo-visitas").textContent = "";
+  }
+}
+
+function cargarTodo(){
+  cargarEspera();
+  cargarVisitas();
+}
+
+// -------------------------------------------------- arranque
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({
+    subtitulo: "Asignación de visitas médicas",
+    requiere: "visitas"
+  });
+  if(!yo) return;
+
+  cargarTodo();
+})();
+</script>
+
+</body>
+</html>

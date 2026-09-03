@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarifario · Asilo Cabeza de Algodón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: la tabla se edita en el mismo renglón. */
+  td input{width:100px;text-align:right;padding:6px 8px;font-family:"IBM Plex Mono",monospace;}
+  td .acciones{margin:0;justify-content:flex-end;gap:6px;}
+  tr.retirada{opacity:.55;}
+  tr.retirada td:first-child{text-decoration:line-through;}
+  .en-uso{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--tinta-suave);}
+  .en-uso input{width:auto;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+
+  <!-- ============ El tarifario ============ -->
+  <section class="plana">
+    <h2>Tarifario del asilo <span class="conteo" id="conteo"></span></h2>
+    <div class="cuerpo">
+      <p class="ayuda">Estos son los precios que se le cobran al familiar responsable. En cada renglón
+         puede corregir el precio o la parte que cubre la fundación, y guardar el cambio.
+         Un concepto retirado deja de aparecer al momento de cargar algo a una cuenta.</p>
+      <div class="tabla-scroll" id="lista"><p class="vacio">Cargando…</p></div>
+      <div class="aviso" id="aviso-tarifas"></div>
+    </div>
+  </section>
+
+  <!-- ============ Agregar un concepto ============ -->
+  <section class="tarjeta">
+    <h2>Agregar un concepto al tarifario</h2>
+    <div class="rejilla">
+      <div class="campo">
+        <label for="t-concepto">Concepto <span class="obligatorio">*</span></label>
+        <input id="t-concepto" placeholder="Electrocardiograma" autocomplete="off">
+        <div class="error-campo" id="e-t-concepto"></div>
+      </div>
+      <div class="campo">
+        <label for="t-tipo">Clase de cobro <span class="obligatorio">*</span></label>
+        <select id="t-tipo">
+          <option value="CITA">Consulta con especialista</option>
+          <option value="EXAMEN">Examen</option>
+          <option value="MEDICAMENTO">Medicamento</option>
+        </select>
+        <div class="error-campo" id="e-t-tipo"></div>
+      </div>
+      <div class="campo">
+        <label for="t-precio">Precio en quetzales <span class="obligatorio">*</span></label>
+        <input id="t-precio" type="number" step="0.01" min="0" placeholder="150.00">
+        <div class="error-campo" id="e-t-precio"></div>
+      </div>
+      <div class="campo">
+        <label for="t-descuento">Cubre la fundación <span class="obligatorio">*</span></label>
+        <input id="t-descuento" type="number" step="1" min="0" max="100" value="0">
+        <div class="error-campo" id="e-t-descuento"></div>
+        <div class="pista">Porcentaje del precio, de 0 a 100.</div>
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button id="btn-guardar" onclick="crearTarifa()">Agregar al tarifario</button>
+      <span class="nota-obligatorios">Los campos con <span class="obligatorio">*</span> son obligatorios.</span>
+    </div>
+
+    <div class="aviso" id="aviso-nueva"></div>
+  </section>
+
+</main>
+
+<script src="/comun.js"></script>
+<script>
+// Las tres clases de cobro se guardan con la palabra del sistema, pero
+// en pantalla se dicen como se dicen en el asilo.
+const CLASE = { CITA:"Consulta", EXAMEN:"Examen", MEDICAMENTO:"Medicamento" };
+
+const FORM_NUEVA = {
+  aviso: "aviso-nueva",
+  ids: {
+    concepto:            "t-concepto",
+    tipo:                "t-tipo",
+    precio:              "t-precio",
+    descuento_fundacion: "t-descuento"
+  },
+  ETIQUETAS: {
+    concepto:            "Concepto",
+    tipo:                "Clase de cobro",
+    precio:              "Precio en quetzales",
+    descuento_fundacion: "Cubre la fundación"
+  },
+  OBLIGATORIOS: ["concepto", "precio", "descuento_fundacion"],
+  MINIMOS: { concepto: 3 }
+};
+
+// Cada renglón de la tabla es un formulario diminuto con sus propias
+// casillas (p-3, d-3), y todos comparten el mismo aviso de arriba.
+function formRenglon(id){
+  return {
+    aviso: "aviso-tarifas",
+    ids: { precio: `p-${id}`, descuento_fundacion: `d-${id}` },
+    ETIQUETAS: { precio: "Precio", descuento_fundacion: "Cubre la fundación" },
+    OBLIGATORIOS: ["precio", "descuento_fundacion"],
+    MINIMOS: {}
+  };
+}
+
+// ------------------------------------------------------------- listado
+
+async function cargarTarifas(){
+  const caja = porId("lista");
+  try{
+    const tarifas = await api("/api/tarifas");
+
+    porId("conteo").textContent = tarifas.length
+      ? (tarifas.length === 1 ? "1 concepto" : `${tarifas.length} conceptos`)
+      : "";
+
+    if(!tarifas.length){
+      caja.innerHTML = '<p class="vacio">El tarifario está vacío. Agregue el primer concepto abajo.</p>';
+      return;
+    }
+
+    caja.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Concepto</th><th>Clase</th><th class="num">Precio</th>
+              <th class="num">Cubre la fundación</th><th class="num">Paga el familiar</th>
+              <th>En uso</th><th></th></tr>
+        </thead>
+        <tbody>${tarifas.map(dibujarRenglon).join("")}</tbody>
+      </table>`;
+  }catch(e){
+    caja.innerHTML = `<p class="vacio">${e.message}</p>`;
+    porId("conteo").textContent = "";
+  }
+}
+
+function dibujarRenglon(t){
+  const paga = t.precio - (t.precio * t.descuento_fundacion / 100);
+  const nombre = texto(t.concepto).replace(/'/g, "\\'");
+
+  return `
+    <tr class="${t.activo ? "" : "retirada"}">
+      <td><strong>${texto(t.concepto)}</strong></td>
+      <td>${CLASE[t.tipo] || texto(t.tipo)}</td>
+      <td class="num">
+        <input id="p-${t.id}" type="number" step="0.01" min="0" value="${t.precio}">
+        <div class="error-campo" id="e-p-${t.id}"></div>
+      </td>
+      <td class="num">
+        <input id="d-${t.id}" type="number" step="1" min="0" max="100" value="${t.descuento_fundacion}"> %
+        <div class="error-campo" id="e-d-${t.id}"></div>
+      </td>
+      <td class="num">${q(paga)}</td>
+      <td>
+        <label class="en-uso">
+          <input type="checkbox" id="a-${t.id}" ${t.activo ? "checked" : ""}
+                 onchange="cambiarUso(${t.id}, '${nombre}')">
+          ${t.activo ? "Sí" : "Retirado"}
+        </label>
+      </td>
+      <td>
+        <div class="acciones">
+          <button class="mini secundario" onclick="guardarRenglon(${t.id}, '${nombre}')">Guardar</button>
+          <button class="mini peligro" onclick="eliminar(${t.id}, '${nombre}')">Eliminar</button>
+        </div>
+      </td>
+    </tr>`;
+}
+
+// ------------------------------------------------------- editar y quitar
+
+async function guardarRenglon(id, nombre){
+  const form = formRenglon(id);
+  limpiarErrores(form);
+
+  const faltantes = validarLocalmente(form);
+
+  const precio = parseFloat(porId(`p-${id}`).value);
+  if(!faltantes.length && !(precio > 0)){
+    marcarError(form, "precio", "Debe ser mayor que cero.");
+    faltantes.push("Precio (debe ser mayor que cero)");
+  }
+
+  const descuento = parseFloat(porId(`d-${id}`).value);
+  if(!faltantes.length && !(descuento >= 0 && descuento <= 100)){
+    marcarError(form, "descuento_fundacion", "Va de 0 a 100.");
+    faltantes.push("Cubre la fundación (debe ir de 0 a 100)");
+  }
+
+  if(faltantes.length){
+    avisoResumen(form, `No se guardó «${nombre}». Falta corregir:`, faltantes, false);
+    return;
+  }
+
+  try{
+    const t = await api(`/api/tarifas/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ precio: precio, descuento_fundacion: descuento })
+    });
+    avisar("aviso-tarifas",
+      `«${t.concepto}» queda en ${q(t.precio)}, de los cuales la fundación cubre ${t.descuento_fundacion}%.`);
+    cargarTarifas();
+  }catch(e){
+    mostrarFallo(form, `No se guardó «${nombre}»:`, e);
+  }
+}
+
+async function cambiarUso(id, nombre){
+  const enUso = porId(`a-${id}`).checked;
+  try{
+    await api(`/api/tarifas/${id}`, { method: "PUT", body: JSON.stringify({ activo: enUso }) });
+    avisar("aviso-tarifas", enUso
+      ? `«${nombre}» vuelve a estar disponible para cobrarse.`
+      : `«${nombre}» se retiró del tarifario. Los cobros que ya se hicieron no cambian.`);
+    cargarTarifas();
+  }catch(e){
+    avisar("aviso-tarifas", e.message, false);
+    cargarTarifas();   // devuelve la casilla a como estaba de verdad
+  }
+}
+
+async function eliminar(id, nombre){
+  if(!confirm(`¿Eliminar «${nombre}» del tarifario?\n\nEsta acción no se puede deshacer.`)) return;
+  try{
+    await api(`/api/tarifas/${id}`, { method: "DELETE" });
+    avisar("aviso-tarifas", `«${nombre}» se eliminó del tarifario.`);
+    cargarTarifas();
+  }catch(e){
+    // Un concepto que ya se le cobró a alguien no se puede borrar sin
+    // dejar cuentas sin explicación. Se dice para qué sirve la casilla
+    // «En uso» en lugar de dejarlo en un mensaje seco.
+    const mensaje = e.codigo === 409
+      ? `«${nombre}» ya se le cobró a algún interno, por eso no se puede borrar. `
+        + `Quítele la marca de «En uso» para dejar de cobrarlo de aquí en adelante.`
+      : e.message;
+    avisar("aviso-tarifas", mensaje, false);
+  }
+}
+
+// --------------------------------------------------- agregar un concepto
+
+async function crearTarifa(){
+  limpiarErrores(FORM_NUEVA);
+
+  const faltantes = validarLocalmente(FORM_NUEVA);
+
+  // Ojo con las casillas de numero: parseFloat("") da NaN, y ese NaN se
+  // convierte en null al armar el envio. Se revisa aqui para que el
+  // mensaje sea del asilo y no del sistema.
+  const textoPrecio = porId("t-precio").value.trim();
+  const precio = parseFloat(textoPrecio);
+  if(textoPrecio && !(precio > 0)){
+    marcarError(FORM_NUEVA, "precio", "El precio debe ser mayor que cero.");
+    faltantes.push("Precio en quetzales (debe ser mayor que cero)");
+  }
+
+  const textoDescuento = porId("t-descuento").value.trim();
+  const descuento = parseFloat(textoDescuento);
+  if(textoDescuento && !(descuento >= 0 && descuento <= 100)){
+    marcarError(FORM_NUEVA, "descuento_fundacion", "El porcentaje va de 0 a 100.");
+    faltantes.push("Cubre la fundación (debe ir de 0 a 100)");
+  }
+
+  if(faltantes.length){
+    avisoResumen(FORM_NUEVA, "No se agregó el concepto. Falta corregir:", faltantes, false);
+    irAlPrimerError(FORM_NUEVA);
+    return;
+  }
+
+  const boton = porId("btn-guardar");
+  boton.disabled = true;
+  boton.textContent = "Guardando…";
+
+  try{
+    const t = await api("/api/tarifas", {
+      method: "POST",
+      body: JSON.stringify({
+        concepto: porId("t-concepto").value.trim(),
+        tipo: porId("t-tipo").value,
+        precio: precio,
+        descuento_fundacion: descuento
+      })
+    });
+    avisoResumen(FORM_NUEVA, `«${t.concepto}» se agregó al tarifario en ${q(t.precio)}.`, null, true);
+    porId("t-concepto").value = "";
+    porId("t-precio").value = "";
+    cargarTarifas();
+  }catch(e){
+    mostrarFallo(FORM_NUEVA, "No se agregó el concepto:", e);
+  }finally{
+    boton.disabled = false;
+    boton.textContent = "Agregar al tarifario";
+  }
+}
+
+// ------------------------------------------------------------- arranque
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({
+    subtitulo: "Precios y descuentos de la fundación",
+    requiere: "tarifas"
+  });
+  if(!yo) return;
+
+  cargarTarifas();
+})();
+</script>
+
+</body>
+</html>

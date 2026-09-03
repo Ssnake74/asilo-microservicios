@@ -1,11 +1,3 @@
-"""
-Modelos de entrada y salida del microservicio de Cobros.
-
-Equivalen a la "Capa de Entidades o Modelos" del documento de estructura
-de capas: definen que datos viajan por la API y cuales son obligatorios.
-Pydantic valida automaticamente cada peticion contra estas clases.
-"""
-
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field

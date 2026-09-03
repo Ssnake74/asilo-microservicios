@@ -16,7 +16,7 @@ más una **aplicación base** que los consume desde el navegador.
 |---|---|---|
 | `ms-solicitudes` | 8081 | Registra las solicitudes de consulta del médico general y las **convierte en visitas médicas formales**, validando médico tratante y especialidad. |
 | `ms-cobros` | 8082 | Administra el **tarifario**, genera los cargos de citas, exámenes y medicamentos **aplicando el descuento de la fundación**, y lleva el estado de cuenta del familiar. |
-| `app-base` | 8080 | Aplicación web (HTML + JavaScript) que consume ambos microservicios y muestra en vivo cada llamada HTTP. |
+| `app-base` | — | Pantallas del sistema (HTML + JavaScript). No se publican por su cuenta: las sirve el gateway, que monta esta carpeta. |
 
 Cada microservicio tiene **su propia base de datos SQLite** (patrón *database per service*),
 su propio `Dockerfile` y su propia documentación interactiva generada por FastAPI.
@@ -190,8 +190,16 @@ asilo-microservicios/
 │       └── db.py
 │
 └── app-base/
-    ├── Dockerfile              Nginx sirviendo la página
-    └── index.html              Aplicación base que consume ambos servicios
+    ├── Dockerfile              Nginx sirviendo las pantallas
+    ├── comun.css               Paleta, tipografía y formularios de todas las pantallas
+    ├── comun.js                Llamadas a /api, errores en español y encabezado
+    ├── login.html              Ingreso al sistema
+    ├── panel.html              Menú, según lo que el puesto puede ver
+    ├── pacientes.html          Registro de internos (secretaria)
+    ├── solicitudes.html        Remisiones a especialistas (médico general)
+    ├── asignaciones.html       Asignación de visitas médicas (fundación)
+    ├── tarifario.html          Precios y descuento de la fundación (caja)
+    └── cuentas.html            Estado de cuenta, cobros y pagos (caja)
 ```
 
 ---
