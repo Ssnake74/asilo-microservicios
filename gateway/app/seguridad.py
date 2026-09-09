@@ -125,11 +125,15 @@ CAJA = "CAJA"
 ROLES = (ADMIN, SECRETARIA, MEDICO_GENERAL, FUNDACION, CAJA)
 
 # Nombre legible de cada rol, para mostrarlo en pantalla.
+#
+# Estos textos SI llevan tildes: no son identificadores del codigo, son
+# lo que lee la persona en la barra de arriba de cada pantalla y en el
+# mensaje cuando se le niega un permiso.
 NOMBRE_ROL = {
     ADMIN: "Administrador",
     SECRETARIA: "Secretaria del asilo",
-    MEDICO_GENERAL: "Medico general",
-    FUNDACION: "Fundacion",
+    MEDICO_GENERAL: "Médico general",
+    FUNDACION: "Fundación",
     CAJA: "Caja y cobros",
 }
 

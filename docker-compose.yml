@@ -2,11 +2,24 @@
 # Sistema para Administracion Asilo de Ancianos "Cabeza de Algodon"
 # Universidad Mariano Galvez de Guatemala - Centro Regional de Mazatenango
 #
-# Etapa 1.1 - Infraestructura
+# AISLAMIENTO DE RED
 #
-# En este paso se agregan tres contenedores nuevos (MySQL, Mailpit y
-# Adminer) SIN tocar los microservicios que ya funcionan. Ellos siguen
-# usando SQLite por ahora; los migramos uno por uno en el paso 1.2.
+# Los tres microservicios (pacientes, solicitudes y cobros) YA NO
+# publican puertos hacia la maquina. Antes se llegaba a ellos desde el
+# navegador con localhost:8083, localhost:8081 y localhost:8082, y por
+# ahi se saltaba por completo el gateway: sin usuario, sin sesion y sin
+# revision de rol. Cualquiera que conociera el puerto podia borrar una
+# ficha o cambiar una tarifa.
+#
+# Al quitarles la seccion "ports", esos contenedores solo son
+# alcanzables desde la red interna de Docker, es decir, unicamente por
+# el gateway, que si pregunta quien es usted y que le corresponde hacer.
+#
+# Sigue habiendo tres puertas hacia afuera, y son a proposito:
+#   8080  gateway  -> la unica entrada del sistema
+#   8091  adminer  -> ver las tablas mientras se desarrolla
+#   3307  mysql    -> conectarse con Workbench mientras se desarrolla
+# Adminer y MySQL se cierran igual antes de entregar en un servidor real.
 #
 # Levantar todo:            docker compose up -d
 # Levantar solo la infra:   docker compose up -d mysql mailpit adminer
@@ -92,19 +105,21 @@ services:
     restart: unless-stopped
 
   # ===================================================================
-  # Microservicios existentes - SIN CAMBIOS todavia
-  # Siguen guardando en SQLite. Se migran en el paso 1.2.
+  # Microservicios de negocio
+  #
+  # Los tres guardan en MySQL, cada uno en su esquema y con su usuario.
+  # Ninguno se publica hacia la maquina: solo el gateway los alcanza,
+  # por la red interna de Docker.
   # ===================================================================
 
   # -------------------------------------------------------------------
-  # MIGRADO A MySQL (paso 1.3)
-  # Sus datos viven ahora en el esquema asilo_cobros.
+  # Cobros: tarifario, cargos y estado de cuenta (esquema asilo_cobros).
   # -------------------------------------------------------------------
   ms-cobros:
     build: ./ms-cobros
     container_name: asilo-ms-cobros
-    ports:
-      - "8082:8082"
+    # Sin "ports": ya no se publica el 8082 hacia la maquina. Ver la nota
+    # de aislamiento de red al final del archivo.
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -117,18 +132,32 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # -------------------------------------------------------------------
+  # Solicitudes de consulta y visitas medicas (esquema asilo_solicitudes).
+  #
+  # Espera dos cosas para arrancar: que MySQL pase su healthcheck, para
+  # poder crear sus tablas, y que ms-cobros exista, porque al convertir
+  # una solicitud le pide el cargo de la consulta. Si ms-cobros se cae
+  # despues, este servicio sigue funcionando: esa llamada esta protegida
+  # con try/except en cliente_cobros.py.
+  # -------------------------------------------------------------------
   ms-solicitudes:
     build: ./ms-solicitudes
     container_name: asilo-ms-solicitudes
-    ports:
-      - "8081:8081"
+    # Sin "ports": ya no se publica el 8081 hacia la maquina.
     environment:
-      - DB_PATH=/data/solicitudes.db
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=u_solicitudes
+      - DB_PASSWORD=solicitudes_2026
+      - DB_NAME=asilo_solicitudes
       - MS_COBROS_URL=http://ms-cobros:8082
-    volumes:
-      - solicitudes-datos:/data
+      - TZ=America/Guatemala
     depends_on:
-      - ms-cobros
+      mysql:
+        condition: service_healthy
+      ms-cobros:
+        condition: service_started
     restart: unless-stopped
 
   # -------------------------------------------------------------------
@@ -145,8 +174,7 @@ services:
   ms-pacientes:
     build: ./ms-pacientes
     container_name: asilo-ms-pacientes
-    ports:
-      - "8083:8083"
+    # Sin "ports": ya no se publica el 8083 hacia la maquina.
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -195,23 +223,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # La aplicacion base sigue en el 8090 durante la transicion, para
-  # poder comparar. Cuando las pantallas pasen por el gateway, este
-  # contenedor desaparece.
-  app-base:
-    build: ./app-base
-    container_name: asilo-app-base
-    ports:
-      - "8090:80"
-    depends_on:
-      - ms-solicitudes
-      - ms-cobros
-      - ms-pacientes
-    restart: unless-stopped
+  # Aqui estaba el contenedor app-base, que servia las pantallas en el
+  # puerto 8090 con su propio servidor web. Se elimino: las pantallas
+  # las sirve ahora el gateway desde la MISMA carpeta (montada arriba
+  # como /code/publico), y desde que las paginas piden rutas /api/...
+  # del mismo origen, servirlas por el 8090 ya no funcionaba: ahi no hay
+  # ningun gateway que atienda esas rutas. Era una puerta abierta que ya
+  # no llevaba a ninguna parte.
 
 
 volumes:
+  # Un solo volumen: los datos de los cuatro esquemas de MySQL.
+  #
+  # solicitudes-datos era el ultimo resto de SQLite y ya no lo monta
+  # nadie. Dejar de declararlo NO lo borra: el volumen sigue existiendo
+  # en Docker con las solicitudes viejas de prueba. Para deshacerse de
+  # el: docker volume rm asilo-microservicios_solicitudes-datos
   mysql-datos:
-  # solicitudes-datos es el ultimo volumen de SQLite que queda.
-  # Desaparece cuando migremos ms-solicitudes.
-  solicitudes-datos:

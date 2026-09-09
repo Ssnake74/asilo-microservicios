@@ -4,12 +4,18 @@ Gateway del Sistema del Asilo de Ancianos "Cabeza de Algodon"
 Es la unica puerta del sistema. El navegador habla SOLO con este
 servicio; los microservicios quedan detras, en la red interna de Docker.
 
-Hace cuatro cosas:
+Hace seis cosas:
 
   1. Sirve las pantallas (login y panel).
   2. Atiende el login y guarda la sesion.
-  3. Revisa, en cada peticion, si el rol tiene permiso.
-  4. Reenvia la peticion al microservicio que corresponde.
+  3. Bloquea el ingreso tras varios intentos fallidos.
+  4. Revisa, en cada peticion, si el rol tiene permiso.
+  5. Reenvia la peticion al microservicio que corresponde.
+  6. Anota en la bitacora lo que cambia datos y lo que se rechaza.
+
+Las tres ultimas solo pueden vivir aqui: los microservicios no saben
+que existen los usuarios ni los roles, y desde que dejaron de publicar
+sus puertos, este es el unico camino para llegar a ellos.
 
 Con esto el sistema queda organizado en las tres capas del documento de
 arquitectura: presentacion (pantallas + gateway), logica de negocio
@@ -22,13 +28,14 @@ Puerto: 8080
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import Cookie, FastAPI, HTTPException, Request, Response
+from fastapi import Cookie, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import db
 from .schemas import Credenciales
 from .seguridad import (
+    ADMIN,
     NOMBRE_ROL,
     RUTAS,
     SERVICIOS,
@@ -65,35 +72,129 @@ app = FastAPI(
 
 
 # =====================================================================
+# Bitacora de auditoria
+#
+# Se anota desde aqui, en el gateway, porque es el unico punto por el
+# que pasa todo: los microservicios ni siquiera saben que existen los
+# usuarios y los roles.
+#
+# Que se anota y que no:
+#
+#   SI  POST, PUT, PATCH y DELETE  -> son las que cambian datos
+#   SI  cualquier rechazo 401 o 403 -> aunque sea un GET; un intento de
+#       entrar donde no corresponde es justo lo que hay que poder ver
+#   NO  los GET que salen bien -> son miles al dia y no aportan nada,
+#       solo harian la tabla imposible de leer
+#
+# Y nunca, en ningun caso, el cuerpo de la peticion.
+# =====================================================================
+
+METODOS_QUE_MODIFICAN = {"POST", "PUT", "PATCH", "DELETE"}
+CODIGOS_RECHAZO = {401, 403}
+
+
+def direccion_de_origen(request: Request) -> str:
+    """
+    De donde vino la peticion.
+
+    Advertencia honesta para el video: detras de Docker esta direccion
+    suele ser la de la red interna (algo como 172.18.0.1) y es la MISMA
+    para todo el mundo. Sirve para dejar constancia, pero por eso el
+    bloqueo de ingresos cuenta por NOMBRE DE USUARIO y no por direccion:
+    contar por direccion bloquearia a todo el asilo de una vez.
+    """
+    return request.client.host if request.client else "desconocido"
+
+
+def anotar(request: Request, usuario: str | None, rol: str | None, codigo: int) -> None:
+    """
+    Escribe una linea en la bitacora, si corresponde anotarla.
+
+    Todo va dentro de un try: si la bitacora falla, la operacion del
+    usuario NO debe caerse. Una auditoria que tumba el sistema cuando se
+    llena el disco es peor que no tenerla. El fallo se manda al log del
+    contenedor, que es donde se revisa.
+    """
+    metodo = request.method.upper()
+    if metodo not in METODOS_QUE_MODIFICAN and codigo not in CODIGOS_RECHAZO:
+        return
+    try:
+        db.registrar_en_bitacora(
+            usuario=usuario,
+            rol=rol,
+            metodo=metodo,
+            # request.url.path es la ruta sola, sin el texto de la
+            # consulta: en un "?buscar=..." podria ir el nombre de un
+            # interno, y eso no tiene por que quedar guardado aqui.
+            recurso=request.url.path,
+            codigo=codigo,
+            origen=direccion_de_origen(request),
+        )
+    except Exception as error:
+        print(f"[gateway] No se pudo escribir en la bitacora: {error}", flush=True)
+
+
+# =====================================================================
 # Sesion
 # =====================================================================
 
 def sesion_actual(token: str | None) -> dict:
     """Devuelve el usuario de la sesion o corta con 401."""
     if not token:
-        raise HTTPException(status_code=401, detail="Debe iniciar sesion.")
+        raise HTTPException(status_code=401, detail="Debe iniciar sesión.")
     usuario = db.usuario_de_sesion(token)
     if usuario is None:
-        raise HTTPException(status_code=401, detail="Su sesion vencio. Vuelva a entrar.")
+        raise HTTPException(status_code=401, detail="Su sesión venció. Vuelva a entrar.")
     return usuario
 
 
 @app.post("/api/login", tags=["Sesion"])
-def login(datos: Credenciales, response: Response):
+def login(datos: Credenciales, request: Request, response: Response):
     """
     Valida usuario y contrasena y abre una sesion.
 
     Si algo falla, el mensaje es el mismo tanto si el usuario no existe
     como si la contrasena esta mal. Decir "ese usuario no existe" le
     confirmaria a un atacante cuales nombres son validos.
+
+    Antes de revisar nada se comprueba el bloqueo. Cinco intentos
+    fallidos en quince minutos cierran el ingreso otros quince. Sin eso,
+    un programa podia probar contrasenas sin limite: las 200,000
+    repeticiones de PBKDF2 hacen lento CADA intento, pero no impiden
+    que se hagan millones.
     """
-    fila = db.buscar_usuario(datos.usuario.strip().lower())
+    usuario = datos.usuario.strip().lower()
+    origen = direccion_de_origen(request)
+
+    # El bloqueo se mira PRIMERO, antes de tocar la base de usuarios.
+    # Asi un usuario bloqueado no consume ni siquiera la comprobacion
+    # de la contrasena, que es la parte cara.
+    minutos = db.minutos_de_bloqueo(usuario)
+    if minutos > 0:
+        # 429 = demasiadas peticiones. El mensaje es el mismo exista o
+        # no el usuario, para no confirmar nombres validos por la via
+        # de que unos se bloqueen y otros no.
+        detalle = (
+            "Por seguridad, el ingreso quedó bloqueado tras varios intentos fallidos. "
+            f"Vuelva a intentar en {minutos} minuto{'s' if minutos != 1 else ''}."
+        )
+        anotar(request, None, None, 429)
+        raise HTTPException(status_code=429, detail=detalle)
+
+    fila = db.buscar_usuario(usuario)
 
     if fila is None or not verificar_contrasena(datos.contrasena, fila["contrasena"]):
-        raise HTTPException(status_code=401, detail="Usuario o contrasena incorrectos.")
+        # Se anota el fallo INCLUSO si el usuario no existe.
+        db.registrar_intento_fallido(usuario, origen)
+        anotar(request, None, None, 401)
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos.")
+
+    # Entro bien: se le perdonan los errores anteriores.
+    db.limpiar_intentos(usuario)
 
     token = nuevo_token()
     db.abrir_sesion(token, fila["id"])
+    anotar(request, fila["usuario"], fila["rol"], 200)
 
     # httponly: el JavaScript de la pagina NO puede leer esta cookie.
     # Si alguien lograra inyectar un script, no podria robarse la sesion.
@@ -112,12 +213,17 @@ def login(datos: Credenciales, response: Response):
 
 
 @app.post("/api/logout", tags=["Sesion"])
-def logout(response: Response, sesion: str | None = Cookie(default=None)):
+def logout(request: Request, response: Response, sesion: str | None = Cookie(default=None)):
     """Cierra la sesion borrando la fila de la base y la cookie."""
+    # Se averigua quien era ANTES de borrar la sesion, o la bitacora
+    # quedaria con la salida de "nadie".
+    quien = db.usuario_de_sesion(sesion) if sesion else None
     if sesion:
         db.cerrar_sesion(sesion)
     response.delete_cookie("sesion", path="/")
-    return {"mensaje": "Sesion cerrada."}
+    anotar(request, quien["usuario"] if quien else None,
+           quien["rol"] if quien else None, 200)
+    return {"mensaje": "Sesión cerrada."}
 
 
 @app.get("/api/yo", tags=["Sesion"])
@@ -159,6 +265,51 @@ async def salud(sesion: str | None = Cookie(default=None)):
 
 
 # =====================================================================
+# Consulta de la bitacora
+#
+# Va ANTES del reenvio a proposito. FastAPI revisa las rutas en el orden
+# en que estan escritas, y /api/{recurso} se tragaria /api/bitacora si
+# estuviera primero.
+# =====================================================================
+
+@app.get("/api/bitacora", tags=["Auditoria"])
+def ver_bitacora(
+    request: Request,
+    sesion: str | None = Cookie(default=None),
+    usuario: str | None = Query(default=None, description="Filtra por nombre de usuario"),
+    desde: str | None = Query(default=None, description="Fecha inicial, AAAA-MM-DD"),
+    hasta: str | None = Query(default=None, description="Fecha final, AAAA-MM-DD"),
+    limite: int = Query(default=200, ge=1, le=db.LIMITE_BITACORA),
+):
+    """
+    Devuelve la bitacora. Solo para el rol ADMIN.
+
+    La revision del rol se hace aqui a mano y no con la tabla PERMISOS
+    porque la bitacora no es un recurso reenviado: vive en el propio
+    gateway. Es el unico endpoint del sistema con esa excepcion.
+
+    Se responde 403 y no 404 a proposito: quien no es administrador debe
+    saber que existe y que no le corresponde, no que no existe.
+    """
+    try:
+        quien = sesion_actual(sesion)
+    except HTTPException as fallo:
+        anotar(request, None, None, fallo.status_code)
+        raise
+
+    if quien["rol"] != ADMIN:
+        # Un intento de leer la bitacora sin ser administrador queda,
+        # el mismo, anotado en la bitacora.
+        anotar(request, quien["usuario"], quien["rol"], 403)
+        raise HTTPException(
+            status_code=403,
+            detail="Solo el administrador del sistema puede consultar la bitácora.",
+        )
+
+    return db.consultar_bitacora(usuario=usuario, desde=desde, hasta=hasta, limite=limite)
+
+
+# =====================================================================
 # Reenvio a los microservicios
 # =====================================================================
 
@@ -176,17 +327,25 @@ async def reenviar(recurso: str, resto: str, request: Request,
     (403), y solo entonces se reenvia. Una peticion sin permiso nunca
     llega al microservicio.
     """
-    usuario = sesion_actual(sesion)
+    # Sin sesion no se sabe quien es: se anota como intento anonimo.
+    try:
+        usuario = sesion_actual(sesion)
+    except HTTPException as fallo:
+        anotar(request, None, None, fallo.status_code)
+        raise
 
     if recurso not in RUTAS:
         raise HTTPException(status_code=404, detail="Ese recurso no existe en el sistema.")
 
     if not puede(usuario["rol"], recurso, request.method):
+        # Este es el caso que mas importa dejar registrado: alguien con
+        # sesion valida intentando hacer algo que no le corresponde.
+        anotar(request, usuario["usuario"], usuario["rol"], 403)
         raise HTTPException(
             status_code=403,
             detail=(
                 f"Su rol ({NOMBRE_ROL.get(usuario['rol'], usuario['rol'])}) "
-                f"no tiene permiso para esta accion."
+                f"no tiene permiso para esta acción."
             ),
         )
 
@@ -203,10 +362,18 @@ async def reenviar(recurso: str, resto: str, request: Request,
         )
     except httpx.RequestError:
         # 503 = el gateway esta bien, el servicio de atras no responde.
+        # Se anota igual: una operacion que se intento y no se pudo
+        # completar tambien es parte de la historia del sistema.
+        anotar(request, usuario["usuario"], usuario["rol"], 503)
         raise HTTPException(
             status_code=503,
-            detail=f"El servicio de {recurso} no esta disponible en este momento.",
+            detail=f"El servicio de {recurso} no está disponible en este momento.",
         )
+
+    # Se anota DESPUES de conocer la respuesta, para guardar el codigo
+    # de verdad: no es lo mismo un borrado que ocurrio (204) que uno que
+    # el microservicio rechazo (409 o 422).
+    anotar(request, usuario["usuario"], usuario["rol"], respuesta.status_code)
 
     # 204 (borrado) no trae cuerpo: devolverlo con json() reventaria.
     if respuesta.status_code == 204:
