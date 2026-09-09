@@ -233,10 +233,11 @@ services:
 
 
 volumes:
-  # Un solo volumen: los datos de los cuatro esquemas de MySQL.
+  # Un solo volumen para todo el sistema: aqui viven los cuatro esquemas
+  # de MySQL (gateway, pacientes, solicitudes y cobros).
   #
-  # solicitudes-datos era el ultimo resto de SQLite y ya no lo monta
-  # nadie. Dejar de declararlo NO lo borra: el volumen sigue existiendo
-  # en Docker con las solicitudes viejas de prueba. Para deshacerse de
-  # el: docker volume rm asilo-microservicios_solicitudes-datos
+  # Los volumenes de la epoca de SQLite -pacientes-datos, cobros-datos y
+  # solicitudes-datos- ya no se declaran. Ojo: quitarlos de aqui NO los
+  # borra del disco, solo deja de montarlos. Se borran a mano con
+  # "docker volume rm", y solicitudes-datos ya se borro asi.
   mysql-datos:

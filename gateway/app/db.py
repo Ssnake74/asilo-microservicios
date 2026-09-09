@@ -143,12 +143,17 @@ CREATE TABLE IF NOT EXISTS bitacora (
 # Usuarios de demostracion. La contrasena es la misma para todos a
 # proposito, para que la demostracion sea fluida. En un sistema real
 # cada quien pone la suya y se obliga a cambiarla al primer ingreso.
+#
+# Los NOMBRES llevan tildes: no son identificadores del codigo, son lo
+# que la persona ve en la barra de arriba de cada pantalla. Los nombres
+# de usuario con que se ingresa (admin, secretaria...) van sin tildes y
+# en minusculas, porque hay que escribirlos a mano.
 USUARIOS_SEMILLA = [
-    ("admin",      "Julio Cesar Sagastume",  ADMIN),
-    ("secretaria", "Marta Lucia Gonzalez",   SECRETARIA),
-    ("medico",     "Dr. Luis Marroquin",     MEDICO_GENERAL),
+    ("admin",      "Julio César Sagastume",  ADMIN),
+    ("secretaria", "Marta Lucía González",   SECRETARIA),
+    ("medico",     "Dr. Luis Marroquín",     MEDICO_GENERAL),
     ("fundacion",  "Lic. Ana Beatriz Rivas", FUNDACION),
-    ("caja",       "Sergio Estuardo Lopez",  CAJA),
+    ("caja",       "Sergio Estuardo López",  CAJA),
 ]
 CONTRASENA_DEMO = "asilo2026"
 
