@@ -1,0 +1,1344 @@
+﻿==============================================================================
+ SISTEMA PARA ADMINISTRACIÓN DEL ASILO DE ANCIANOS «CABEZA DE ALGODÓN»
+ Reporte de pruebas automatizadas del sistema
+==============================================================================
+ Fecha y hora de ejecución: 8 de octubre de 2026, 20:02:08 (hora de Guatemala)
+ Marca de los datos:        PRUEBA-AUTO 20261008-200208
+
+ Entorno
+   Máquina:            Microsoft Windows 11 Home Single Language 10.0.26200
+   Docker:             Docker Desktop 4.87.0 (236836) · motor 29.7.2 (linux/amd64)
+   Código probado:     commit 1f770ca, con 7 archivo(s) sin confirmar
+   Base de datos:      MySQL 8.0.46
+   Punto de entrada:   gateway, http://localhost:8080 (desde la red interna, gateway:8080)
+   Contenedores:       asilo-mysql (mysql:8.0), asilo-mailpit
+   (axllent/mailpit:latest), asilo-adminer (adminer:latest), asilo-ms-cobros
+   (asilo-microservicios-ms-cobros), asilo-ms-solicitudes (asilo-
+   microservicios-ms-solicitudes), asilo-ms-pacientes (asilo-microservicios-
+   ms-pacientes), asilo-gateway (asilo-microservicios-gateway)
+
+ Veredictos
+   PASA                el sistema cumple lo que pide el requisito
+   FALLA               el sistema no lo cumple; «Obtenido» dice qué hizo
+   PENDIENTE CONOCIDO  requisito que el ERS declara no implementado;
+                       se muestra, pero no cuenta como fallo
+
+------------------------------------------------------------------------------
+ A · INFRAESTRUCTURA
+ Contenedores, salud de MySQL y puertos visibles desde la máquina.
+------------------------------------------------------------------------------
+
+CP-01  Los siete contenedores del sistema están en ejecución          [ PASA ]
+       Verifica: RNF-22 (despliegue completo con un solo comando)
+       Esperado: Los 7 contenedores del docker-compose en estado «running»
+       Obtenido: mysql: running, mailpit: running, adminer: running, ms-
+                 cobros: running, ms-solicitudes: running, ms-pacientes:
+                 running, gateway: running
+
+CP-02  MySQL reporta estado saludable                                 [ PASA ]
+       Verifica: Infraestructura (healthcheck de MySQL en el compose)
+       Esperado: Healthcheck de asilo-mysql en «healthy»
+       Obtenido: healthcheck «healthy» · MySQL 8.0.46 acepta conexiones
+
+CP-03  El gateway responde en el puerto 8080                          [ PASA ]
+       Verifica: RNF-03 (el gateway es la única puerta)
+       Esperado: Puerto 8080 abierto desde la máquina y la pantalla de ingreso
+                 responde 200
+       Obtenido: 8080 abierto (probado desde Windows) · GET / → 200
+
+CP-04  Los microservicios no responden en 8081, 8082 ni 8083 desde    [ PASA ]
+       fuera
+       Verifica: RNF-03
+       Esperado: Los tres puertos cerrados desde la máquina, ningún
+                 microservicio publica puertos, y aun así los tres responden
+                 dentro de la red interna
+       Obtenido: 8081 (ms-solicitudes): cerrado desde fuera · puertos
+                 publicados: ninguno · /health interno: 200
+                 8082 (ms-cobros): cerrado desde fuera · puertos publicados:
+                 ninguno · /health interno: 200
+                 8083 (ms-pacientes): cerrado desde fuera · puertos
+                 publicados: ninguno · /health interno: 200
+                 (probado desde Windows)
+
+
+------------------------------------------------------------------------------
+ B · AUTENTICACIÓN
+ Ingreso con los cinco usuarios, rechazos, cierre de sesión y peticiones sin
+ sesión.
+------------------------------------------------------------------------------
+
+CP-05  Ingreso válido como «admin» (Administrador)                    [ PASA ]
+       Verifica: CU-01
+       Esperado: 200, sesión abierta con rol ADMIN
+       Obtenido: 200 · rol ADMIN · «Julio César Sagastume» · recursos
+                 visibles: pacientes, solicitudes, visitas, tarifas, cargos,
+                 estado-cuenta
+
+CP-06  Ingreso válido como «secretaria» (Secretaria)                  [ PASA ]
+       Verifica: CU-01
+       Esperado: 200, sesión abierta con rol SECRETARIA
+       Obtenido: 200 · rol SECRETARIA · «Marta Lucía González» · recursos
+                 visibles: pacientes, solicitudes, visitas, tarifas, cargos,
+                 estado-cuenta
+
+CP-07  Ingreso válido como «medico» (Médico general)                  [ PASA ]
+       Verifica: CU-01
+       Esperado: 200, sesión abierta con rol MEDICO_GENERAL
+       Obtenido: 200 · rol MEDICO_GENERAL · «Dr. Luis Marroquín» · recursos
+                 visibles: pacientes, solicitudes, visitas, tarifas
+
+CP-08  Ingreso válido como «fundacion» (Fundación)                    [ PASA ]
+       Verifica: CU-01
+       Esperado: 200, sesión abierta con rol FUNDACION
+       Obtenido: 200 · rol FUNDACION · «Lic. Ana Beatriz Rivas» · recursos
+                 visibles: pacientes, solicitudes, visitas, tarifas
+
+CP-09  Ingreso válido como «caja» (Caja)                              [ PASA ]
+       Verifica: CU-01
+       Esperado: 200, sesión abierta con rol CAJA
+       Obtenido: 200 · rol CAJA · «Sergio Estuardo López» · recursos visibles:
+                 pacientes, tarifas, cargos, estado-cuenta
+
+CP-10  Contraseña incorrecta                                          [ PASA ]
+       Verifica: CU-01 (flujo alterno)
+       Esperado: 401 «Usuario o contraseña incorrectos.» y sin sesión
+       Obtenido: 401 · «Usuario o contraseña incorrectos.»
+
+CP-11  Usuario inexistente                                            [ PASA ]
+       Verifica: CU-01 (flujo alterno)
+       Esperado: 401 «Usuario o contraseña incorrectos.» y sin sesión
+       Obtenido: 401 · «Usuario o contraseña incorrectos.»
+
+CP-12  Usuario y contraseña vacíos                                    [ PASA ]
+       Verifica: CU-01 (validación de entrada)
+       Esperado: Rechazado con 422 antes de consultar la base, sin sesión
+       Obtenido: 422 · «usuario: String should have at least 3 characters;
+                 contrasena: String should have at least 6 characters»
+
+CP-13  El mensaje no revela qué usuarios existen                      [ PASA ]
+       Verifica: CU-01 (seguridad del ingreso)
+       Esperado: Mismo código y mismo mensaje, letra por letra, para usuario
+                 inexistente y para contraseña incorrecta
+       Obtenido: contraseña incorrecta: 401 «Usuario o contraseña
+                 incorrectos.»
+                 usuario inexistente:   401 «Usuario o contraseña
+                 incorrectos.»
+
+CP-14  El cierre de sesión invalida el testigo                        [ PASA ]
+       Verifica: CU-02
+       Esperado: Con el testigo antes del cierre /api/yo da 200; después del
+                 cierre, el mismo testigo da 401
+       Obtenido: antes: 200 · cierre: 200 · después: 401 · «Su sesión venció.
+                 Vuelva a entrar.»
+
+CP-15  Petición sin sesión                                            [ PASA ]
+       Verifica: CU-01 (precondición de todo recurso)
+       Esperado: 401 «Debe iniciar sesión.»
+       Obtenido: 401 · «Debe iniciar sesión.»
+
+
+------------------------------------------------------------------------------
+ C · BLOQUEO POR INTENTOS FALLIDOS
+ Cinco fallos seguidos bloquean el ingreso durante quince minutos, exista o no
+ el usuario. Se usa la cuenta «caja»; al final del grupo se desbloquea.
+------------------------------------------------------------------------------
+
+CP-16  Cinco contraseñas incorrectas seguidas                         [ PASA ]
+       Verifica: CU-01 (bloqueo de ingreso)
+       Esperado: Los cinco intentos responden 401
+       Obtenido: 401, 401, 401, 401, 401 · fallos anotados: 5
+
+CP-17  Sexto intento con contraseña incorrecta                        [ PASA ]
+       Verifica: CU-01 (bloqueo de ingreso)
+       Esperado: 429 con un mensaje que indica cuántos minutos faltan
+       Obtenido: 429 · «Por seguridad, el ingreso quedó bloqueado tras varios
+                 intentos fallidos. Vuelva a intentar en 15 minutos.»
+
+CP-18  Sexto intento con la contraseña CORRECTA                       [ PASA ]
+       Verifica: CU-01 (bloqueo de ingreso)
+       Esperado: 429: el bloqueo se revisa antes que la contraseña
+       Obtenido: 429 · «Por seguridad, el ingreso quedó bloqueado tras varios
+                 intentos fallidos. Vuelva a intentar en 15 minutos.»
+
+CP-19  Un usuario inexistente se bloquea igual                        [ PASA ]
+       Verifica: CU-01 (no revelar qué usuarios existen)
+       Esperado: Cinco 401 y luego 429, con el mismo mensaje de bloqueo que un
+                 usuario real
+       Obtenido: «fantasma20261008200208»: 401, 401, 401, 401, 401, 429 ·
+                 mensaje idéntico al de «caja»: «Por seguridad, el ingreso
+                 quedó bloqueado tras varios intentos fallidos. Vuelva a
+                 intentar en 15 minutos.»
+
+CP-20  Un ingreso correcto limpia los intentos anteriores             [ PASA ]
+       Verifica: CU-01 (bloqueo de ingreso)
+       Esperado: Tras tres fallos de «secretaria», el ingreso correcto deja su
+                 conteo en 0
+       Obtenido: fallos antes: 3 · ingreso: 200 · fallos después: 0
+
+CP-21  Limpieza: ninguna cuenta queda bloqueada                       [ PASA ]
+       Verifica: Limpieza del grupo C
+       Esperado: Sin intentos de la corrida en la tabla y «caja» vuelve a
+                 entrar con 200
+       Obtenido: filas de intentos borradas: 12 · quedan de la corrida: 0 ·
+                 ingreso de «caja»: 200
+
+
+------------------------------------------------------------------------------
+ D · CONTROL DE ACCESO POR ROL
+ Matriz de permisos del ERS (sección 8): cada operación declarada contra los
+ cinco roles. «Permitido» significa que la petición atraviesa el gateway y
+ responde el servicio; «Negado», que el gateway la corta con 403.
+------------------------------------------------------------------------------
+
+CP-22  Administrador → Internos · Consultar (GET)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-23  Secretaria → Internos · Consultar (GET)                        [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-24  Médico general → Internos · Consultar (GET)                    [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-25  Fundación → Internos · Consultar (GET)                         [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-26  Caja → Internos · Consultar (GET)                              [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-27  Administrador → Internos · Registrar (POST)                    [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «nombres: Field required; apellidos: Field required»
+
+CP-28  Secretaria → Internos · Registrar (POST)                       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «nombres: Field required; apellidos: Field required»
+
+CP-29  Médico general → Internos · Registrar (POST)                   [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-30  Fundación → Internos · Registrar (POST)                        [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-31  Caja → Internos · Registrar (POST)                             [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Caja y cobros) no tiene permiso para esta
+                 acción.»
+
+CP-32  Administrador → Internos · Modificar (PUT)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «No existe un anciano con ese codigo.»
+
+CP-33  Secretaria → Internos · Modificar (PUT)                        [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «No existe un anciano con ese codigo.»
+
+CP-34  Médico general → Internos · Modificar (PUT)                    [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-35  Fundación → Internos · Modificar (PUT)                         [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-36  Caja → Internos · Modificar (PUT)                              [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Caja y cobros) no tiene permiso para esta
+                 acción.»
+
+CP-37  Administrador → Internos · Eliminar (DELETE)                   [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «No existe un anciano con ese codigo.»
+
+CP-38  Secretaria → Internos · Eliminar (DELETE)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-39  Médico general → Internos · Eliminar (DELETE)                  [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-40  Fundación → Internos · Eliminar (DELETE)                       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-41  Caja → Internos · Eliminar (DELETE)                            [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Caja y cobros) no tiene permiso para esta
+                 acción.»
+
+CP-42  Administrador → Remisiones · Consultar (GET)                   [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-43  Secretaria → Remisiones · Consultar (GET)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-44  Médico general → Remisiones · Consultar (GET)                  [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-45  Fundación → Remisiones · Consultar (GET)                       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-46  Caja → Remisiones · Consultar (GET)                            [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Caja y cobros) no tiene permiso para esta
+                 acción.»
+
+CP-47  Administrador → Remisiones · Registrar (POST)                  [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «paciente_id: Field required; paciente_nombre: Field
+                 required»
+
+CP-48  Secretaria → Remisiones · Registrar (POST)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-49  Médico general → Remisiones · Registrar (POST)                 [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «paciente_id: Field required; paciente_nombre: Field
+                 required»
+
+CP-50  Fundación → Remisiones · Registrar (POST)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «paciente_id: Field required; paciente_nombre: Field
+                 required»
+
+CP-51  Caja → Remisiones · Registrar (POST)                           [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Caja y cobros) no tiene permiso para esta
+                 acción.»
+
+CP-52  Administrador → Remisiones · Anular (DELETE)                   [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «La solicitud no existe.»
+
+CP-53  Secretaria → Remisiones · Anular (DELETE)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-54  Médico general → Remisiones · Anular (DELETE)                  [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «La solicitud no existe.»
+
+CP-55  Fundación → Remisiones · Anular (DELETE)                       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-56  Caja → Remisiones · Anular (DELETE)                            [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Caja y cobros) no tiene permiso para esta
+                 acción.»
+
+CP-57  Administrador → Visitas · Consultar (GET)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-58  Secretaria → Visitas · Consultar (GET)                         [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-59  Médico general → Visitas · Consultar (GET)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-60  Fundación → Visitas · Consultar (GET)                          [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-61  Caja → Visitas · Consultar (GET)                               [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Caja y cobros) no tiene permiso para esta
+                 acción.»
+
+CP-62  Administrador → Tarifario · Consultar (GET)                    [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-63  Secretaria → Tarifario · Consultar (GET)                       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-64  Médico general → Tarifario · Consultar (GET)                   [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-65  Fundación → Tarifario · Consultar (GET)                        [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-66  Caja → Tarifario · Consultar (GET)                             [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-67  Administrador → Tarifario · Modificar: crear (POST)            [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «concepto: Field required; tipo: Field required»
+
+CP-68  Secretaria → Tarifario · Modificar: crear (POST)               [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-69  Médico general → Tarifario · Modificar: crear (POST)           [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-70  Fundación → Tarifario · Modificar: crear (POST)                [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-71  Caja → Tarifario · Modificar: crear (POST)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «concepto: Field required; tipo: Field required»
+
+CP-72  Administrador → Tarifario · Modificar: editar (PUT)            [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «La tarifa no existe.»
+
+CP-73  Secretaria → Tarifario · Modificar: editar (PUT)               [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-74  Médico general → Tarifario · Modificar: editar (PUT)           [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-75  Fundación → Tarifario · Modificar: editar (PUT)                [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-76  Caja → Tarifario · Modificar: editar (PUT)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «La tarifa no existe.»
+
+CP-77  Administrador → Tarifario · Modificar: eliminar (DELETE)       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «La tarifa no existe.»
+
+CP-78  Secretaria → Tarifario · Modificar: eliminar (DELETE)          [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-79  Médico general → Tarifario · Modificar: eliminar (DELETE)      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-80  Fundación → Tarifario · Modificar: eliminar (DELETE)           [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-81  Caja → Tarifario · Modificar: eliminar (DELETE)                [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «La tarifa no existe.»
+
+CP-82  Administrador → Cargos · Consultar (GET)                       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-83  Secretaria → Cargos · Consultar (GET)                          [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-84  Médico general → Cargos · Consultar (GET)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-85  Fundación → Cargos · Consultar (GET)                           [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-86  Caja → Cargos · Consultar (GET)                                [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-87  Administrador → Cargos · Registrar (POST)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «paciente_id: Field required; tipo: Field required»
+
+CP-88  Secretaria → Cargos · Registrar (POST)                         [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-89  Médico general → Cargos · Registrar (POST)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-90  Fundación → Cargos · Registrar (POST)                          [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «paciente_id: Field required; tipo: Field required»
+
+CP-91  Caja → Cargos · Registrar (POST)                               [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (422, cuerpo vacío)
+       Obtenido: 422 · «paciente_id: Field required; tipo: Field required»
+
+CP-92  Administrador → Cargos · Anular (DELETE)                       [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «El cargo no existe.»
+
+CP-93  Secretaria → Cargos · Anular (DELETE)                          [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Secretaria del asilo) no tiene permiso para
+                 esta acción.»
+
+CP-94  Médico general → Cargos · Anular (DELETE)                      [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-95  Fundación → Cargos · Anular (DELETE)                           [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-96  Caja → Cargos · Anular (DELETE)                                [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (404, registro inexistente)
+       Obtenido: 404 · «El cargo no existe.»
+
+CP-97  Administrador → Estado de cuenta · Consultar (GET)             [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-98  Secretaria → Estado de cuenta · Consultar (GET)                [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-99  Médico general → Estado de cuenta · Consultar (GET)            [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Médico general) no tiene permiso para esta
+                 acción.»
+
+CP-100  Fundación → Estado de cuenta · Consultar (GET)                [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Negado: 403 del gateway
+       Obtenido: 403 · «Su rol (Fundación) no tiene permiso para esta acción.»
+
+CP-101  Caja → Estado de cuenta · Consultar (GET)                     [ PASA ]
+       Verifica: RNF-02 · matriz de permisos del ERS
+       Esperado: Permitido: responde el servicio (200)
+       Obtenido: 200
+
+CP-102  Operaciones no declaradas se niegan incluso al Administrador  [ PASA ]
+       Verifica: RNF-02 · negación por omisión
+       Esperado: 403 en todas: el Administrador no tiene un permiso comodín
+       Obtenido: PUT /api/cargos/999999999 → 403
+                 PUT /api/solicitudes/999999999 → 403
+                 POST /api/visitas → 403
+                 DELETE /api/visitas/999999999 → 403
+                 POST /api/estado-cuenta/NOEXISTE → 403
+                 DELETE /api/estado-cuenta/NOEXISTE → 403
+                 PATCH /api/pacientes/PAC-NOEXISTE → 403
+
+CP-103  Ningún rol puede usar una operación no declarada              [ PASA ]
+       Verifica: RNF-02 · negación por omisión
+       Esperado: 403 para los cinco roles en PUT /api/cargos y DELETE
+                 /api/visitas
+       Obtenido: Administrador: 403, 403 · Secretaria: 403, 403 · Médico
+                 general: 403, 403 · Fundación: 403, 403 · Caja: 403, 403
+
+
+------------------------------------------------------------------------------
+ E · DEFENSA EN PROFUNDIDAD
+ Peticiones construidas fuera de la interfaz: rutas con «..» en todas sus
+ formas, sesiones falsificadas, encabezados de suplantación y recursos
+ inexistentes.
+------------------------------------------------------------------------------
+
+CP-104  Fundación crea una tarifa con «..» en la ruta                 [ PASA ]
+       Verifica: RNF-02 (Fundación no puede modificar el tarifario)
+       Esperado: 404 «Ese recurso no existe en el sistema.» en cada forma,
+                 igual que un recurso inexistente; ninguna tarifa creada
+       Obtenido: /api/cargos/../tarifas → 404 · «Ese recurso no existe en el
+                 sistema.»
+
+CP-105  Fundación crea una tarifa con «..» codificado                 [ PASA ]
+       Verifica: RNF-02 (Fundación no puede modificar el tarifario)
+       Esperado: 404 «Ese recurso no existe en el sistema.» en cada forma,
+                 igual que un recurso inexistente; ninguna tarifa creada
+       Obtenido: /api/cargos/%2e%2e/tarifas → 404 · «Ese recurso no existe en
+                 el sistema.»
+
+CP-106  Médico general lee los cargos con «..» en la ruta             [ PASA ]
+       Verifica: RNF-02 (el Médico general no consulta cargos)
+       Esperado: 404 «Ese recurso no existe en el sistema.» en cada forma,
+                 igual que un recurso inexistente; sin datos
+       Obtenido: /api/tarifas/../cargos → 404 · «Ese recurso no existe en el
+                 sistema.»
+
+CP-107  Fundación crea una tarifa con «..» codificado dos veces       [ PASA ]
+       Verifica: RNF-02 (Fundación no puede modificar el tarifario)
+       Esperado: 404 «Ese recurso no existe en el sistema.» en cada forma,
+                 igual que un recurso inexistente; ninguna tarifa creada
+       Obtenido: /api/cargos/%252e%252e/tarifas → 404 · «Ese recurso no existe
+                 en el sistema.»
+
+CP-108  Fundación crea una tarifa con barra invertida                 [ PASA ]
+       Verifica: RNF-02 (Fundación no puede modificar el tarifario)
+       Esperado: 404 «Ese recurso no existe en el sistema.» en cada forma,
+                 igual que un recurso inexistente; ninguna tarifa creada
+       Obtenido: /api/cargos/..\tarifas → 404 · «Ese recurso no existe en el
+                 sistema.»
+                 /api/cargos/..%5Ctarifas → 404 · «Ese recurso no existe en el
+                 sistema.»
+
+CP-109  Médico general lee los cargos con barras repetidas            [ PASA ]
+       Verifica: RNF-02 (el Médico general no consulta cargos)
+       Esperado: 404 «Ese recurso no existe en el sistema.» en cada forma,
+                 igual que un recurso inexistente; sin datos
+       Obtenido: /api/tarifas//cargos → 404 · «Ese recurso no existe en el
+                 sistema.»
+                 /api/tarifas/%2F%2Fcargos → 404 · «Ese recurso no existe en
+                 el sistema.»
+
+CP-110  Los intentos por ruta quedan anotados en la bitácora          [ PASA ]
+       Verifica: RNF-02 · bitácora de auditoría
+       Esperado: Una fila por intento, con el usuario, el método, la ruta y el
+                 código 404, también para las lecturas
+       Obtenido: intentos hechos: 8 · filas 404 en la bitácora: 8 (3 de
+                 lectura) · ejemplo: fundacion · POST /api/cargos/../tarifas ·
+                 404
+
+CP-111  Control: una ruta legítima de varios tramos sigue             [ PASA ]
+       funcionando
+       Verifica: RNF-02 (la corrección no bloquea lo permitido)
+       Esperado: Caja registra el pago con POST /api/cargos/N/pagar y recibe
+                 200 con el cargo PAGADO
+       Obtenido: POST /api/cargos/14/pagar → 200 · PAGADO
+
+CP-112  Sesión falsificada y encabezados de suplantación              [ PASA ]
+       Verifica: RNF-02 (la identidad sale solo de la sesión)
+       Esperado: Cookie inventada → 401; Médico general con encabezados
+                 «X-Rol: ADMIN», «X-Usuario: admin», «X-HTTP-Method-Override:
+                 GET» o «?rol=ADMIN» → 403
+       Obtenido: cookie inventada: 401 · «Su sesión venció. Vuelva a entrar.»
+                 encabezados de suplantación: 403 · «Su rol (Médico general)
+                 no tiene permiso para esta acción.»
+                 parámetro ?rol=ADMIN: 403 · «Su rol (Médico general) no tiene
+                 permiso para esta acción.»
+
+CP-113  Recurso inexistente                                           [ PASA ]
+       Verifica: Enrutamiento del gateway (negación por omisión)
+       Esperado: 404 del gateway para un recurso que no está en su tabla de
+                 rutas, y 404 del servicio para un registro que no existe
+       Obtenido: /api/usuarios: 404 · «Ese recurso no existe en el sistema.»
+                 /api/pacientes/PAC-NOEXISTE: 404 · «No existe un anciano con
+                 ese codigo.»
+
+CP-114  El microservicio nunca recibe una petición no autorizada      [ PASA ]
+       Verifica: RNF-02 · el 403 ocurre antes del reenvío
+       Esperado: Las peticiones negadas no aparecen en el registro de acceso
+                 del microservicio; una petición permitida de control sí
+                 aparece
+       Obtenido: Caja DELETE /api/pacientes/PACX20261008200208: 403 · en el
+                 registro de ms-pacientes: no
+                 Médico general DELETE /api/tarifas/908200208: 403 · en el
+                 registro de ms-cobros: no
+                 Control, Administrador GET
+                 /api/pacientes/PACCTRL20261008200208: 404 · en el registro:
+                 sí
+
+
+------------------------------------------------------------------------------
+ F · REGISTRO DE INTERNOS
+ Reglas RN-01 a RN-03, código correlativo, edad calculada y tildes.
+------------------------------------------------------------------------------
+
+CP-115  Interno menor de 60 años (cumple 60 mañana)                   [ PASA ]
+       Verifica: RN-01
+       Esperado: 422 con un mensaje que indica la edad mínima y la edad
+                 calculada
+       Obtenido: nacimiento 1966-10-09 → 422 · «fecha_nacimiento: Value error,
+                 El asilo recibe personas de 60 anios o mas. La fecha indicada
+                 da 59 anios.»
+
+CP-116  Interno que cumple 60 años exactamente hoy                    [ PASA ]
+       Verifica: RN-01 (valor límite)
+       Esperado: 201, con edad 60
+       Obtenido: nacimiento 1966-10-08 → 201 · PAC-006 · edad 60
+
+CP-117  Fecha de ingreso anterior a la de nacimiento                  [ PASA ]
+       Verifica: RN-02
+       Esperado: 422 «La fecha de ingreso no puede ser anterior a la fecha de
+                 nacimiento.»
+       Obtenido: nacimiento 1950-05-20, ingreso 1950-05-19 → 422 · «La fecha
+                 de ingreso no puede ser anterior a la fecha de nacimiento.»
+
+CP-118  DPI repetido                                                  [ PASA ]
+       Verifica: RN-03
+       Esperado: El primero 201; el segundo con el mismo DPI 409, indicando el
+                 código del interno que ya lo tiene
+       Obtenido: DPI 9261008200208 · primero: 201 · PAC-007 · segundo: 409 ·
+                 «Ese DPI ya esta registrado con el codigo PAC-007.»
+
+CP-119  Alta sin DPI                                                  [ PASA ]
+       Verifica: RN-03 (flujo alterno de CU-03: el DPI es opcional)
+       Esperado: Dos altas seguidas sin DPI (null), ambas 201
+       Obtenido: alta 1: 201 · PAC-008 · alta 2: 201 · PAC-009
+
+CP-120  Alta con el DPI vacío («»), como llegaría sin pasar por la   [ FALLA ]
+       interfaz
+       Verifica: RN-03 (flujo alterno de CU-03: campo vacío, se omite la
+                 validación)
+       Esperado: Dos altas seguidas con DPI «», ambas 201
+       Obtenido: alta 1: 201 · PAC-010 · alta 2: 500 · «Internal Server Error»
+
+CP-121  Código correlativo                                            [ PASA ]
+       Verifica: RNF-17
+       Esperado: Formato PAC-NNN, y dos altas consecutivas reciben números
+                 consecutivos
+       Obtenido: PAC-008 y luego PAC-009
+
+CP-122  Edad calculada por el sistema                                 [ PASA ]
+       Verifica: CU-03 (la edad no se escribe, se calcula)
+       Esperado: Quien cumple 70 mañana tiene 69; quien cumple 70 hoy tiene 70
+       Obtenido: nacido el 1956-10-09: edad 69 · nacido el 1956-10-08: edad 70
+
+CP-123  Tildes y eñes guardadas correctamente                         [ PASA ]
+       Verifica: RNF-18
+       Esperado: Los textos con á, é, í, ó, ú, ñ y ü vuelven idénticos por la
+                 API y están idénticos en la tabla de MySQL
+       Obtenido: PAC-014 · API: «José Ñoño», «Begoña Álvarez Güemes» · MySQL:
+                 «José Ñoño», «F Muñoz Pérez», «Hipertensión, artritis y
+                 pérdida de audición»
+
+
+------------------------------------------------------------------------------
+ G · CIRCUITO CLÍNICO
+ Interno → remisión → visita → cargo, y las reglas RN-04 a RN-08 al programar
+ la visita.
+------------------------------------------------------------------------------
+
+CP-124  Flujo completo: interno → remisión → visita → cargo           [ PASA ]
+       Verifica: CU-03, CU-06, CU-08 y RN-09
+       Esperado: Remisión PENDIENTE; al programar la visita la remisión pasa a
+                 CONVERTIDA, la visita queda con cargo_generado verdadero, y
+                 Caja ve el cargo con la referencia de la visita y el monto
+                 con el descuento de la fundación
+       Obtenido: interno PAC-015 → remisión 13 (PENDIENTE) → visita 8
+                 (remisión CONVERTIDA, cargo_generado=True) → cargo 15
+                 «VISITA-8»: Q250.00 − Q115.00 = Q135.00 (tarifa «Consulta con
+                 medico especialista», 46 %)
+
+CP-125  Programar visita de una remisión anulada                      [ PASA ]
+       Verifica: RN-04
+       Esperado: La anulación responde 204 y la conversión posterior 409
+       Obtenido: anular: 204 · programar visita: 409 · «La solicitud esta en
+                 estado ANULADA y ya no puede convertirse.»
+
+CP-126  Especialidad distinta a la remitida                           [ PASA ]
+       Verifica: RN-05
+       Esperado: 422 con un mensaje que nombra ambas especialidades, ya
+                 normalizadas, aunque se escriban con mayúsculas y espacios de
+                 más
+       Obtenido: 422 · «El medico general remitio a Cardiologia, pero se
+                 intento asignar Dermatologia.»
+
+CP-127  Misma especialidad con otras mayúsculas y espacios alrededor  [ PASA ]
+       Verifica: RN-05 (normalización)
+       Esperado: 201: «  nEUROLOGIA  » coincide con la remitida «Neurologia»
+       Obtenido: 201 · visita 9 con especialidad «Neurologia»
+
+CP-128  Misma especialidad con espacios de más entre las palabras    [ FALLA ]
+       Verifica: RN-05 (normalización)
+       Esperado: 201: «medicina   interna» coincide con la remitida «Medicina
+                 Interna»
+       Obtenido: 422 · «El medico general remitio a Medicina Interna, pero se
+                 intento asignar Medicina   Interna.»
+
+CP-129  Visita sin médico tratante                                    [ PASA ]
+       Verifica: RN-06
+       Esperado: 422 tanto con el campo vacío como con solo espacios, y la
+                 remisión sigue PENDIENTE
+       Obtenido: vacío: 422 · «medico_tratante: String should have at least 3
+                 characters»
+                 solo espacios: 422 · «La visita medica requiere un medico
+                 tratante.»
+                 estado de la remisión: PENDIENTE
+
+CP-130  Una remisión no genera dos visitas                            [ PASA ]
+       Verifica: RN-07
+       Esperado: Programar otra vez la remisión ya convertida responde 409 y
+                 sigue habiendo una sola visita para ella
+       Obtenido: segunda conversión: 409 · «La solicitud esta en estado
+                 CONVERTIDA y ya no puede convertirse.» · visitas de esa
+                 remisión: 1
+
+CP-131  Una remisión convertida no se anula                           [ PASA ]
+       Verifica: RN-08
+       Esperado: 409 y la remisión sigue CONVERTIDA
+       Obtenido: 409 · «La solicitud ya tiene una visita medica asignada y no
+                 puede anularse.» · estado: CONVERTIDA
+
+CP-132  Fecha de la visita con formato inválido                       [ PASA ]
+       Verifica: CU-08 (validación de la fecha)
+       Esperado: 422 con un mensaje que explica el formato AAAA-MM-DD HH:MM
+       Obtenido: 422 · «La fecha y hora de la visita debe escribirse como
+                 AAAA-MM-DD HH:MM, por ejemplo 2026-09-15 09:30. Se recibio:
+                 15/12/2026 10:00»
+
+CP-133  Formatos de fecha válidos                                     [ PASA ]
+       Verifica: CU-08 (validación de la fecha)
+       Esperado: 201 con los formatos que acepta el sistema, guardando la
+                 fecha y hora correctas
+       Obtenido: «2026-12-01 09:30» → 201, guardada 2026-12-01 09:30:00
+                 «2026-12-01T09:30» → 201, guardada 2026-12-01 09:30:00
+                 «2026-12-01 09:30:15» → 201, guardada 2026-12-01 09:30:15
+                 «2026-12-01» → 201, guardada 2026-12-01 00:00:00
+
+
+------------------------------------------------------------------------------
+ H · COBROS
+ Cálculo del cargo, redondeo, límites de tarifa y cantidad, pagos y estado de
+ cuenta.
+------------------------------------------------------------------------------
+
+CP-134  Consulta de Q250 con 40 % de la fundación                     [ PASA ]
+       Verifica: RN-09
+       Esperado: Bruto Q250.00, descuento Q100.00, neto Q150.00
+       Obtenido: bruto Q250.00, descuento Q100.00, neto Q150.00
+
+CP-135  La misma consulta para un interno no beneficiario             [ PASA ]
+       Verifica: RN-09 (el descuento solo aplica a beneficiarios)
+       Esperado: Bruto Q250.00, descuento Q0.00, neto Q250.00
+       Obtenido: bruto Q250.00, descuento Q0.00, neto Q250.00
+
+CP-136  Redondeo comercial a dos decimales                            [ PASA ]
+       Verifica: RN-10
+       Esperado: Q5.35 al 50 %: el descuento de 2.675 queda en Q2.68 (no 2.67)
+                 y el neto en Q2.67. Q2.01 al 50 %: 1.005 queda en Q1.01 (no
+                 1.00) y el neto en Q1.00
+       Obtenido: Q5.35 al 50 %: bruto Q5.35, descuento Q2.68, neto Q2.67
+                 Q2.01 al 50 %: bruto Q2.01, descuento Q1.01, neto Q1.00
+
+CP-137  Porcentaje de descuento fuera de 0 a 100                      [ PASA ]
+       Verifica: RN-13
+       Esperado: 422 para 101 y para −1 al crear, y para 150 al editar; 0 y
+                 100 se aceptan
+       Obtenido: crear con 101: 422 · «descuento_fundacion: Input should be
+                 less than or equal to 100»
+                 crear con −1: 422 · «descuento_fundacion: Input should be
+                 greater than or equal to 0»
+                 editar a 150: 422 · «descuento_fundacion: Input should be
+                 less than or equal to 100»
+                 crear con 0: 201 · crear con 100: 201
+
+CP-138  Precio de la tarifa igual o menor que cero                    [ PASA ]
+       Verifica: RN-14
+       Esperado: 422 para Q0.00 y para −Q5.00; Q0.01 se acepta
+       Obtenido: Q0.00: 422 · «precio: Input should be greater than 0»
+                 −Q5.00: 422 · «precio: Input should be greater than 0»
+                 Q0.01: 201
+
+CP-139  Cantidad del cargo fuera de 1 a 100                           [ PASA ]
+       Verifica: RN-15
+       Esperado: 422 para 0 y para 101; 1 y 100 se aceptan, y 100 × Q33.33 al
+                 15 % da bruto Q3,333.00, descuento Q499.95, neto Q2,833.05
+       Obtenido: cantidad 0: 422 · «cantidad: Input should be greater than or
+                 equal to 1»
+                 cantidad 101: 422 · «cantidad: Input should be less than or
+                 equal to 100»
+                 cantidad 1: 201 · cantidad 100: bruto Q3,333.00, descuento
+                 Q499.95, neto Q2,833.05
+
+CP-140  Eliminar una tarifa que ya tiene cargos                       [ PASA ]
+       Verifica: RN-11
+       Esperado: 409 para la tarifa con cargos; 204 para una tarifa sin cargos
+       Obtenido: con cargos: 409 · «La tarifa ya tiene cobros registrados.
+                 Desactivela en lugar de borrarla.» · sin cargos: 204
+
+CP-141  Pagar dos veces el mismo cargo                                [ PASA ]
+       Verifica: RN-12
+       Esperado: El primer pago 200 con estado PAGADO; el segundo 409
+       Obtenido: primer pago: 200 (PAGADO) · segundo pago: 409 · «Este cargo
+                 ya estaba cancelado.»
+
+CP-142  Anular un cargo ya pagado                                     [ PASA ]
+       Verifica: RN-12
+       Esperado: 409 y el cargo sigue existiendo como PAGADO
+       Obtenido: 409 · «No se puede anular un cargo ya cancelado.» · en la
+                 base: PAGADO
+
+CP-143  Totales del estado de cuenta cuadrados al centavo             [ PASA ]
+       Verifica: CU-12, RN-09, RN-10 y RNF-15
+       Esperado: Cuatro cargos (tres de beneficiario, uno sin descuento) y uno
+                 de ellos pagado: cada total coincide al centavo con la suma
+                 calculada aparte
+       Obtenido: cargos 4 · bruto Q501.37 · descuento Q109.04 · neto Q392.33 ·
+                 pagado Q8.02 · saldo Q384.31
+
+
+------------------------------------------------------------------------------
+ I · TOLERANCIA A FALLOS
+ Con el módulo de cobros apagado, las visitas se siguen programando y los
+ demás módulos siguen atendiendo. Luego se enciende y se verifica la
+ recuperación.
+------------------------------------------------------------------------------
+
+       Nota: Se detuvo asilo-ms-cobros (estado: exited).
+
+CP-144  Programar una visita con el módulo de cobros apagado         [ FALLA ]
+       Verifica: RNF-12
+       Esperado: 201: la visita se registra igual, con cargo_generado falso,
+                 sin cargo, y con un aviso de que el cargo queda pendiente
+       Obtenido: 503 · «El servicio de solicitudes no está disponible en este
+                 momento.» en 8.0 s
+                 Sin embargo la visita SÍ quedó registrada: visita 14,
+                 cargo_generado=False, remisión CONVERTIDA. El usuario recibe
+                 un error por una operación que sí se hizo.
+
+CP-145  Consultar cobros con el módulo apagado                        [ PASA ]
+       Verifica: RNF-11
+       Esperado: 503 del gateway con un mensaje entendible, no un 500
+       Obtenido: 503 · «El servicio de cargos no está disponible en este
+                 momento.»
+
+CP-146  Los demás módulos siguen funcionando                          [ PASA ]
+       Verifica: RNF-11
+       Esperado: Internos y remisiones responden con normalidad, se puede
+                 registrar un interno, y el tablero de estado marca solo a
+                 cobros como caído
+       Obtenido: internos: 200 · remisiones: 200 · alta de interno: 201 ·
+                 tablero: ms-pacientes arriba, ms-solicitudes arriba, ms-
+                 cobros caído
+
+       Nota: Se volvió a encender asilo-ms-cobros (estado: running; responde).
+
+CP-147  Recuperación al volver a encender cobros                      [ PASA ]
+       Verifica: RNF-11 y RNF-14
+       Esperado: Cobros vuelve a responder por el gateway y una visita nueva
+                 sí genera su cargo
+       Obtenido: consulta de cargos: 200 · visita nueva: 201,
+                 cargo_generado=True
+
+CP-148  El cargo pendiente se genera solo cuando        [ PENDIENTE CONOCIDO ]
+       cobros vuelve
+       Verifica: RNF-13
+       Esperado: La visita programada durante la caída recibe su cargo
+                 automáticamente
+       Obtenido: visita 14 tras la recuperación: cargo_generado=False,
+                 cargo_id=None
+       Pendiente: el ERS declara que la regeneración automática del cargo aún
+                  no está implementada (CU-08, flujo alterno); mientras tanto
+                  el cargo se genera desde la pantalla de cuentas.
+
+
+------------------------------------------------------------------------------
+ J · AISLAMIENTO DE DATOS
+ Cada usuario de servicio de MySQL ve solo su esquema y recibe «Access denied»
+ en los ajenos.
+------------------------------------------------------------------------------
+
+CP-149  u_cobros solo ve su esquema y no entra a los ajenos           [ PASA ]
+       Verifica: RNF-04
+       Esperado: SHOW DATABASES muestra solo asilo_cobros; USE y SELECT sobre
+                 cada esquema ajeno dan «Access denied» (1044) o «command
+                 denied» (1142)
+       Obtenido: ve: asilo_cobros
+                 asilo_pacientes: USE → 1044 Access denied · SELECT pacientes
+                 → 1142 SELECT command denied
+                 asilo_solicitudes: USE → 1044 Access denied · SELECT
+                 solicitudes → 1142 SELECT command denied
+                 asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
+                 1142 SELECT command denied
+                 asilo_catalogo: USE → 1044 Access denied
+                 asilo_clinico: USE → 1044 Access denied
+
+CP-150  u_pacientes solo ve su esquema y no entra a los ajenos        [ PASA ]
+       Verifica: RNF-04
+       Esperado: SHOW DATABASES muestra solo asilo_pacientes; USE y SELECT
+                 sobre cada esquema ajeno dan «Access denied» (1044) o
+                 «command denied» (1142)
+       Obtenido: ve: asilo_pacientes
+                 asilo_cobros: USE → 1044 Access denied · SELECT cargos → 1142
+                 SELECT command denied
+                 asilo_solicitudes: USE → 1044 Access denied · SELECT
+                 solicitudes → 1142 SELECT command denied
+                 asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
+                 1142 SELECT command denied
+                 asilo_catalogo: USE → 1044 Access denied
+                 asilo_clinico: USE → 1044 Access denied
+
+CP-151  u_solicitudes solo ve su esquema y no entra a los ajenos      [ PASA ]
+       Verifica: RNF-04
+       Esperado: SHOW DATABASES muestra solo asilo_solicitudes; USE y SELECT
+                 sobre cada esquema ajeno dan «Access denied» (1044) o
+                 «command denied» (1142)
+       Obtenido: ve: asilo_solicitudes
+                 asilo_cobros: USE → 1044 Access denied · SELECT cargos → 1142
+                 SELECT command denied
+                 asilo_pacientes: USE → 1044 Access denied · SELECT pacientes
+                 → 1142 SELECT command denied
+                 asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
+                 1142 SELECT command denied
+                 asilo_catalogo: USE → 1044 Access denied
+                 asilo_clinico: USE → 1044 Access denied
+
+CP-152  u_gateway solo ve su esquema y no entra a los ajenos          [ PASA ]
+       Verifica: RNF-04
+       Esperado: SHOW DATABASES muestra solo asilo_gateway; USE y SELECT sobre
+                 cada esquema ajeno dan «Access denied» (1044) o «command
+                 denied» (1142)
+       Obtenido: ve: asilo_gateway
+                 asilo_cobros: USE → 1044 Access denied · SELECT cargos → 1142
+                 SELECT command denied
+                 asilo_pacientes: USE → 1044 Access denied · SELECT pacientes
+                 → 1142 SELECT command denied
+                 asilo_solicitudes: USE → 1044 Access denied · SELECT
+                 solicitudes → 1142 SELECT command denied
+                 asilo_catalogo: USE → 1044 Access denied
+                 asilo_clinico: USE → 1044 Access denied
+
+CP-153  u_catalogo solo ve su esquema y no entra a los ajenos         [ PASA ]
+       Verifica: RNF-04
+       Esperado: SHOW DATABASES muestra solo asilo_catalogo; USE y SELECT
+                 sobre cada esquema ajeno dan «Access denied» (1044) o
+                 «command denied» (1142)
+       Obtenido: ve: asilo_catalogo
+                 asilo_cobros: USE → 1044 Access denied · SELECT cargos → 1142
+                 SELECT command denied
+                 asilo_pacientes: USE → 1044 Access denied · SELECT pacientes
+                 → 1142 SELECT command denied
+                 asilo_solicitudes: USE → 1044 Access denied · SELECT
+                 solicitudes → 1142 SELECT command denied
+                 asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
+                 1142 SELECT command denied
+                 asilo_clinico: USE → 1044 Access denied
+
+CP-154  u_clinico solo ve su esquema y no entra a los ajenos          [ PASA ]
+       Verifica: RNF-04
+       Esperado: SHOW DATABASES muestra solo asilo_clinico; USE y SELECT sobre
+                 cada esquema ajeno dan «Access denied» (1044) o «command
+                 denied» (1142)
+       Obtenido: ve: asilo_clinico
+                 asilo_cobros: USE → 1044 Access denied · SELECT cargos → 1142
+                 SELECT command denied
+                 asilo_pacientes: USE → 1044 Access denied · SELECT pacientes
+                 → 1142 SELECT command denied
+                 asilo_solicitudes: USE → 1044 Access denied · SELECT
+                 solicitudes → 1142 SELECT command denied
+                 asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
+                 1142 SELECT command denied
+                 asilo_catalogo: USE → 1044 Access denied
+
+
+------------------------------------------------------------------------------
+ K · INYECCIÓN Y VALIDACIÓN
+ Textos maliciosos guardados literalmente, búsquedas con inyección, campos
+ fuera de rango y actualización con campos no permitidos.
+------------------------------------------------------------------------------
+
+CP-155  Textos con comillas, punto y coma y DROP TABLE se guardan     [ PASA ]
+       literalmente
+       Verifica: RNF-05
+       Esperado: 201, y el texto vuelve idéntico por la API y está idéntico en
+                 MySQL; las tablas siguen existiendo
+       Obtenido: PAC-018 · nombres «O'Brien; DROP TABLE pacientes; --» ·
+                 familiar «Ana "la jefa" \ ' OR '1'='1» · remisión con motivo
+                 malicioso: 201 (guardado igual) · tablas pacientes y
+                 solicitudes presentes: 2 de 2
+
+CP-156  Búsquedas con inyección en el filtro                          [ PASA ]
+       Verifica: RNF-05
+       Esperado: 200 y el filtro se trata como texto: «' OR '1'='1» no
+                 devuelve todos los internos ni toda la bitácora
+       Obtenido: /api/pacientes?buscar=…: 200, 0 resultado(s) de 17 internos ·
+                 /api/bitacora?usuario=…: 200, 0 fila(s)
+
+CP-157  Campos fuera de rango                                         [ PASA ]
+       Verifica: Validación de entrada (CU-03 y CU-06)
+       Esperado: 422 en cada uno de los envíos inválidos
+       Obtenido: 9 de 9 rechazados con 422
+                 nombres de 1 letra: 422 · nombres de 81 letras: 422 · sexo
+                 «X»: 422 · teléfono de 4 dígitos: 422 · DPI de 21 caracteres:
+                 422 · fecha «12/03/1945»: 422 · tipo de sangre de 6
+                 caracteres: 422 · motivo de 4 letras: 422 · correo sin
+                 arroba: 422
+
+CP-158  Actualización con campos no permitidos                        [ PASA ]
+       Verifica: RNF-05 (lista blanca del UPDATE)
+       Esperado: 200: se aplica la habitación y se descartan nombres, DPI,
+                 fecha de nacimiento, código e id
+       Obtenido: 200 · en la base: código PAC-019, nombres «Prueba», DPI None,
+                 nacimiento 1950-05-20, habitación K-7
+
+
+------------------------------------------------------------------------------
+ L · NOTIFICACIÓN POR CORREO
+ Aviso al familiar al registrar una remisión. Mailpit nunca se detiene: se
+ pausa o se desconecta de la red, para no perder la bandeja.
+------------------------------------------------------------------------------
+
+CP-159  Remisión con correo del familiar                              [ PASA ]
+       Verifica: RF-44
+       Esperado: 201, y en la bandeja aparece un mensaje para ese correo con
+                 el nombre del interno en el asunto y la especialidad en el
+                 texto
+       Obtenido: remisión: 201 · mensajes para
+                 prueba.auto.20261008200208.l1@example.com: 1 · asunto
+                 «Solicitud de consulta médica para Prueba PRUEBA-AUTO
+                 20261008-200208 L correo» · especialidad en el texto: sí
+
+CP-160  Remisión sin correo del familiar                              [ PASA ]
+       Verifica: RF-44 (flujo alterno)
+       Esperado: 201, la remisión queda guardada y no se envía ningún mensaje
+       Obtenido: remisión: 201 · guardada: sí · mensajes enviados: 0
+
+CP-161  Remisión con el servidor de correo pausado (no responde)      [ PASA ]
+       Verifica: RF-44 y RNF-11
+       Esperado: 201 en menos de 2 s, la remisión queda guardada y la bandeja
+                 conserva sus mensajes
+       Obtenido: remisión: 201 en 0.03 s · guardada: sí · mensajes en la
+                 bandeja antes 1, después 1
+
+CP-162  Remisión con el servidor de correo desconectado de la red     [ PASA ]
+       Verifica: RF-44 y RNF-11
+       Esperado: 201 en menos de 2 s y la remisión queda guardada; al
+                 reconectarlo, la bandeja conserva sus mensajes
+       Obtenido: remisión: 201 en 0.04 s · guardada: sí · mensajes en la
+                 bandeja antes 1, después 1 (sin contar el aviso de esta
+                 remisión) · reconectado con los alias asilo-mailpit, mailpit
+                 · el aviso se entregó al volver Mailpit a la red
+
+
+------------------------------------------------------------------------------
+ M · BITÁCORA
+ Qué se anota, qué no, que el cuerpo nunca se guarda y quién puede
+ consultarla.
+------------------------------------------------------------------------------
+
+CP-163  Las operaciones que modifican quedan registradas              [ PASA ]
+       Verifica: Bitácora de auditoría (gateway)
+       Esperado: Una fila con usuario caja, rol CAJA, POST /api/tarifas y
+                 código 201
+       Obtenido: fila 251: 2026-10-08 20:03:05 · caja · CAJA · POST
+                 /api/tarifas · 201
+
+CP-164  Las lecturas exitosas no quedan registradas                   [ PASA ]
+       Verifica: Bitácora de auditoría (gateway)
+       Esperado: Ninguna fila para GET /api/tarifas/18 con 200
+       Obtenido: lectura: 200 · filas en la bitácora para esa lectura: 0
+
+CP-165  Los rechazos sí quedan registrados, aunque sean lecturas      [ PASA ]
+       Verifica: Bitácora de auditoría (gateway)
+       Esperado: Una fila con usuario medico, GET /api/cargos y código 403
+       Obtenido: petición: 403 · fila 252: medico · GET /api/cargos · 403
+
+CP-166  El cuerpo de la petición no se guarda                         [ PASA ]
+       Verifica: Bitácora de auditoría (gateway)
+       Esperado: La tabla no tiene columna para el cuerpo, y ni el valor
+                 centinela enviado en el cuerpo ni la contraseña de ingreso
+                 aparecen en ninguna fila
+       Obtenido: columnas: id, fecha, usuario, rol, metodo, recurso, codigo,
+                 origen · filas con el centinela: 0 · filas con la contraseña:
+                 0
+
+CP-167  Solo el Administrador consulta la bitácora                    [ PASA ]
+       Verifica: Bitácora de auditoría · matriz de permisos
+       Esperado: Administrador 200; los otros cuatro roles 403; sin sesión 401
+       Obtenido: Administrador: 200 · Secretaria: 403 · Médico general: 403 ·
+                 Fundación: 403 · Caja: 403 · sin sesión: 401
+
+
+==============================================================================
+ LIMPIEZA Y RESTAURACIÓN DEL SISTEMA
+==============================================================================
+
+ Marca de los datos de prueba: «PRUEBA-AUTO 20261008-200208».
+
+ 1. Contenedores: ninguno quedó detenido, pausado ni desconectado.
+
+ 2. Borrado por la aplicación (como Administrador, por el gateway):
+     Cargos pendientes: 15 (id 15, 16, 17, 18, 19, 20, 22, 23, 24, 25, 26, 27
+     y 3 más)
+     Tarifas: 5 (id 13, 14, 15, 16, 18)
+     Internos: 15 (PAC-006, PAC-007, PAC-008, PAC-009, PAC-010, PAC-012,
+     PAC-013, PAC-014, PAC-015, PAC-016, PAC-017, PAC-018 y 3 más)
+     La aplicación no permitió borrar (se borran en el paso 3):
+       - cargo 14 (PAGADO): la aplicación respondió 409
+       - cargo 21 (PAGADO): la aplicación respondió 409
+       - cargo 28 (PAGADO): la aplicación respondió 409
+       - tarifa 10: la aplicación respondió 409
+       - tarifa 11: la aplicación respondió 409
+       - tarifa 12: la aplicación respondió 409
+
+ 3. Borrado directo en MySQL (como root, filtrando por la marca):
+     Visitas (el sistema no tiene operación de borrado): 8 (id 8, 9, 10, 11,
+     12, 13, 14, 15)
+     Remisiones (el sistema solo permite anularlas): 18 (id 13, 14, 15, 16,
+     17, 18, 19, 20, 21, 22, 23, 24 y 6 más)
+     Cargos que la aplicación no deja borrar (pagados, RN-12): 3 (id 14, 21,
+     28)
+     Tarifas que tenían cargos pagados (RN-11): 3 (id 10, 11, 12)
+     Internos que la aplicación no dejó borrar: 0
+
+ 4. Correo: 2 mensaje(s) de prueba borrados de Mailpit; los demás no se
+ tocaron.
+
+ 5. Sesiones: 9 abiertas por la corrida, cerradas con «cerrar sesión».
+
+ 6. Bitácora: se BORRARON 269 filas generadas por esta corrida (id 39 a 307).
+ La tabla vuelve a sus 38 filas anteriores a la corrida. Si alguien usó el
+ sistema mientras corrían las pruebas, sus filas de ese intervalo también se
+ borraron: no hay forma de distinguirlas.
+   Intentos fallidos de ingreso de la corrida borrados en este paso: 0.
+
+ 7. Contadores AUTO_INCREMENT devueltos a su valor inicial:
+ asilo_cobros.cargos: 32 → 14; asilo_cobros.tarifas: 19 → 10;
+ asilo_gateway.bitacora: 308 → 39; asilo_gateway.intentos_fallidos: 18 → 3;
+ asilo_pacientes.pacientes: 22 → 6; asilo_solicitudes.solicitudes: 31 → 13;
+ asilo_solicitudes.visitas: 16 → 8
+
+ 8. Verificación final:
+     El sistema quedó como estaba: los 7 contenedores en su estado inicial
+     (running), sin cuentas bloqueadas (0 intentos fallidos guardados, igual
+     que al empezar), sin internos, remisiones, visitas, tarifas, cargos ni
+     correos de prueba, la bitácora con sus 38 filas originales y los
+     contadores en su valor inicial.
+
+==============================================================================
+ RESUMEN DE LA CORRIDA
+==============================================================================
+
+ Grupo                                     Casos   Pasan  Fallan   Pend.
+ ----------------------------------------------------------------------------
+ A · Infraestructura                           4       4       0       0
+ B · Autenticación                            11      11       0       0
+ C · Bloqueo por intentos fallidos             6       6       0       0
+ D · Control de acceso por rol                82      82       0       0
+ E · Defensa en profundidad                   11      11       0       0
+ F · Registro de internos                      9       8       1       0
+ G · Circuito clínico                         10       9       1       0
+ H · Cobros                                   10      10       0       0
+ I · Tolerancia a fallos                       5       3       1       1
+ J · Aislamiento de datos                      6       6       0       0
+ K · Inyección y validación                    4       4       0       0
+ L · Notificación por correo                   4       4       0       0
+ M · Bitácora                                  5       5       0       0
+ ----------------------------------------------------------------------------
+ TOTAL                                       167     163       3       1
+
+ Casos que fallaron (3):
+
+   CP-120  Alta con el DPI vacío («»), como llegaría sin pasar por la interfaz
+   (RN-03 (flujo alterno de CU-03: campo vacío, se omite la validación))
+         Obtenido: alta 1: 201 · PAC-010 · alta 2: 500 · «Internal Server
+                   Error»
+
+   CP-128  Misma especialidad con espacios de más entre las palabras  (RN-05
+   (normalización))
+         Obtenido: 422 · «El medico general remitio a Medicina Interna, pero
+                   se intento asignar Medicina   Interna.»
+
+   CP-144  Programar una visita con el módulo de cobros apagado  (RNF-12)
+         Obtenido: 503 · «El servicio de solicitudes no está disponible en
+                   este momento.» en 8.0 s
+
+ Pendientes conocidos (1). No son fallos: el ERS los declara como no implementados.
+
+   CP-148  El cargo pendiente se genera solo cuando cobros vuelve  (RNF-13)
+         Obtenido: visita 14 tras la recuperación: cargo_generado=False,
+                   cargo_id=None
+
+
+ RESULTADO: 3 caso(s) fallaron.
+==============================================================================
