@@ -15,7 +15,12 @@ import os
 import httpx
 
 MS_COBROS_URL = os.getenv("MS_COBROS_URL", "http://localhost:8082")
-TIMEOUT = 5.0
+# Limite corto a proposito: cobros vive en la misma red de Docker y,
+# cuando funciona, contesta en milisegundos. Esperar mas solo retrasa el
+# aviso de "cargo pendiente" y acerca la respuesta al limite de 8 s del
+# gateway, que entonces le muestra al usuario un error por una visita que
+# SI quedo registrada.
+TIMEOUT = 2.0
 
 
 def _buscar_tarifa_de_especialista(cliente: httpx.Client) -> int | None:
