@@ -42,11 +42,16 @@ from .seguridad import (
     nuevo_token,
     puede,
     recursos_visibles,
+    ruta_sospechosa,
     verificar_contrasena,
 )
 
 PUBLICO = "/code/publico"
 TIEMPO_LIMITE = 8.0
+
+# El mismo texto para un recurso que no existe y para una ruta armada a
+# mano que se rechaza: quien la intenta no debe poder distinguirlos.
+RECURSO_INEXISTENTE = "Ese recurso no existe en el sistema."
 
 
 @asynccontextmanager
@@ -106,9 +111,16 @@ def direccion_de_origen(request: Request) -> str:
     return request.client.host if request.client else "desconocido"
 
 
-def anotar(request: Request, usuario: str | None, rol: str | None, codigo: int) -> None:
+def anotar(request: Request, usuario: str | None, rol: str | None, codigo: int,
+           siempre: bool = False) -> None:
     """
     Escribe una linea en la bitacora, si corresponde anotarla.
+
+    'siempre' salta la regla de que se anota y que no. Existe para los
+    rechazos que no son 401 ni 403 pero que hay que conservar igual, como
+    un intento de escalar permisos con una ruta armada a mano: ese se
+    responde con 404, y aunque sea un GET es justo lo que una auditoria
+    debe guardar.
 
     Todo va dentro de un try: si la bitacora falla, la operacion del
     usuario NO debe caerse. Una auditoria que tumba el sistema cuando se
@@ -116,7 +128,7 @@ def anotar(request: Request, usuario: str | None, rol: str | None, codigo: int) 
     contenedor, que es donde se revisa.
     """
     metodo = request.method.upper()
-    if metodo not in METODOS_QUE_MODIFICAN and codigo not in CODIGOS_RECHAZO:
+    if not siempre and metodo not in METODOS_QUE_MODIFICAN and codigo not in CODIGOS_RECHAZO:
         return
     try:
         db.registrar_en_bitacora(
@@ -323,9 +335,10 @@ async def reenviar(recurso: str, resto: str, request: Request,
     """
     Toma /api/tarifas/3 y lo manda a http://ms-cobros:8082/tarifas/3.
 
-    El orden importa: primero se comprueba QUIEN es (401), luego SI PUEDE
-    (403), y solo entonces se reenvia. Una peticion sin permiso nunca
-    llega al microservicio.
+    El orden importa: primero se comprueba QUIEN es (401), luego que la
+    ruta no intente salirse de su recurso (404), luego SI PUEDE (403), y
+    solo entonces se reenvia. Una peticion sin permiso nunca llega al
+    microservicio.
     """
     # Sin sesion no se sabe quien es: se anota como intento anonimo.
     try:
@@ -334,8 +347,20 @@ async def reenviar(recurso: str, resto: str, request: Request,
         anotar(request, None, None, fallo.status_code)
         raise
 
+    # Va ANTES de revisar el permiso, no despues: el permiso se decide con
+    # el primer tramo de la ruta, y si el resto lleva un "..", lo que se
+    # reenviaria es otro recurso. Revisar el permiso primero seria aprobar
+    # una cosa y mandar otra.
+    #
+    # Se responde 404 y no 403 a proposito: un 403 le confirmaria a quien
+    # lo intenta que esa ruta lleva a alguna parte. Para el, simplemente
+    # no existe.
+    if ruta_sospechosa(resto):
+        anotar(request, usuario["usuario"], usuario["rol"], 404, siempre=True)
+        raise HTTPException(status_code=404, detail=RECURSO_INEXISTENTE)
+
     if recurso not in RUTAS:
-        raise HTTPException(status_code=404, detail="Ese recurso no existe en el sistema.")
+        raise HTTPException(status_code=404, detail=RECURSO_INEXISTENTE)
 
     if not puede(usuario["rol"], recurso, request.method):
         # Este es el caso que mas importa dejar registrado: alguien con

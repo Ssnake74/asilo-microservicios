@@ -1,12 +1,13 @@
 """
 Seguridad y enrutamiento del Gateway.
 
-Aqui viven tres cosas que no dependen ni de HTTP ni de la base de datos,
+Aqui viven cuatro cosas que no dependen ni de HTTP ni de la base de datos,
 y por eso se pueden leer y probar solas:
 
   1. Como se guardan y verifican las contrasenas.
   2. La tabla de rutas: que microservicio atiende cada recurso.
   3. La tabla de permisos: que rol puede hacer que cosa.
+  4. La deteccion de rutas que intentan salirse de su recurso.
 
 Las dos tablas son el corazon del gateway. Estan escritas como
 diccionarios a proposito: se leen de corrido y se pueden mostrar en el
@@ -17,6 +18,7 @@ import hashlib
 import hmac
 import os
 import secrets
+from urllib.parse import unquote
 
 # ---------------------------------------------------------------------
 # 1. Contrasenas
@@ -192,3 +194,53 @@ def puede(rol: str, recurso: str, metodo: str) -> bool:
 def recursos_visibles(rol: str) -> list[str]:
     """Recursos que ese rol puede al menos consultar. Sirve para el menu."""
     return [r for r in RUTAS if puede(rol, r, "GET")]
+
+
+# ---------------------------------------------------------------------
+# 4. Rutas que intentan salirse de su recurso
+#
+# El permiso se decide con el PRIMER tramo de la ruta (/api/cargos/...),
+# pero al microservicio se le reenvia la ruta completa. Si en el resto
+# viene un "..", la biblioteca que hace el reenvio lo resuelve y la
+# peticion termina en OTRO recurso del mismo servicio, con el permiso del
+# primero: /api/cargos/../tarifas se revisaba como "cargos" y llegaba a
+# "tarifas". Asi la Fundacion podia crear tarifas y el Medico general
+# leer los cargos.
+#
+# Ninguna pantalla del sistema arma rutas con "..", barras invertidas ni
+# barras repetidas, asi que rechazarlas no le quita nada a nadie.
+# ---------------------------------------------------------------------
+
+# Capas de codificacion que se deshacen como maximo. Un navegador codifica
+# una vez; "%252e%252e" (codificado dos veces) ya es alguien intentando
+# que la validacion vea una cosa y el servicio otra. Si despues de cinco
+# capas el texto todavia cambia, no es una ruta legitima.
+MAX_DECODIFICACIONES = 5
+
+
+def ruta_sospechosa(resto: str) -> bool:
+    """
+    Responde si el resto de la ruta intenta salirse de su recurso.
+
+    Se decodifica primero, todas las veces que haga falta, para que
+    "%2e%2e", "%252e%252e" o "%5c" no se escapen de la revision: lo que
+    se valida tiene que ser lo mismo que terminaria interpretando el
+    microservicio.
+
+    Se rechaza:
+      - cualquier tramo ".."           -> subir de carpeta
+      - cualquier barra invertida "\\"  -> algunos servidores la toman por "/"
+      - barras repetidas "//"          -> otra forma de alterar la ruta
+    """
+    texto = resto
+    for _ in range(MAX_DECODIFICACIONES):
+        decodificado = unquote(texto)
+        if decodificado == texto:
+            break
+        texto = decodificado
+    else:
+        return True
+
+    if "\\" in texto or "//" in texto:
+        return True
+    return any(tramo == ".." for tramo in texto.split("/"))
