@@ -20,11 +20,12 @@ Documentacion interactiva: http://localhost:8081/docs
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
 from .cliente_cobros import generar_cargo_consulta
+from .notificaciones import avisar_al_familiar
 from .reglas import (
     especialidades_coinciden,
     normalizar_especialidad,
@@ -87,11 +88,21 @@ def health() -> dict:
 
 
 @app.post("/solicitudes", response_model=Solicitud, status_code=201, tags=["Solicitudes"])
-def crear_solicitud(datos: SolicitudCrear):
-    """Registra la solicitud de consulta que genera el medico general."""
+def crear_solicitud(datos: SolicitudCrear, tareas: BackgroundTasks):
+    """
+    Registra la solicitud de consulta que genera el medico general y le
+    avisa por correo al familiar del interno (RF-44).
+
+    El aviso se encola como tarea de fondo: FastAPI lo ejecuta DESPUES de
+    haber respondido. El medico ve su confirmacion de inmediato aunque el
+    servidor de correo este lento o apagado.
+    """
     valores = datos.model_dump()
     valores["especialidad_remitida"] = normalizar_especialidad(valores["especialidad_remitida"])
-    return db.crear_solicitud(valores)
+    solicitud = db.crear_solicitud(valores)
+
+    tareas.add_task(avisar_al_familiar, solicitud)
+    return solicitud
 
 
 @app.get("/solicitudes", response_model=list[Solicitud], tags=["Solicitudes"])

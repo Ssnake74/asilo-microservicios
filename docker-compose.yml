@@ -152,11 +152,23 @@ services:
       - DB_PASSWORD=solicitudes_2026
       - DB_NAME=asilo_solicitudes
       - MS_COBROS_URL=http://ms-cobros:8082
+      # Servidor de correo para el aviso al familiar (RF-44). En desarrollo
+      # es Mailpit, que recibe los mensajes pero no los manda a internet:
+      # se leen en http://localhost:8025. Para un servidor real solo se
+      # cambian estos tres valores, sin tocar el codigo.
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_REMITENTE=notificaciones@asilocabezadealgodon.org
       - TZ=America/Guatemala
     depends_on:
       mysql:
         condition: service_healthy
       ms-cobros:
+        condition: service_started
+      mailpit:
+        # Solo espera a que el contenedor exista. Si Mailpit se cae
+        # despues, las remisiones se siguen registrando: el envio esta
+        # protegido con try/except en notificaciones.py.
         condition: service_started
     restart: unless-stopped
 
