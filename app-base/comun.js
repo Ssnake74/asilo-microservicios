@@ -162,7 +162,7 @@ function montarEncabezado(subtitulo) {
         <div class="quien" id="yo-nombre">…</div>
         <div class="identidad-pie">
           <span class="rol mono" id="yo-rol">…</span>
-          <a class="boton-barra" href="/panel">Panel</a>
+          <a class="boton-barra" href="/panel"${location.pathname === "/panel" ? ' aria-current="page"' : ""}>Panel</a>
           <button class="boton-barra" id="yo-salir">Salir</button>
         </div>
       </div>
@@ -207,8 +207,7 @@ async function iniciarPantalla({ subtitulo, requiere }) {
         <h2>Esta pantalla no le corresponde</h2>
         <p class="ayuda">Su puesto en el asilo no incluye esta tarea.
            Vuelva al panel para ver lo que sí le corresponde.</p>
-        <div class="acciones"><a class="boton-barra"
-             style="border-color:var(--pino);color:var(--pino);"
+        <div class="acciones"><a class="boton-barra en-tarjeta"
              href="/panel">Volver al panel</a></div>
       </section>`;
     return null;

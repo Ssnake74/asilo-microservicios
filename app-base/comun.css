@@ -9,36 +9,76 @@
    Aqui vive lo que TODAS las pantallas comparten. Lo propio de cada
    una (las fichas del registro de internos, las tarjetas del panel)
    se queda en el <style> de esa pantalla.
+
+   REGLA: ningun color se escribe a mano fuera del bloque :root de
+   abajo. Las pantallas y comun.js solo usan var(--...). Asi cambiar la
+   identidad del asilo es cambiar este bloque y nada mas.
    ===================================================================== */
 
 :root{
-  --fondo:#E7EBE6;
-  --superficie:#FBFCFA;
-  --tinta:#17231F;
-  --tinta-suave:#5A6A64;
-  --pino:#1E5245;
-  --pino-oscuro:#14382F;
-  --pino-claro:#DCE7E2;
-  --ocre:#B07A19;
-  --granate:#8C2230;
-  --linea:#C8D2CC;
-  --radio:10px;
+  /* Identidad: violeta sobre un fondo calido. El violeta distingue al
+     asilo de los demas sistemas del curso; el fondo crema evita que se
+     sienta frio o de oficina. */
+  --violeta-profundo:#4C3A75;
+  --violeta-medio:#6B5499;
+  --violeta-suave:#EDE9F4;
+  --dorado:#B8863B;
+  --fondo:#FAF8F5;
+  --superficie:#FFFFFF;
+  --borde:#DDD6E3;
+  --texto:#2C2638;
+  --texto-suave:#5E5668;
+
+  /* Colores con significado: se conservan porque dicen «salio bien»,
+     «salio mal» o «espere», pero apagados para no pelear con el violeta. */
+  --exito:#2E6B4F;
+  --error:#A32F3A;
+  --advertencia:#9A6B1E;
+  --info:#3A5A8C;
+
+  /* Derivados. --advertencia como TEXTO no llega a 4.5:1 sobre fondo
+     claro (queda en 4.2), asi que se usa solo en franjas y bordes y el
+     texto va en este tono mas oscuro. */
+  --advertencia-texto:#82591A;
+  --exito-fondo:#EBF3EE;
+  --error-fondo:#F9ECED;
+  --advertencia-fondo:#F8F1E4;
+  --info-fondo:#ECF1F7;
+  --sobre-violeta:#FFFFFF;
+  --sobre-violeta-suave:#DDD5EA;
+  --sobre-violeta-borde:#8F7FB0;
+  --sobre-violeta-hover:#5D4A88;
+
+  /* Tipografia: titulos con serifa y texto en la letra del sistema. La
+     mezcla es parte de la identidad. Todo sale de fuentes instaladas
+     para que funcione sin conexion a internet. */
+  --letra-titulos:Georgia,"Times New Roman",serif;
+  --letra-texto:-apple-system,"Segoe UI",Roboto,sans-serif;
+  --letra-codigo:ui-monospace,"Cascadia Mono",Consolas,monospace;
+
+  --radio:8px;
   --ancho:1120px;
 }
 
 *{box-sizing:border-box;}
 
+/* 16 px de base: varias de las personas que usan el sistema son adultos
+   mayores, y el texto de 13 px de antes se les hacia pequeño. */
 body{
   margin:0;
   background:var(--fondo);
-  color:var(--tinta);
-  font-family:"IBM Plex Sans",system-ui,sans-serif;
-  font-size:15px;
+  color:var(--texto);
+  font-family:var(--letra-texto);
+  font-size:16px;
   line-height:1.5;
 }
 
-h1,h2,h3{font-family:"Bitter",Georgia,serif;margin:0;}
-.mono{font-family:"IBM Plex Mono",monospace;}
+h1,h2,h3{font-family:var(--letra-titulos);font-weight:700;margin:0;}
+.mono{font-family:var(--letra-codigo);}
+
+a{color:var(--violeta-profundo);}
+a:hover{color:var(--violeta-medio);}
+a:focus-visible{outline:2px solid var(--violeta-medio);outline-offset:2px;border-radius:2px;}
 
 
 /* ---------------------------------------------------------------------
@@ -50,72 +90,84 @@ h1,h2,h3{font-family:"Bitter",Georgia,serif;margin:0;}
    --------------------------------------------------------------------- */
 
 header{
-  background:var(--pino);
-  color:#EDF3F0;
+  background:var(--violeta-profundo);
+  color:var(--sobre-violeta);
   padding:16px 24px;
-  border-bottom:3px solid var(--pino-oscuro);
 }
 .barra{
   max-width:var(--ancho); margin:0 auto;
   display:flex; align-items:center; gap:16px; flex-wrap:wrap;
 }
-header h1{font-size:19px;letter-spacing:.2px;}
-header .sub{font-size:13px;color:#B6CCC4;margin-top:3px;}
+header h1{font-size:21px;letter-spacing:.2px;}
+header .sub{font-size:14px;color:var(--sobre-violeta-suave);margin-top:3px;}
 
-.identidad{margin-left:auto;text-align:right;font-size:13px;}
+.identidad{margin-left:auto;text-align:right;font-size:14px;}
 .identidad .quien{font-weight:600;}
 .identidad-pie{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:5px;}
 .identidad .rol{
-  padding:3px 9px; border-radius:20px; background:rgba(255,255,255,.15);
-  font-size:11.5px;
+  padding:3px 10px; border-radius:20px; background:var(--sobre-violeta-hover);
+  font-family:var(--letra-texto); font-size:13px;
 }
 .boton-barra{
-  padding:6px 13px; border:1px solid rgba(255,255,255,.35); border-radius:8px;
-  background:transparent; color:#fff; cursor:pointer; font-size:12.5px;
-  font-family:"IBM Plex Sans",sans-serif; text-decoration:none; display:inline-block;
+  padding:6px 13px; border:1px solid var(--sobre-violeta-borde); border-radius:6px;
+  background:transparent; color:var(--sobre-violeta); cursor:pointer; font-size:14px;
+  font-family:var(--letra-texto); font-weight:500; text-decoration:none; display:inline-block;
 }
-.boton-barra:hover{background:rgba(255,255,255,.12);}
+.boton-barra:hover{background:var(--sobre-violeta-hover);color:var(--sobre-violeta);}
+.boton-barra:focus-visible{outline:2px solid var(--sobre-violeta);outline-offset:2px;}
+
+/* La seccion activa se marca con una linea dorada debajo, no con otro
+   fondo: el dorado es el unico acento calido y se reserva para esto. */
+.boton-barra[aria-current="page"]{
+  border-color:transparent; border-radius:0;
+  box-shadow:inset 0 -3px 0 var(--dorado);
+}
+
+/* El mismo enlace, pero dentro de una tarjeta blanca y no en la barra. */
+.boton-barra.en-tarjeta{border-color:var(--violeta-profundo);color:var(--violeta-profundo);}
+.boton-barra.en-tarjeta:hover{background:var(--violeta-suave);color:var(--violeta-profundo);}
+.boton-barra.en-tarjeta:focus-visible{outline-color:var(--violeta-medio);}
 
 
 /* --------------------------------------------------------------------- */
 /* Cuerpo y tarjetas                                                     */
 /* --------------------------------------------------------------------- */
 
-main{max-width:var(--ancho);margin:0 auto;padding:22px 24px 60px;}
+main{max-width:var(--ancho);margin:0 auto;padding:24px 24px 60px;}
 @media (max-width:720px){main{padding:18px 14px 40px;}}
 
 /* Tarjeta con relleno propio: la que usan los formularios sueltos. */
 section.tarjeta{
   background:var(--superficie);
-  border:1px solid var(--linea);
+  border:1px solid var(--borde);
   border-radius:var(--radio);
-  padding:18px;
+  padding:20px;
   margin-bottom:20px;
 }
 section.tarjeta > h2{
-  font-size:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-  padding-bottom:10px; border-bottom:1px solid var(--linea); margin-bottom:14px;
+  font-size:19px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding-bottom:10px; border-bottom:1px solid var(--borde); margin-bottom:14px;
 }
 
-/* Tarjeta con cabecera de color y contenido a sangre: la de las listas
-   largas, donde el titulo debe quedar pegado al borde. */
+/* Tarjeta con cabecera y contenido a sangre: la de las listas largas,
+   donde el titulo debe quedar pegado al borde. */
 section.plana{
   background:var(--superficie);
-  border:1px solid var(--linea);
+  border:1px solid var(--borde);
   border-radius:var(--radio);
   padding:0; margin-bottom:20px; overflow:hidden;
 }
 section.plana > h2{
-  font-size:16px; padding:14px 18px; background:#F2F6F3;
-  border-bottom:1px solid var(--linea);
+  font-size:19px; padding:14px 20px; background:var(--fondo);
+  border-bottom:1px solid var(--borde);
   display:flex; align-items:center; gap:10px; flex-wrap:wrap;
 }
-section.plana .cuerpo{padding:18px;}
+section.plana .cuerpo{padding:20px;}
 
-.ayuda{font-size:12.5px;color:var(--tinta-suave);margin:0 0 14px;}
+.ayuda{font-size:14.5px;color:var(--texto-suave);margin:0 0 14px;}
 .conteo{
-  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
-  background:var(--pino-claro); color:var(--pino);
+  font-family:var(--letra-texto); font-size:13px; font-weight:600;
+  background:var(--violeta-suave); color:var(--violeta-profundo);
   border-radius:4px; padding:2px 8px;
 }
 
@@ -124,31 +176,33 @@ section.plana .cuerpo{padding:18px;}
 /* Formularios                                                           */
 /* --------------------------------------------------------------------- */
 
-label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta-suave);margin-bottom:5px;}
-.obligatorio{color:var(--granate);}
+label{display:block;font-size:14.5px;font-weight:600;color:var(--texto);margin-bottom:5px;}
+.obligatorio{color:var(--error);}
 
 input,select,textarea{
-  width:100%; padding:9px 10px; border:1px solid var(--linea); border-radius:6px;
-  background:#fff; color:var(--tinta); font-size:14px;
-  font-family:"IBM Plex Sans",sans-serif;
+  width:100%; padding:9px 11px; border:1px solid var(--borde); border-radius:6px;
+  background:var(--superficie); color:var(--texto); font-size:16px;
+  font-family:var(--letra-texto);
 }
+/* Anillo visible al enfocar, sea con el raton o con el teclado: quien
+   navega con Tab tiene que saber siempre en que casilla esta. */
 input:focus,select:focus,textarea:focus{
-  outline:2px solid var(--pino); outline-offset:1px; border-color:var(--pino);
+  outline:2px solid var(--violeta-medio); outline-offset:1px; border-color:var(--violeta-medio);
 }
-textarea{resize:vertical;min-height:66px;}
+textarea{resize:vertical;min-height:70px;}
 
-.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
 .campo{margin-bottom:0;}
-.pista{font-size:11.5px;color:var(--tinta-suave);margin-top:4px;}
+.pista{font-size:13.5px;color:var(--texto-suave);margin-top:4px;}
 
 .check{display:flex;align-items:center;gap:9px;margin-top:14px;}
 .check input{width:auto;}
-.check label{margin:0;font-weight:500;color:var(--tinta);font-size:14px;}
+.check label{margin:0;font-weight:500;color:var(--texto);font-size:15px;}
 
 /* El campo con problema se marca en el campo mismo, no solo en el
    resumen de arriba: asi la persona ve donde corregir sin buscar. */
-input.malo,select.malo,textarea.malo{border-color:var(--granate);background:#FDF6F7;}
-.error-campo{display:none;font-size:12px;color:var(--granate);margin-top:4px;}
+input.malo,select.malo,textarea.malo{border-color:var(--error);background:var(--error-fondo);}
+.error-campo{display:none;font-size:13.5px;color:var(--error);margin-top:4px;}
 .error-campo.visible{display:block;}
 
 
@@ -156,36 +210,46 @@ input.malo,select.malo,textarea.malo{border-color:var(--granate);background:#FDF
 /* Botones                                                               */
 /* --------------------------------------------------------------------- */
 
+/* Tres clases de boton y nada mas: el principal relleno, el secundario
+   con borde, y el destructivo con borde rojo. El destructivo NUNCA va
+   relleno: un bloque rojo grande invita a pulsarlo, y es justo el boton
+   que hay que pensar dos veces. */
 button{
-  border:none; border-radius:6px; padding:9px 17px; font-size:13.5px; font-weight:600;
-  background:var(--pino); color:#fff; cursor:pointer;
-  font-family:"IBM Plex Sans",sans-serif;
+  border:1px solid var(--violeta-profundo); border-radius:6px; padding:9px 18px;
+  font-size:15px; font-weight:600;
+  background:var(--violeta-profundo); color:var(--sobre-violeta); cursor:pointer;
+  font-family:var(--letra-texto);
 }
-button:hover{background:#16443A;}
-button:focus-visible{outline:2px solid var(--ocre);outline-offset:2px;}
+button:hover{background:var(--violeta-medio);border-color:var(--violeta-medio);}
+button:focus-visible{outline:2px solid var(--violeta-medio);outline-offset:2px;}
 button:disabled{opacity:.6;cursor:progress;}
-button.secundario{background:transparent;color:var(--pino);border:1px solid var(--pino);}
-button.secundario:hover{background:var(--pino-claro);}
-button.peligro{background:transparent;color:var(--granate);border:1px solid var(--granate);}
-button.peligro:hover{background:#F7E9EB;}
-button.mini{padding:5px 11px;font-size:12px;}
+button.secundario{background:transparent;color:var(--violeta-profundo);border-color:var(--violeta-profundo);}
+button.secundario:hover{background:var(--violeta-suave);color:var(--violeta-profundo);}
+button.peligro{background:transparent;color:var(--error);border-color:var(--error);}
+button.peligro:hover{background:var(--error-fondo);}
+button.mini{padding:5px 12px;font-size:14px;}
 .acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center;}
-.nota-obligatorios{font-size:12.5px;color:var(--tinta-suave);}
+.nota-obligatorios{font-size:14px;color:var(--texto-suave);}
 
 
 /* --------------------------------------------------------------------- */
 /* Tablas                                                                */
 /* --------------------------------------------------------------------- */
 
-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+/* Solo lineas horizontales y renglones alternos: el ojo sigue la fila
+   sin que una rejilla de cuadros le estorbe. */
+table{width:100%;border-collapse:collapse;font-size:15px;}
 th{
-  text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.6px;
-  color:var(--tinta-suave); border-bottom:1px solid var(--linea);
-  padding:8px; font-weight:600;
+  text-align:left; font-size:14px; font-weight:600;
+  background:var(--violeta-suave); color:var(--violeta-profundo);
+  border-bottom:1px solid var(--borde); padding:9px 10px;
 }
-td{padding:9px 8px;border-bottom:1px solid #E6EBE7;vertical-align:middle;}
+td{padding:9px 10px;border-bottom:1px solid var(--borde);vertical-align:middle;}
+tbody tr:nth-child(even) td{background:var(--fondo);}
 tr:last-child td{border-bottom:none;}
-.num{font-family:"IBM Plex Mono",monospace;text-align:right;white-space:nowrap;}
+/* Cifras con digitos de ancho fijo, para que los quetzales se alineen
+   en columna sin cambiar de letra. */
+.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
 .tabla-scroll{overflow-x:auto;}
 
 
@@ -193,33 +257,41 @@ tr:last-child td{border-bottom:none;}
 /* Avisos, estados y vacios                                              */
 /* --------------------------------------------------------------------- */
 
-.aviso{padding:11px 13px;border-radius:6px;font-size:13.5px;margin-top:14px;display:none;}
-.aviso.ok{background:#DDEBE4;color:var(--pino-oscuro);border-left:4px solid var(--pino);display:block;}
-.aviso.error{background:#F6E7E9;color:#6E1B26;border-left:4px solid var(--granate);display:block;}
+/* Franja de color a la izquierda sobre fondo claro, en vez de un bloque
+   entero de color: el texto se sigue leyendo en tinta oscura. */
+.aviso{
+  padding:12px 14px; border-radius:6px; font-size:15px; margin-top:14px; display:none;
+  border-left:4px solid var(--info); background:var(--info-fondo); color:var(--texto);
+}
+.aviso.ok{background:var(--exito-fondo);border-left-color:var(--exito);display:block;}
+.aviso.error{background:var(--error-fondo);border-left-color:var(--error);display:block;}
+.aviso.ok strong{color:var(--exito);}
+.aviso.error strong{color:var(--error);}
 .aviso ul{margin:6px 0 0;padding-left:20px;}
 
 .estado{
-  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
-  padding:2px 7px; border-radius:4px; white-space:nowrap; display:inline-block;
+  font-family:var(--letra-texto); font-size:13px; font-weight:600;
+  padding:2px 8px; border-radius:4px; white-space:nowrap; display:inline-block;
 }
-.estado.pendiente{background:#F7EEDA;color:var(--ocre);}
-.estado.convertida,.estado.pagado,.estado.programada{background:#DDEBE4;color:var(--pino);}
-.estado.anulada{background:#F1E4E6;color:var(--granate);}
+.estado.pendiente{background:var(--advertencia-fondo);color:var(--advertencia-texto);}
+.estado.convertida,.estado.pagado,.estado.programada{background:var(--exito-fondo);color:var(--exito);}
+.estado.anulada,.estado.anulado{background:var(--error-fondo);color:var(--error);}
 
-.vacio{color:var(--tinta-suave);font-size:13.5px;font-style:italic;padding:16px 0;}
+.vacio{color:var(--texto-suave);font-size:15px;font-style:italic;padding:16px 0;}
 
 /* Resumen de cifras: los recuadros del estado de cuenta. */
-.resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:14px 0;}
-.resumen div{background:var(--pino-claro);border-radius:8px;padding:10px 12px;}
-.resumen span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--pino);}
-.resumen strong{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500;}
-.resumen .saldo{background:#F7EEDA;}
-.resumen .saldo span{color:var(--ocre);}
+.resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0;}
+.resumen div{background:var(--violeta-suave);border-radius:var(--radio);padding:10px 12px;}
+.resumen span{display:block;font-size:13px;font-weight:600;color:var(--violeta-profundo);}
+.resumen strong{font-variant-numeric:tabular-nums;font-size:20px;font-weight:600;}
+.resumen .saldo{background:var(--advertencia-fondo);}
+.resumen .saldo span{color:var(--advertencia-texto);}
 
 /* Bloque plegable: los formularios que no se usan todo el tiempo. */
 details.plegable{
-  margin-top:14px; background:#F2F6F3; border:1px solid var(--linea);
-  border-radius:8px; padding:12px 14px;
+  margin-top:14px; background:var(--fondo); border:1px solid var(--borde);
+  border-radius:var(--radio); padding:12px 14px;
 }
-details.plegable summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--pino);}
+details.plegable summary{cursor:pointer;font-size:15px;font-weight:600;color:var(--violeta-profundo);}
+details.plegable summary:focus-visible{outline:2px solid var(--violeta-medio);outline-offset:2px;}
 details.plegable .rejilla{margin-top:14px;}

@@ -4,36 +4,39 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Panel · Asilo Cabeza de Algodón</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/comun.css">
 <style>
   /* Propio del panel: las tarjetas de los módulos. */
-  section > h2{font-size:15px;margin-bottom:12px;color:var(--tinta-suave);font-weight:500;}
+  section + section{margin-top:32px;}
+  section > h2{font-size:20px;margin-bottom:12px;color:var(--texto);}
   .rejilla-modulos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;}
 
   .modulo{
-    background:var(--superficie); border:1px solid var(--linea);
+    background:var(--superficie); border:1px solid var(--borde);
     border-radius:var(--radio); padding:18px; text-decoration:none;
-    color:var(--tinta); display:block; transition:border-color .15s;
+    color:var(--texto); display:block; transition:border-color .15s;
   }
-  .modulo:hover{border-color:var(--pino);}
-  .modulo h3{font-size:16px;margin-bottom:6px;}
-  .modulo p{margin:0;font-size:13px;color:var(--tinta-suave);line-height:1.45;}
+  .modulo:hover{border-color:var(--violeta-medio);}
+  .modulo:focus-visible{outline:2px solid var(--violeta-medio);outline-offset:2px;}
+  .modulo h3{font-size:18px;margin-bottom:6px;color:var(--violeta-profundo);}
+  .modulo p{margin:0;font-size:15px;color:var(--texto-suave);line-height:1.45;}
   .modulo .cifra{
-    font-family:"IBM Plex Mono",monospace; font-size:26px;
-    color:var(--pino); margin:10px 0 0; line-height:1.1;
+    font-family:var(--letra-titulos); font-size:30px; font-variant-numeric:tabular-nums;
+    color:var(--violeta-profundo); margin:10px 0 0; line-height:1.1;
   }
-  .modulo .pie{font-size:12px;color:var(--tinta-suave);margin-top:2px;}
+  .modulo .pie{font-size:14px;color:var(--texto-suave);margin-top:2px;}
 
-  .modulo.apagado{opacity:.5;pointer-events:none;}
+  /* Lo que falta por construir se distingue con borde punteado y fondo
+     calido, no bajando la opacidad: a media opacidad el texto quedaba
+     por debajo del contraste minimo y no se podia leer. */
+  .modulo.apagado{pointer-events:none;background:var(--fondo);border-style:dashed;}
+  .modulo.apagado h3{color:var(--texto-suave);}
   .etiqueta-pendiente{
     display:inline-block; margin-bottom:8px; padding:3px 8px; border-radius:4px;
-    background:#F5EBD8; color:var(--ocre);
-    font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500;
+    background:var(--advertencia-fondo); color:var(--advertencia-texto);
+    font-family:var(--letra-texto); font-size:12.5px; font-weight:600;
   }
-  .cargando{color:var(--tinta-suave);font-size:13.5px;}
+  .cargando{color:var(--texto-suave);font-size:15px;}
 </style>
 </head>
 <body>

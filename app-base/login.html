@@ -4,81 +4,77 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ingresar · Asilo Cabeza de Algodón</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/comun.css">
 <style>
-  :root{
-    --fondo:#E7EBE6; --superficie:#FBFCFA; --tinta:#17231F; --tinta-suave:#5A6A64;
-    --pino:#1E5245; --pino-claro:#DCE7E2; --ocre:#B07A19; --granate:#8C2230;
-    --linea:#C8D2CC; --radio:10px;
-  }
-  *{box-sizing:border-box;}
+  /* El ingreso usa la misma paleta y letra que las demas pantallas
+     (comun.css); aqui solo va lo que es propio de esta tarjeta. */
   body{
-    margin:0; min-height:100vh; background:var(--fondo); color:var(--tinta);
-    font-family:"IBM Plex Sans",system-ui,sans-serif;
-    display:flex; align-items:center; justify-content:center; padding:24px;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
   }
-  h1,h2{font-family:"Bitter",Georgia,serif; margin:0;}
 
   .tarjeta{
-    width:100%; max-width:400px; background:var(--superficie);
-    border:1px solid var(--linea); border-radius:var(--radio); overflow:hidden;
+    width:100%; max-width:420px; background:var(--superficie);
+    border:1px solid var(--borde); border-radius:var(--radio); overflow:hidden;
   }
-  .encabezado{background:var(--pino); color:#fff; padding:24px;}
-  .encabezado h1{font-size:20px; line-height:1.3;}
-  .encabezado p{margin:6px 0 0; font-size:13px; opacity:.85;}
+
+  /* Nombre del asilo con su marca al lado. Va sobre fondo claro y no
+     sobre una franja de color: la flor de algodon se dibuja con trazo
+     violeta y necesita fondo blanco para leerse. */
+  .encabezado{
+    display:grid; grid-template-columns:48px 1fr; column-gap:14px; align-items:center;
+    padding:24px 24px 18px; border-bottom:1px solid var(--borde);
+  }
+  .encabezado .marca{grid-row:span 2; width:48px; height:48px; color:var(--violeta-profundo);}
+  .encabezado h1{font-size:22px; line-height:1.25; color:var(--violeta-profundo);}
+  .encabezado p{grid-column:2; margin:6px 0 0; font-size:14.5px; color:var(--texto-suave);}
 
   form{padding:24px;}
   .campo{margin-bottom:16px;}
-  label{display:block; font-size:13px; font-weight:600; margin-bottom:6px;}
-  input{
-    width:100%; padding:10px 12px; border:1px solid var(--linea);
-    border-radius:8px; font-size:15px; font-family:"IBM Plex Sans",sans-serif;
-    background:#fff; color:var(--tinta);
-  }
-  input:focus{outline:2px solid var(--pino); outline-offset:-1px;}
-  input.malo{border-color:var(--granate); background:#FDF6F7;}
+  button{width:100%; padding:11px; font-size:16px;}
 
-  button{
-    width:100%; padding:11px; border:0; border-radius:8px;
-    background:var(--pino); color:#fff; font-size:15px; font-weight:600;
-    font-family:"IBM Plex Sans",sans-serif; cursor:pointer;
-  }
-  button:hover{background:#17423806;}
-  button:disabled{opacity:.6; cursor:progress;}
-
-  .aviso{
-    margin-top:16px; padding:11px 13px; border-radius:8px; font-size:13.5px;
-    border-left:3px solid var(--granate); background:#FBEEF0; color:var(--granate);
-  }
+  /* comun.css oculta todo .aviso que no sea .ok o .error; aqui el aviso
+     se muestra y se oculta con .oculto, asi que se devuelve a block. */
+  .aviso{display:block; margin-top:16px; border-left-color:var(--error); background:var(--error-fondo);}
   .aviso.oculto{display:none;}
 
   /* El bloqueo se ve DISTINTO de una contraseña equivocada, y a
      proposito. Son dos situaciones que no se parecen: una se arregla
      escribiendo bien, la otra solo esperando. Si se vieran iguales, la
      persona seguiria intentando y alargaria su propio bloqueo.
-     Por eso va en ocre (aviso, espere) y no en granate (error). */
-  .aviso.bloqueo{
-    border-left-color:var(--ocre); background:#FBF3E3; color:#6E4A0C;
-  }
-  .aviso.bloqueo strong{display:block; margin-bottom:3px;}
+     Por eso va en ambar (aviso, espere) y no en rojo (error). */
+  .aviso.bloqueo{border-left-color:var(--advertencia); background:var(--advertencia-fondo);}
+  .aviso.bloqueo strong{display:block; margin-bottom:3px; color:var(--advertencia-texto);}
 
   .ayuda{
-    padding:16px 24px 22px; border-top:1px solid var(--linea);
-    background:var(--pino-claro); font-size:12.5px; color:var(--tinta-suave);
+    margin:0; padding:16px 24px 22px; border-top:1px solid var(--borde);
+    background:var(--fondo); font-size:14px; color:var(--texto-suave);
   }
-  .ayuda strong{color:var(--tinta); display:block; margin-bottom:8px; font-size:13px;}
-  .ayuda table{width:100%; border-collapse:collapse; font-family:"IBM Plex Mono",monospace; font-size:11.5px;}
-  .ayuda td{padding:3px 0;}
-  .ayuda td:first-child{color:var(--pino); font-weight:500;}
-  .ayuda .clave{margin-top:10px; font-family:"IBM Plex Mono",monospace; font-size:11.5px;}
+  .ayuda strong{color:var(--texto); display:block; margin-bottom:8px; font-size:14.5px;}
+  .ayuda table{font-size:14px;}
+  .ayuda td{padding:3px 0; border:none; background:transparent;}
+  .ayuda td:first-child{font-family:var(--letra-codigo); color:var(--violeta-profundo); font-weight:600; width:40%;}
+  .ayuda .clave{margin-top:10px;}
+  .ayuda .clave strong{font-family:var(--letra-codigo);}
 </style>
 </head>
 <body>
 
 <div class="tarjeta">
   <div class="encabezado">
+    <!-- Marca del asilo: una flor de algodon reducida a figuras simples.
+         Cinco capullos redondos alrededor de un centro, y debajo el
+         caliz de tres puntas. Va en linea para no depender de archivos. -->
+    <svg class="marca" viewBox="0 0 48 48" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="24" cy="8.5" r="5.5"/>
+      <circle cx="34" cy="15.8" r="5.5"/>
+      <circle cx="30.2" cy="27.5" r="5.5"/>
+      <circle cx="17.8" cy="27.5" r="5.5"/>
+      <circle cx="14" cy="15.8" r="5.5"/>
+      <circle cx="24" cy="19" r="3.5"/>
+      <path d="M15 37 L20.5 34 L24 39 L27.5 34 L33 37"/>
+      <path d="M24 39 V46"/>
+    </svg>
     <h1>Asilo de Ancianos<br>«Cabeza de Algodón»</h1>
     <p>Sistema de administración · Ingreso al sistema</p>
   </div>

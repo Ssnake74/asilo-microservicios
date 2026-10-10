@@ -4,19 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Asignación de visitas · Asilo Cabeza de Algodón</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/comun.css">
 <style>
   /* Propio de esta pantalla: cada solicitud en espera es una tarjeta con
      su propio formulario, porque se atienden de una en una. */
-  .espera{border:1px solid var(--linea);border-radius:8px;padding:14px;margin-bottom:14px;background:#fff;}
+  .espera{border:1px solid var(--borde);border-radius:var(--radio);padding:14px;margin-bottom:14px;background:var(--superficie);}
   .espera-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;}
-  .espera-cab strong{font-size:15.5px;}
-  .espera-motivo{font-size:13px;color:var(--tinta-suave);margin-top:5px;}
-  .espera-motivo b{color:var(--tinta);font-weight:600;}
-  .nota-cobro{font-size:12px;color:var(--tinta-suave);margin-top:10px;}
+  .espera-cab strong{font-size:17px;}
+  .espera-motivo{font-size:15px;color:var(--texto-suave);margin-top:5px;}
+  .espera-motivo b{color:var(--texto);font-weight:600;}
+  .nota-cobro{font-size:14px;color:var(--texto-suave);margin-top:10px;}
 </style>
 </head>
 <body>
@@ -211,7 +208,7 @@ async function cargarVisitas(){
             <td>${texto(v.especialidad)}</td>
             <td>${texto(v.medico_tratante)}</td>
             <td>${fechaLegible(v.fecha_visita)}</td>
-            <td style="color:var(--tinta-suave);">${texto(v.observaciones) || "—"}</td>
+            <td style="color:var(--texto-suave);">${texto(v.observaciones) || "—"}</td>
             <td>${v.cargo_generado
                   ? '<span class="estado convertida">Cargado a su cuenta</span>'
                   : '<span class="estado pendiente">Sin cargar</span>'}</td>

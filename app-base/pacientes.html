@@ -4,45 +4,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Registro de internos · Asilo Cabeza de Algodón</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/comun.css">
 <style>
   /* Propio de esta pantalla: la ficha se llena por bloques, como en papel. */
-  fieldset{border:none;border-bottom:1px dashed var(--linea);margin:0;padding:18px;}
+  fieldset{border:none;border-bottom:1px dashed var(--borde);margin:0;padding:18px;}
   fieldset:last-of-type{border-bottom:none;}
-  legend{font-family:"Bitter",Georgia,serif;font-size:14.5px;font-weight:700;color:var(--pino);
+  legend{font-family:var(--letra-titulos);font-size:17px;font-weight:700;color:var(--violeta-profundo);
          padding:0;margin-bottom:4px;display:flex;align-items:center;gap:9px;}
-  .paso{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
-        border-radius:50%;background:var(--pino);color:#fff;font-family:"IBM Plex Mono",monospace;
-        font-size:12px;font-weight:500;}
-  .ayuda-seccion{font-size:12.5px;color:var(--tinta-suave);margin:0 0 14px 31px;}
+  .paso{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
+        border-radius:50%;background:var(--violeta-profundo);color:var(--sobre-violeta);font-family:var(--letra-texto);
+        font-size:13px;font-weight:600;}
+  .ayuda-seccion{font-size:14.5px;color:var(--texto-suave);margin:0 0 14px 33px;}
 
   /* Rejillas de columnas fijas, para que la ficha se lea por parejas. */
   .rejilla.c2{grid-template-columns:1fr 1fr;}
   .rejilla.c3{grid-template-columns:1fr 1fr 1fr;}
   @media (max-width:720px){.rejilla.c2,.rejilla.c3{grid-template-columns:1fr;}}
 
-  .edad-calculada{background:var(--pino-claro);border-radius:6px;padding:9px 12px;
-        font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--pino);}
+  .edad-calculada{background:var(--violeta-suave);border-radius:6px;padding:9px 12px;
+        font-size:16px;font-weight:600;color:var(--violeta-profundo);}
 
-  .pie-form{padding:18px;background:#F2F6F3;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  .pie-form{padding:18px;background:var(--fondo);display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
   section.plana .aviso{margin:0 18px 18px;}
 
-  .buscador{padding:14px 18px;border-bottom:1px solid var(--linea);display:flex;gap:10px;align-items:center;}
+  .buscador{padding:14px 18px;border-bottom:1px solid var(--borde);display:flex;gap:10px;align-items:center;}
   .buscador input{max-width:340px;}
   .fichas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:18px;}
-  .ficha{border:1px solid var(--linea);border-radius:8px;padding:14px;background:#fff;}
+  .ficha{border:1px solid var(--borde);border-radius:var(--radio);padding:14px;background:var(--superficie);}
   .ficha-cab{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;flex-wrap:wrap;}
-  .ficha-cod{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--pino-claro);
-             color:var(--pino);padding:2px 8px;border-radius:4px;}
-  .ficha h3{font-size:15.5px;}
-  .ficha-datos{font-size:13px;color:var(--tinta-suave);display:grid;gap:3px;margin-bottom:10px;}
-  .ficha-datos b{color:var(--tinta);font-weight:600;}
-  .etiqueta{font-family:"IBM Plex Mono",monospace;font-size:10.5px;padding:2px 7px;border-radius:4px;
-            background:#F7EEDA;color:var(--ocre);}
-  .etiqueta.fund{background:#DDEBE4;color:var(--pino);}
+  .ficha-cod{font-family:var(--letra-codigo);font-size:13.5px;background:var(--violeta-suave);
+             color:var(--violeta-profundo);padding:2px 8px;border-radius:4px;}
+  .ficha h3{font-size:18px;}
+  .ficha-datos{font-size:15px;color:var(--texto-suave);display:grid;gap:3px;margin-bottom:10px;}
+  .ficha-datos b{color:var(--texto);font-weight:600;}
+  .etiqueta{font-family:var(--letra-texto);font-size:13px;font-weight:600;padding:2px 8px;border-radius:4px;
+            background:var(--advertencia-fondo);color:var(--advertencia-texto);}
+  .etiqueta.fund{background:var(--exito-fondo);color:var(--exito);}
   section.plana .vacio{padding:24px 18px;text-align:center;}
 </style>
 </head>
