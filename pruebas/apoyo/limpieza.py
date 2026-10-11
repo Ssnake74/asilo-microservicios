@@ -244,11 +244,9 @@ def limpiar(ctx) -> bool:
     rep.escribir("")
 
     # 6. Sesiones
-    cerradas = 0
     for testigo in list(gw.testigos):
         try:
-            if gw.pedir("POST", "/api/logout", testigo).status_code == 200:
-                cerradas += 1
+            gw.pedir("POST", "/api/logout", testigo)
         except httpx.HTTPError:
             pass
     testigos = list(gw.testigos)

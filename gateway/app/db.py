@@ -222,14 +222,6 @@ def buscar_usuario(usuario: str) -> dict | None:
             return cur.fetchone()
 
 
-def listar_usuarios() -> list[dict]:
-    conn = get_conn()
-    with conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM usuarios ORDER BY rol, usuario")
-            return [_normalizar(f) for f in cur.fetchall()]
-
-
 # =====================================================================
 # Sesiones
 # =====================================================================

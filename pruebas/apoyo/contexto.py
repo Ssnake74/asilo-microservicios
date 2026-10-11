@@ -17,7 +17,6 @@ mitad y el registro en memoria se haya perdido.
 """
 
 import os
-import time
 from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -103,7 +102,6 @@ class Contexto:
         # anota sus filas. Comparar contra el reloj de este contenedor
         # podria dejar fuera una fila por un segundo de diferencia.
         self.inicio_sql = self.root.uno("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')")
-        self.inicio_unix = int(time.time()) - 2
 
         # Lo que crea la corrida. La limpieza borra esto y ademas barre
         # por la marca, por si algo se creo sin que quedara anotado.

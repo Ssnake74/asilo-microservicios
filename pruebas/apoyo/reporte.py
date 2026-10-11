@@ -20,9 +20,6 @@ from contextlib import contextmanager
 
 ANCHO = 78
 SANGRIA = " " * 7
-# "Esperado: " y "Obtenido: " miden lo mismo; el texto que no cabe en
-# una linea sigue alineado debajo del primer caracter del valor.
-SANGRIA_VALOR = SANGRIA + " " * len("Obtenido: ")
 
 PASA = "PASA"
 FALLA = "FALLA"
