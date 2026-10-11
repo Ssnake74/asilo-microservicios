@@ -1,215 +1,138 @@
-# Microservicios — Sistema para Administración Asilo de Ancianos «Cabeza de Algodón»
+# Sistema para Administración del Asilo de Ancianos «Cabeza de Algodón»
 
 **Universidad Mariano Gálvez de Guatemala** · Centro Regional de Mazatenango
 Análisis y Diseño de Sistemas II · Ing. Angel Atilio Maltez C.
 Estudiante: Julio César Sagastume Villavicencio · Carné: 3090 23 18018
 
+Sistema web que lleva el registro de los internos del asilo, sus remisiones a los
+especialistas de la fundación, las visitas médicas y la cuenta de cada familiar.
+
 ---
 
-## 1. Qué se construyó
+## 1. Arquitectura
 
-Dos microservicios independientes, tomados directamente de las reglas de negocio
-definidas en los documentos de **Arquitectura** y **Estructura de Capas** del proyecto,
-más una **aplicación base** que los consume desde el navegador.
-
-| Microservicio | Puerto | Responsabilidad |
-|---|---|---|
-| `ms-solicitudes` | 8081 | Registra las solicitudes de consulta del médico general y las **convierte en visitas médicas formales**, validando médico tratante y especialidad. |
-| `ms-cobros` | 8082 | Administra el **tarifario**, genera los cargos de citas, exámenes y medicamentos **aplicando el descuento de la fundación**, y lleva el estado de cuenta del familiar. |
-| `app-base` | — | Pantallas del sistema (HTML + JavaScript). No se publican por su cuenta: las sirve el gateway, que monta esta carpeta. |
-
-Cada microservicio tiene **su propia base de datos SQLite** (patrón *database per service*),
-su propio `Dockerfile` y su propia documentación interactiva generada por FastAPI.
-
-### Cómo se comunican
+Microservicios en FastAPI (Python 3.12) detrás de un gateway, con MySQL 8, todo
+sobre Docker Compose.
 
 ```
-Navegador (app-base :8080)
-        │
-        ├── HTTP ──► ms-solicitudes :8081 ──┐
-        │                                    │ HTTP interno
-        └── HTTP ──► ms-cobros      :8082 ◄──┘
+Navegador ──► gateway :8080 ──┬──► ms-pacientes
+                              ├──► ms-solicitudes ──► ms-cobros
+                              └──► ms-cobros
+
+MySQL 8: un esquema y un usuario por servicio
 ```
 
-Al confirmar una visita médica, `ms-solicitudes` llama por HTTP a `ms-cobros` para
-generar el cargo de la consulta. Si `ms-cobros` está apagado, la visita **se registra
-igual** y queda marcada como "cargo pendiente de generar": un servicio no tumba al otro.
+| Servicio | Responsabilidad |
+|---|---|
+| `gateway` | Sirve las pantallas, abre la sesión, decide qué puede hacer cada rol, reenvía la petición al servicio que corresponde y lleva la bitácora. |
+| `ms-pacientes` | Registro de los internos y de su familiar responsable. |
+| `ms-solicitudes` | Remisiones del médico general y su conversión en visita médica. Avisa por correo al familiar. |
+| `ms-cobros` | Tarifario, cargos con el descuento de la fundación y estado de cuenta. |
+
+- El gateway es la única entrada: los microservicios no publican puerto (RNF-03).
+- Cada servicio entra a MySQL con su propio usuario y solo ve su esquema. Lo impone
+  el motor, no el código (RNF-04).
+- Si `ms-cobros` no responde, la visita se registra igual y queda pendiente de cobro
+  (RNF-12).
 
 ---
 
-## 2. Requisitos
+## 2. Cómo levantarlo
 
-- **Docker Desktop** (incluye Docker Compose), o
-- **Python 3.11 o superior** si se prefiere ejecutar sin contenedores.
-
----
-
-## 3. Ejecución con Docker (forma recomendada)
-
-Desde la carpeta `asilo-microservicios/`:
+Requisito: Docker Desktop.
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
-
-Luego abrir en el navegador:
 
 | Dirección | Qué es |
 |---|---|
-| http://localhost:8080 | Aplicación base |
-| http://localhost:8081/docs | Documentación Swagger de `ms-solicitudes` |
-| http://localhost:8082/docs | Documentación Swagger de `ms-cobros` |
+| http://localhost:8080 | El sistema |
+| http://localhost:8091 | Adminer, para ver las tablas (solo desarrollo) |
+| http://localhost:8025 | Mailpit, la bandeja con los correos que envía el sistema (solo desarrollo) |
 
-Para detener todo: `Ctrl + C` y luego `docker compose down`.
-Para borrar también las bases de datos: `docker compose down -v`.
+MySQL queda además en el puerto 3307 del equipo, para conectarse con un cliente.
 
-Comandos útiles durante la grabación del video:
-
-```bash
-docker compose ps                    # muestra los tres contenedores corriendo
-docker compose logs -f ms-cobros     # muestra en vivo las peticiones que recibe
-docker compose stop ms-cobros        # apaga un servicio para demostrar la tolerancia a fallos
-docker compose start ms-cobros       # lo vuelve a levantar
-```
+Para apagar: `docker compose down`. No use `docker compose down -v`: borra los datos.
 
 ---
 
-## 4. Ejecución sin Docker
+## 3. Usuarios de demostración
 
-En tres terminales distintas:
-
-```bash
-# Terminal 1
-cd ms-cobros
-pip install -r requirements.txt
-uvicorn app.main:app --port 8082 --reload
-
-# Terminal 2
-cd ms-solicitudes
-pip install -r requirements.txt
-uvicorn app.main:app --port 8081 --reload
-
-# Terminal 3
-cd app-base
-python -m http.server 8080
-```
-
----
-
-## 5. Endpoints
-
-### `ms-solicitudes` (8081)
-
-| Método | Ruta | Descripción |
+| Usuario | Rol | Qué hace |
 |---|---|---|
-| GET | `/health` | Estado del servicio |
-| POST | `/solicitudes` | Registra la solicitud del médico general |
-| GET | `/solicitudes` | Lista solicitudes (filtros `estado`, `paciente_id`) |
-| GET | `/solicitudes/{id}` | Consulta una solicitud |
-| DELETE | `/solicitudes/{id}` | Anula una solicitud pendiente |
-| **POST** | **`/solicitudes/{id}/convertir`** | **Convierte la solicitud en visita médica formal** |
-| GET | `/visitas` | Lista las visitas médicas |
-| GET | `/visitas/{id}` | Consulta una visita |
+| `admin` | Administrador | Todo, y consulta la bitácora |
+| `secretaria` | Secretaria del asilo | Registra a los internos y a sus familiares |
+| `medico` | Médico general | Remite al interno a una especialidad |
+| `fundacion` | Fundación | Asigna horario y médico, y convierte la remisión en visita |
+| `caja` | Caja y cobros | Tarifario, cobros y estado de cuenta |
 
-**Validaciones de la conversión:** la solicitud debe existir, debe estar en estado
-`PENDIENTE`, debe indicarse médico tratante y la especialidad asignada debe coincidir
-con la que remitió el médico general. Si no coincide, el servicio responde `422` con
-el detalle del error.
-
-### `ms-cobros` (8082)
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/health` | Estado del servicio |
-| GET/POST | `/tarifas` | Lista y crea tarifas |
-| GET/PUT/DELETE | `/tarifas/{id}` | Consulta, actualiza y elimina una tarifa |
-| POST | `/cargos` | Genera un cargo aplicando el descuento de la fundación |
-| GET | `/cargos` | Lista cargos (filtros `paciente_id`, `estado`) |
-| POST | `/cargos/{id}/pagar` | Registra el pago del familiar |
-| DELETE | `/cargos/{id}` | Anula un cargo no pagado |
-| GET | `/estado-cuenta/{paciente_id}` | Corte de cuenta con totales y saldo |
-
-**Regla del descuento** (`ms-cobros/app/reglas.py`):
-
-```
-monto_bruto  = precio de la tarifa × cantidad
-descuento    = monto_bruto × (porcentaje que cubre la fundación / 100)   [solo si el paciente es beneficiario]
-monto_neto   = monto_bruto − descuento     ← lo que paga el familiar
-```
+Contraseña de todos en desarrollo: `asilo2026`. Cinco intentos fallidos en quince
+minutos bloquean al usuario.
 
 ---
 
-## 6. Prueba rápida desde la terminal
-
-```bash
-# 1. Crear una solicitud
-curl -X POST http://localhost:8081/solicitudes \
-  -H "Content-Type: application/json" \
-  -d '{"paciente_id":"PAC-001","paciente_nombre":"Rosa Elena Coronado","familiar_email":"familiar@correo.com","medico_general":"Dr. Luis Marroquin","especialidad_remitida":"Cardiologia","motivo":"Presion arterial elevada","cubierto_fundacion":true}'
-
-# 2. Intentar convertirla con la especialidad equivocada (debe fallar con 422)
-curl -X POST http://localhost:8081/solicitudes/1/convertir \
-  -H "Content-Type: application/json" \
-  -d '{"medico_tratante":"Dra. Ana Sical","especialidad":"Dermatologia","fecha_visita":"2026-08-25 09:30"}'
-
-# 3. Convertirla correctamente (genera el cargo en ms-cobros)
-curl -X POST http://localhost:8081/solicitudes/1/convertir \
-  -H "Content-Type: application/json" \
-  -d '{"medico_tratante":"Dra. Ana Sical","especialidad":"Cardiologia","fecha_visita":"2026-08-25 09:30"}'
-
-# 4. Ver el estado de cuenta del familiar
-curl http://localhost:8082/estado-cuenta/PAC-001
-```
-
----
-
-## 7. Estructura de archivos
+## 4. Estructura
 
 ```
-asilo-microservicios/
-├── docker-compose.yml          Orquesta los tres contenedores
-├── README.md
-├── GUION_VIDEO.md              Guion sugerido para la grabación
-│
-├── ms-solicitudes/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── app/
-│       ├── main.py             API y regla de conversión a visita médica
-│       ├── schemas.py          Entidades y validaciones de entrada
-│       ├── db.py               Acceso a datos (SQLite)
-│       └── cliente_cobros.py   Llamada HTTP al otro microservicio
-│
-├── ms-cobros/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── app/
-│       ├── main.py             API de tarifas, cargos y estado de cuenta
-│       ├── reglas.py           Cálculo del descuento de la fundación
-│       ├── schemas.py
-│       └── db.py
-│
-└── app-base/
-    ├── Dockerfile              Nginx sirviendo las pantallas
-    ├── comun.css               Paleta, tipografía y formularios de todas las pantallas
-    ├── comun.js                Llamadas a /api, errores en español y encabezado
-    ├── login.html              Ingreso al sistema
-    ├── panel.html              Menú, según lo que el puesto puede ver
-    ├── pacientes.html          Registro de internos (secretaria)
-    ├── solicitudes.html        Remisiones a especialistas (médico general)
-    ├── asignaciones.html       Asignación de visitas médicas (fundación)
-    ├── tarifario.html          Precios y descuento de la fundación (caja)
-    └── cuentas.html            Estado de cuenta, cobros y pagos (caja)
+app-base/        Pantallas: HTML, CSS y JavaScript sin framework. Las sirve el gateway
+gateway/         app/  main.py · seguridad.py · db.py · schemas.py
+ms-pacientes/    app/  main.py · reglas.py · db.py · schemas.py
+ms-solicitudes/  app/  los mismos, más cliente_cobros.py y notificaciones.py
+ms-cobros/       app/  main.py · reglas.py · db.py · schemas.py
+infra/mysql/init/01-esquemas.sql   Esquemas y usuarios de MySQL
+pruebas/         Pruebas automatizadas y su reporte
+docker-compose.yml
 ```
 
----
+Cada microservicio separa cuatro capas (RNF-19 y RNF-20):
 
-## 8. Relación con los documentos entregados
-
-| Documento previo | Cómo se refleja aquí |
+| Archivo | Capa |
 |---|---|
-| Arquitectura en tres capas | Cada microservicio conserva sus capas: API (presentación/controlador), reglas de negocio y acceso a datos. |
-| Capa de lógica de negocio | `reglas.py` (descuento de la fundación) y la conversión de solicitud a visita en `main.py`. |
-| Capa de acceso a datos (Repositorio) | `db.py` es lo único que toca la base de datos. |
-| Capa de entidades o modelos | `schemas.py` define Solicitud, Visita Médica, Tarifa y Cargo. |
-| Base de datos relacional | SQLite en esta demostración; el mismo diseño de tablas migra a MySQL, SQL Server u Oracle en el servidor de la universidad. |
+| `main.py` | Presentación: las rutas HTTP |
+| `reglas.py` | Reglas de negocio |
+| `db.py` | Acceso a datos: todo el SQL del servicio |
+| `schemas.py` | Entidades y validación de la entrada |
+
+---
+
+## 5. Rutas
+
+Todas entran por el gateway.
+
+| Ruta | Quién la atiende |
+|---|---|
+| `/api/login`, `/api/logout`, `/api/yo` | gateway: sesión |
+| `/api/salud` | gateway: estado de los servicios |
+| `/api/bitacora` | gateway: bitácora, solo para el administrador |
+| `/api/pacientes` | `ms-pacientes` |
+| `/api/solicitudes`, `/api/visitas` | `ms-solicitudes` |
+| `/api/tarifas`, `/api/cargos`, `/api/estado-cuenta` | `ms-cobros` |
+
+Qué rol puede usar cada ruta está en la tabla `PERMISOS` de
+`gateway/app/seguridad.py`. Lo que no aparece ahí se niega.
+
+---
+
+## 6. Pruebas
+
+Con el sistema levantado, desde la raíz del repositorio:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\pruebas\ejecutar.ps1
+```
+
+Son 167 casos en 13 grupos, cada uno ligado al requisito que verifica. El reporte
+queda en `pruebas/resultado.txt` y lista los casos que fallan y los pendientes
+conocidos.
+
+---
+
+## 7. Estado
+
+**Construido:** acceso con sesión, cinco roles y bitácora · registro de internos ·
+remisiones médicas · asignación de visitas · tarifario · cuentas y cobros · aviso
+por correo al familiar.
+
+**Pendiente:** catálogo de médicos, especialidades y exámenes · laboratorio y
+farmacia · donaciones, gastos y cuota mensual · reportes.
