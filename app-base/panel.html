@@ -6,7 +6,7 @@
 <title>Panel · Asilo Cabeza de Algodón</title>
 <link rel="stylesheet" href="/comun.css">
 <style>
-  /* Propio del panel: las tarjetas de los módulos. */
+  /* Propio del panel: las tarjetas de los modulos. */
   section + section{margin-top:32px;}
   section > h2{font-size:20px;margin-bottom:12px;color:var(--texto);}
   .rejilla-modulos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;}
@@ -27,8 +27,8 @@
   .modulo .pie{font-size:14px;color:var(--texto-suave);margin-top:2px;}
 
   /* Lo que falta por construir se distingue con borde punteado y fondo
-     calido, no bajando la opacidad: a media opacidad el texto quedaba
-     por debajo del contraste minimo y no se podia leer. */
+     calido, no bajando la opacidad: a media opacidad el texto queda por
+     debajo del contraste minimo y no se puede leer. */
   .modulo.apagado{pointer-events:none;background:var(--fondo);border-style:dashed;}
   .modulo.apagado h3{color:var(--texto-suave);}
   .etiqueta-pendiente{
@@ -58,13 +58,13 @@
 <script src="/comun.js"></script>
 <script>
 /* ---------------------------------------------------------------------
-   Catálogo de módulos.
+   Catalogo de modulos.
 
-   «recurso» es el mismo nombre con el que el sistema decide quién puede
-   ver qué: si el puesto de la persona no alcanza para consultarlo, la
-   tarjeta ni se dibuja. El menú no está escrito a mano rol por rol.
+   «recurso» es el mismo nombre con el que el sistema decide quien puede
+   ver que: si el puesto de la persona no alcanza para consultarlo, la
+   tarjeta ni se dibuja. El menu no esta escrito a mano rol por rol.
 
-   «cifra» saca su número de los datos del módulo mismo. Si la consulta
+   «cifra» saca su numero de los datos del modulo mismo. Si la consulta
    no se puede hacer -porque a ese puesto no le toca- la tarjeta sale
    sin número y nada más: no es un error que la persona deba ver.
    --------------------------------------------------------------------- */
@@ -128,7 +128,7 @@ const MODULOS = [
   }
 ];
 
-// Todavía no existen. Se muestran apagados para que se vea el alcance
+// Todavia no existen. Se muestran apagados para que se vea el alcance
 // completo del sistema y lo que falta por hacer.
 const FUTUROS = [
   { titulo:"Catálogo médico",      texto:"Médicos, especialidades, enfermeros, exámenes y medicamentos." },
@@ -154,7 +154,7 @@ function dibujarModulo(m, cifra){
 
   const visibles = MODULOS.filter(m => yo.recursos.includes(m.recurso));
 
-  // Se dibujan primero sin número, para que el menú aparezca de una vez,
+  // Se dibujan primero sin numero, para que el menu aparezca de una vez,
   // y las cifras se van poniendo conforme llegan.
   porId("modulos").innerHTML = visibles.length
     ? visibles.map(m => dibujarModulo(m, null)).join("")

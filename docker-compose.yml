@@ -2,43 +2,18 @@
 # Sistema para Administracion Asilo de Ancianos "Cabeza de Algodon"
 # Universidad Mariano Galvez de Guatemala - Centro Regional de Mazatenango
 #
-# AISLAMIENTO DE RED
+# Los microservicios no llevan "ports" (RNF-03): solo el gateway los
+# alcanza, por la red interna, y nadie se salta la sesion ni el rol.
 #
-# Los tres microservicios (pacientes, solicitudes y cobros) YA NO
-# publican puertos hacia la maquina. Antes se llegaba a ellos desde el
-# navegador con localhost:8083, localhost:8081 y localhost:8082, y por
-# ahi se saltaba por completo el gateway: sin usuario, sin sesion y sin
-# revision de rol. Cualquiera que conociera el puerto podia borrar una
-# ficha o cambiar una tarifa.
-#
-# Al quitarles la seccion "ports", esos contenedores solo son
-# alcanzables desde la red interna de Docker, es decir, unicamente por
-# el gateway, que si pregunta quien es usted y que le corresponde hacer.
-#
-# Sigue habiendo tres puertas hacia afuera, y son a proposito:
-#   8080  gateway  -> la unica entrada del sistema
-#   8091  adminer  -> ver las tablas mientras se desarrolla
-#   3307  mysql    -> conectarse con Workbench mientras se desarrolla
-# Adminer y MySQL se cierran igual antes de entregar en un servidor real.
-#
-# Levantar todo:            docker compose up -d
-# Levantar solo la infra:   docker compose up -d mysql mailpit adminer
-# Ver el estado:            docker compose ps
-# Apagar todo:              docker compose down
-# Apagar y BORRAR datos:    docker compose down -v
+# Apagar: docker compose down. No usar "down -v": borra los datos.
 # =====================================================================
 
 services:
 
   # -------------------------------------------------------------------
-  # Motor de base de datos relacional
-  #
-  # El enunciado exige MySQL, SQL Server u Oracle. Se usa MySQL 8.
-  #
-  # Se publica en el puerto 3307 del equipo (no 3306) a proposito: si
-  # usted ya tiene XAMPP, Laragon o un MySQL instalado en Windows, ese
-  # ocupa el 3306 y el contenedor no podria arrancar. Dentro de la red
-  # de Docker los servicios lo siguen viendo en el 3306 normal.
+  # MySQL 8. Sale por el 3307 del equipo y no por el 3306 para no chocar
+  # con un MySQL ya instalado (XAMPP, Laragon). Dentro de la red de
+  # Docker se sigue usando el 3306.
   # -------------------------------------------------------------------
   mysql:
     image: mysql:8.0
@@ -55,8 +30,8 @@ services:
       # Los .sql de esta carpeta se ejecutan solo la primera vez
       - ./infra/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      # Sirve para que mas adelante los servicios esperen a que MySQL
-      # este REALMENTE listo, y no solo "arrancando".
+      # Los servicios esperan a que MySQL acepte conexiones, no solo a
+      # que el contenedor arranque.
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_asilo_2026"]
       interval: 10s
       timeout: 5s
@@ -65,15 +40,11 @@ services:
     restart: unless-stopped
 
   # -------------------------------------------------------------------
-  # Servidor de correo de pruebas
+  # Mailpit: servidor SMTP de prueba para el aviso al familiar (RF-44).
+  # Recibe los correos y los muestra en una bandeja web, sin mandarlos
+  # a internet.
   #
-  # El enunciado pide enviar un correo al familiar cuando se crea una
-  # solicitud medica. Mailpit finge ser un servidor SMTP: recibe los
-  # correos pero NO los manda a internet, los muestra en una bandeja
-  # web. Asi la funcionalidad se puede demostrar sin configurar Gmail
-  # y sin conexion.
-  #
-  #   1025 -> puerto SMTP (al que le escriben los servicios)
+  #   1025 -> SMTP (al que le escriben los servicios)
   #   8025 -> bandeja web (http://localhost:8025)
   # -------------------------------------------------------------------
   mailpit:
@@ -85,10 +56,7 @@ services:
     restart: unless-stopped
 
   # -------------------------------------------------------------------
-  # Administrador web de la base de datos
-  #
-  # Para ver las tablas sin instalar MySQL Workbench. Util mientras
-  # desarrollamos y para mostrar el modelo en el video.
+  # Adminer, para ver las tablas durante el desarrollo.
   #
   #   http://localhost:8091
   #   Motor: MySQL / Servidor: mysql / Usuario: root / Clave: root_asilo_2026
@@ -105,11 +73,8 @@ services:
     restart: unless-stopped
 
   # ===================================================================
-  # Microservicios de negocio
-  #
-  # Los tres guardan en MySQL, cada uno en su esquema y con su usuario.
-  # Ninguno se publica hacia la maquina: solo el gateway los alcanza,
-  # por la red interna de Docker.
+  # Microservicios de negocio: cada uno con su esquema y su usuario de
+  # MySQL, y sin "ports" (RNF-03).
   # ===================================================================
 
   # -------------------------------------------------------------------
@@ -118,8 +83,7 @@ services:
   ms-cobros:
     build: ./ms-cobros
     container_name: asilo-ms-cobros
-    # Sin "ports": ya no se publica el 8082 hacia la maquina. Ver la nota
-    # de aislamiento de red al final del archivo.
+    # Sin "ports" a proposito (RNF-03).
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -133,18 +97,14 @@ services:
     restart: unless-stopped
 
   # -------------------------------------------------------------------
-  # Solicitudes de consulta y visitas medicas (esquema asilo_solicitudes).
-  #
-  # Espera dos cosas para arrancar: que MySQL pase su healthcheck, para
-  # poder crear sus tablas, y que ms-cobros exista, porque al convertir
-  # una solicitud le pide el cargo de la consulta. Si ms-cobros se cae
-  # despues, este servicio sigue funcionando: esa llamada esta protegida
-  # con try/except en cliente_cobros.py.
+  # Remisiones y visitas medicas (esquema asilo_solicitudes). Al
+  # convertir una remision le pide el cargo a ms-cobros; si cobros no
+  # responde, la visita se guarda igual (RNF-12, cliente_cobros.py).
   # -------------------------------------------------------------------
   ms-solicitudes:
     build: ./ms-solicitudes
     container_name: asilo-ms-solicitudes
-    # Sin "ports": ya no se publica el 8081 hacia la maquina.
+    # Sin "ports" a proposito (RNF-03).
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -152,10 +112,7 @@ services:
       - DB_PASSWORD=solicitudes_2026
       - DB_NAME=asilo_solicitudes
       - MS_COBROS_URL=http://ms-cobros:8082
-      # Servidor de correo para el aviso al familiar (RF-44). En desarrollo
-      # es Mailpit, que recibe los mensajes pero no los manda a internet:
-      # se leen en http://localhost:8025. Para un servidor real solo se
-      # cambian estos tres valores, sin tocar el codigo.
+      # Servidor de correo del aviso al familiar (RF-44).
       - SMTP_HOST=mailpit
       - SMTP_PORT=1025
       - SMTP_REMITENTE=notificaciones@asilocabezadealgodon.org
@@ -166,27 +123,19 @@ services:
       ms-cobros:
         condition: service_started
       mailpit:
-        # Solo espera a que el contenedor exista. Si Mailpit se cae
-        # despues, las remisiones se siguen registrando: el envio esta
-        # protegido con try/except en notificaciones.py.
+        # Solo espera a que exista: si Mailpit se cae, la remision se
+        # registra igual (notificaciones.py).
         condition: service_started
     restart: unless-stopped
 
   # -------------------------------------------------------------------
-  # MIGRADO A MySQL (paso 1.2)
-  #
-  # Ya no tiene volumen propio: sus datos viven en el esquema
-  # asilo_pacientes dentro del contenedor de MySQL.
-  #
-  # Se conecta con su propio usuario, que solo tiene permiso sobre ese
-  # esquema. El host es "mysql" (el nombre del servicio) y el puerto
-  # 3306, no 3307: el 3307 es solo la puerta hacia afuera, para su
-  # maquina. Entre contenedores se usa el puerto interno.
+  # Registro de internos (esquema asilo_pacientes). Entre contenedores se
+  # usa el puerto interno 3306; el 3307 es solo la puerta hacia el equipo.
   # -------------------------------------------------------------------
   ms-pacientes:
     build: ./ms-pacientes
     container_name: asilo-ms-pacientes
-    # Sin "ports": ya no se publica el 8083 hacia la maquina.
+    # Sin "ports" a proposito (RNF-03).
     environment:
       - DB_HOST=mysql
       - DB_PORT=3306
@@ -196,22 +145,16 @@ services:
       - TZ=America/Guatemala
     depends_on:
       mysql:
-        # Espera a que el healthcheck de MySQL pase, no solo a que el
-        # contenedor exista. Aun asi el servicio reintenta por su cuenta
-        # en init_db(), por si acaso.
+        # Espera al healthcheck de MySQL; init_db() reintenta igual.
         condition: service_healthy
     restart: unless-stopped
 
   # -------------------------------------------------------------------
-  # GATEWAY - la unica puerta del sistema
+  # Gateway: la unica entrada del sistema (http://localhost:8080).
+  # Autentica, revisa el rol y reenvia por la red interna.
   #
-  # El navegador entra por http://localhost:8080 y solo habla con este
-  # servicio. El gateway autentica, revisa permisos por rol y reenvia
-  # a los microservicios usando la red interna de Docker.
-  #
-  # La carpeta app-base se MONTA como volumen en lugar de copiarse a la
-  # imagen: asi se puede editar un HTML y ver el cambio con solo
-  # refrescar el navegador, sin reconstruir el contenedor.
+  # app-base se monta como volumen y no se copia a la imagen: un cambio
+  # en las pantallas se ve al refrescar, sin reconstruir el contenedor.
   # -------------------------------------------------------------------
   gateway:
     build: ./gateway
@@ -235,21 +178,8 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Aqui estaba el contenedor app-base, que servia las pantallas en el
-  # puerto 8090 con su propio servidor web. Se elimino: las pantallas
-  # las sirve ahora el gateway desde la MISMA carpeta (montada arriba
-  # como /code/publico), y desde que las paginas piden rutas /api/...
-  # del mismo origen, servirlas por el 8090 ya no funcionaba: ahi no hay
-  # ningun gateway que atienda esas rutas. Era una puerta abierta que ya
-  # no llevaba a ninguna parte.
-
 
 volumes:
-  # Un solo volumen para todo el sistema: aqui viven los cuatro esquemas
-  # de MySQL (gateway, pacientes, solicitudes y cobros).
-  #
-  # Los volumenes de la epoca de SQLite -pacientes-datos, cobros-datos y
-  # solicitudes-datos- ya no se declaran. Ojo: quitarlos de aqui NO los
-  # borra del disco, solo deja de montarlos. Se borran a mano con
-  # "docker volume rm", y solicitudes-datos ya se borro asi.
+  # Aqui viven todos los esquemas de MySQL. "docker compose down -v"
+  # lo borra.
   mysql-datos:

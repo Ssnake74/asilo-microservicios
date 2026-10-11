@@ -37,10 +37,9 @@
   .aviso{display:block; margin-top:16px; border-left-color:var(--error); background:var(--error-fondo);}
   .aviso.oculto{display:none;}
 
-  /* El bloqueo se ve DISTINTO de una contraseña equivocada, y a
-     proposito. Son dos situaciones que no se parecen: una se arregla
-     escribiendo bien, la otra solo esperando. Si se vieran iguales, la
-     persona seguiria intentando y alargaria su propio bloqueo.
+  /* El bloqueo se ve distinto de una contrasena equivocada: una se
+     arregla escribiendo bien, la otra solo esperando. Si se vieran
+     iguales, la persona seguiria intentando y alargaria su bloqueo.
      Por eso va en ambar (aviso, espere) y no en rojo (error). */
   .aviso.bloqueo{border-left-color:var(--advertencia); background:var(--advertencia-fondo);}
   .aviso.bloqueo strong{display:block; margin-bottom:3px; color:var(--advertencia-texto);}
@@ -178,7 +177,7 @@ $("formulario").addEventListener("submit", async (evento) => {
 
     if(!respuesta.ok){
       // El servidor responde lo mismo si el usuario no existe o si la
-      // contraseña esta mal, para no confirmar cuales usuarios son validos.
+      // contrasena esta mal, para no confirmar cuales usuarios son validos.
       $("usuario").classList.add("malo");
       $("contrasena").classList.add("malo");
       $("contrasena").value = "";

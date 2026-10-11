@@ -18,7 +18,7 @@
    1. Llamadas al sistema
    =====================================================================
 
-   Todas las direcciones son del MISMO origen y empiezan por /api/.
+   Todas las direcciones son del mismo origen y empiezan por /api/.
    La pantalla no conoce ninguna maquina ni ningun puerto: pide
    /api/tarifas y ya. La sesion viaja sola en la cookie.
 
@@ -33,7 +33,7 @@
    ===================================================================== */
 
 // Que se le dice a la persona cuando un modulo del sistema no responde.
-// Se habla de MODULOS DEL ASILO, no de servicios ni de contenedores:
+// Se habla de modulos del asilo, no de servicios ni de contenedores:
 // quien lee esto es la secretaria, no quien programo el sistema.
 // Se escriben sin articulo, porque van pegados a «El módulo de …».
 const MODULO_DE = {
@@ -60,7 +60,7 @@ function mensajeNoDisponible(ruta) {
  * Si algo sale mal lanza un Error con dos propiedades utiles:
  *
  *   .codigo   el codigo que respondio el sistema
- *   .detalle  el detalle crudo, SOLO cuando es un 422 de validacion,
+ *   .detalle  el detalle crudo, solo cuando es un 422 de validacion,
  *             para que el formulario lo traduzca campo por campo
  */
 async function api(ruta, opciones = {}) {
@@ -106,7 +106,7 @@ async function api(ruta, opciones = {}) {
     error.message = mensajeNoDisponible(ruta);
 
   } else if (respuesta.status === 422) {
-    // El detalle se conserva TAL CUAL. Cada formulario sabe como se
+    // El detalle se conserva tal cual. Cada formulario sabe como se
     // llaman sus campos en espanol y lo traduce con sus etiquetas.
     error.message = "Hay datos que no se pudieron aceptar.";
     error.detalle = cuerpo.detail;
@@ -123,16 +123,14 @@ async function api(ruta, opciones = {}) {
 /**
  * Version silenciosa, para los datos de adorno.
  *
- * Cuando la pantalla pide algo POR SU CUENTA -las cifras de las
- * tarjetas del panel, por ejemplo- y el rol no tiene permiso, eso NO es
- * un error que la persona deba ver: es lo normal. La secretaria no lee
- * los cargos y no tiene por que enterarse de que la pantalla lo intento.
+ * Cuando la pantalla pide algo por su cuenta -las cifras de las
+ * tarjetas del panel, por ejemplo- y el rol no tiene permiso, no es un
+ * error que la persona deba ver: la secretaria no lee los cargos.
  *
  * Devuelve el valor de reserva ante cualquier tropiezo. La unica
  * excepcion es el 401, que siempre manda al ingreso.
  *
- * En cambio, cuando la persona PULSA UN BOTON y le falta el permiso, se
- * usa api() normal y el 403 si se le avisa.
+ * Cuando la persona pulsa un boton se usa api(), y el 403 se le avisa.
  */
 async function apiSilenciosa(ruta, reserva = null) {
   try {
@@ -198,9 +196,9 @@ async function iniciarPantalla({ subtitulo, requiere }) {
   porId("yo-nombre").textContent = yo.nombre;
   porId("yo-rol").textContent = yo.rol_nombre;
 
-  // El panel ya no le muestra esta pantalla a quien no le toca, pero
-  // alguien puede llegar por un enlace guardado. Mejor decirlo claro
-  // que dejarlo pelear con botones que siempre fallan.
+  // El panel no le muestra esta pantalla a quien no le toca, pero se
+  // puede llegar por un enlace guardado. Mejor decirlo claro que dejarlo
+  // pelear con botones que siempre fallan.
   if (requiere && !yo.recursos.includes(requiere)) {
     document.querySelector("main").innerHTML = `
       <section class="tarjeta">
@@ -227,9 +225,8 @@ async function iniciarPantalla({ subtitulo, requiere }) {
      [{"type":"string_too_short","loc":["body","paciente_id"],
        "msg":"String should have at least 1 character", ...}]
 
-   Eso es lo que la persona veia en pantalla. Aqui se convierte en
-   «Código del interno: debe tener al menos 1 carácter» y ademas se
-   marca el campo culpable.
+   Aqui se convierte en «Código del interno: debe tener al menos 1
+   carácter» y ademas se marca el campo culpable.
 
    Cada formulario se describe con cuatro cosas:
 
@@ -302,7 +299,7 @@ function avisar(idAviso, texto, ok = true) {
   caja.textContent = texto;
 }
 
-// Lleva la pantalla hasta el primer campo marcado DE ESTE formulario,
+// Lleva la pantalla hasta el primer campo marcado de este formulario,
 // para no saltar a un error viejo que quedo en otra tarjeta.
 function irAlPrimerError(form) {
   const campo = Object.keys(form.ids)
@@ -316,7 +313,7 @@ function irAlPrimerError(form) {
   campo.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-// Revisa en el navegador ANTES de enviar: el error sale de inmediato,
+// Revisa en el navegador antes de enviar: el error sale de inmediato,
 // sin gastar un viaje, y ya viene escrito en espanol.
 function validarLocalmente(form) {
   const faltantes = [];
@@ -424,8 +421,6 @@ function insignia(estado, diccionario) {
 /**
  * Llena un <select> con los internos registrados.
  *
- * Antes el codigo del interno se escribia a mano («PAC-001»), y quien
- * lo escribia tenia que acordarselo. Ahora se escoge de la lista.
  * Devuelve las fichas, para poder consultar despues el nombre del
  * interno o si le cubre la fundacion.
  */

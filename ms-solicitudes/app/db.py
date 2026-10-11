@@ -1,19 +1,9 @@
 """
 Capa de Acceso a Datos del microservicio de Solicitudes y Visitas Medicas.
 
-Corresponde a la "Capa de Acceso a Datos (Repositorio)" del documento de
-Estructura de Capas del proyecto. Este archivo es el UNICO del servicio
-que contiene SQL y el unico que sabe que el motor es MySQL.
-
-Antes de la migracion las consultas estaban escritas dentro de main.py.
-Ahora main.py solo llama funciones con nombre (crear_solicitud, listar,
-convertir_en_visita...). Eso es lo que convierte este archivo en un
-repositorio de verdad y no solo en "el archivo de la conexion".
-
-Este microservicio guarda en su propio esquema (asilo_solicitudes), con
-su propio usuario de MySQL: nunca lee las tablas de Cobros ni las de
-Pacientes. Cuando necesita algo de otro servicio se lo pide por HTTP
-(ver cliente_cobros.py).
+Es el unico archivo del servicio con SQL. Trabaja solo en su esquema
+(asilo_solicitudes) con su propio usuario: lo que necesita de otro
+servicio se lo pide por HTTP (cliente_cobros.py).
 """
 
 import os
@@ -28,11 +18,8 @@ from pymysql.cursors import DictCursor
 # Conexion
 #
 # Los datos de conexion llegan por variables de entorno desde
-# docker-compose.yml. Nunca se escriben aqui: asi la misma imagen sirve
-# para su maquina y para el servidor de la universidad.
-#
-# El host es "mysql" (el nombre del servicio en Docker) y el puerto el
-# 3306: el 3307 solo existe hacia afuera, para conectarse desde Windows.
+# docker-compose.yml. El puerto es el 3306: el 3307 solo existe hacia
+# afuera, para conectarse desde el equipo.
 # ---------------------------------------------------------------------
 
 CONFIG = {
@@ -54,20 +41,11 @@ def get_conn() -> pymysql.connections.Connection:
 # ---------------------------------------------------------------------
 # Esquema
 #
-# Diferencias frente a la version en SQLite, las mismas que se aplicaron
-# en ms-pacientes:
-#
-#   AUTOINCREMENT      ->  AUTO_INCREMENT
-#   TEXT               ->  VARCHAR(n), con el largo declarado
-#   TEXT con fecha     ->  DATETIME de verdad
-#   INTEGER 0 o 1      ->  BOOLEAN
-#
 # Los largos de cada VARCHAR salen de los Field(max_length=...) de
 # schemas.py, para que Pydantic y MySQL validen lo mismo.
 #
-# MySQL no tiene executescript: cada CREATE TABLE se ejecuta por
-# separado y en orden de dependencia. Primero "solicitudes", porque
-# "visitas" la referencia con una llave foranea.
+# Cada CREATE TABLE va por separado y en orden: primero "solicitudes",
+# porque "visitas" la referencia con una llave foranea.
 # ---------------------------------------------------------------------
 
 TABLA_SOLICITUDES = """
@@ -87,9 +65,8 @@ CREATE TABLE IF NOT EXISTS solicitudes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
 
-# solicitud_id es UNIQUE: una solicitud genera UNA sola visita medica.
-# Es la misma regla que valida main.py, pero escrita en la base, donde
-# ningun error de programacion la puede saltar.
+# solicitud_id es UNIQUE: una solicitud genera una sola visita. main.py
+# lo valida, y la base lo garantiza aunque el codigo se equivoque.
 TABLA_VISITAS = """
 CREATE TABLE IF NOT EXISTS visitas (
     id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -113,9 +90,8 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
     """
     Crea las tablas si no existen, esperando a que MySQL este disponible.
 
-    El reintento no es adorno: Docker levanta este contenedor y el de
-    MySQL casi al mismo tiempo, y MySQL tarda mas en aceptar conexiones.
-    Sin este bucle, el servicio se cae al arrancar la primera vez.
+    Reintenta porque Docker levanta este contenedor y el de MySQL casi a
+    la vez, y MySQL tarda mas en aceptar conexiones.
     """
     ultimo_error = None
     for intento in range(1, intentos + 1):
@@ -138,10 +114,9 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
 # ---------------------------------------------------------------------
 # Normalizacion de filas
 #
-# MySQL devuelve tipos de Python de verdad: DATETIME llega como datetime
-# y BOOLEAN como 0 o 1. Los modelos de schemas.py esperan texto y
-# booleanos, asi que se convierte aqui, en la frontera de la capa de
-# datos, y no en cada endpoint como se hacia antes.
+# MySQL devuelve datetime y BOOLEAN como 0 o 1; schemas.py espera texto
+# y booleanos. Se convierte aqui, en la frontera de la capa de datos, y
+# no en cada endpoint.
 # ---------------------------------------------------------------------
 
 def _normalizar(fila: dict | None, campos_bool: tuple[str, ...]) -> dict | None:
@@ -183,9 +158,8 @@ def crear_solicitud(datos: dict) -> dict:
     """
     Registra la solicitud que genera el medico general.
 
-    La fecha ya no se guarda como texto ISO: se manda un datetime y
-    MySQL lo almacena en una columna DATETIME. Se le quitan los
-    microsegundos porque para una solicitud medica no aportan nada.
+    La fecha va sin microsegundos: para una solicitud medica no aportan
+    nada.
     """
     conn = get_conn()
     with conn:
@@ -218,9 +192,8 @@ def listar_solicitudes(estado: str | None = None, paciente_id: str | None = None
     """
     Lista las solicitudes, opcionalmente filtradas.
 
-    El SQL se arma por partes, pero los valores SIEMPRE viajan como
-    parametros (%s), nunca concatenados: eso es lo que evita la
-    inyeccion SQL.
+    El SQL se arma por partes, pero los valores siempre viajan como
+    parametros (%s), nunca concatenados: eso evita la inyeccion SQL.
     """
     sql = "SELECT * FROM solicitudes WHERE 1 = 1"
     params: list = []
@@ -254,8 +227,8 @@ def anular_solicitud(solicitud_id: int) -> bool:
     Marca la solicitud como ANULADA. Devuelve False si ya no estaba
     pendiente (por ejemplo, si alguien mas la convirtio mientras tanto).
 
-    El WHERE incluye el estado a proposito: asi la comprobacion y el
-    cambio ocurren en la MISMA instruccion y no queda hueco entre ambas.
+    El WHERE incluye el estado a proposito: la comprobacion y el cambio
+    ocurren en la misma instruccion y no queda hueco entre ambas.
     """
     conn = get_conn()
     with conn:
@@ -277,15 +250,12 @@ def convertir_en_visita(solicitud: dict, datos_visita: dict) -> dict | None:
     """
     Crea la visita medica y deja la solicitud en estado CONVERTIDA.
 
-    Las dos operaciones van en la MISMA transaccion: o se guardan ambas
-    o no se guarda ninguna. Si se hicieran por separado y fallara la
-    segunda, quedaria una visita medica colgada de una solicitud que
-    sigue apareciendo como pendiente.
+    Las dos operaciones van en la misma transaccion: no puede quedar una
+    visita colgada de una solicitud que sigue pendiente.
 
-    Devuelve None si la solicitud ya no estaba PENDIENTE. main.py ya lo
-    valida antes, pero si dos usuarios convierten la misma solicitud al
-    mismo tiempo, solo uno de los dos UPDATE encuentra fila que cambiar;
-    al otro se le devuelve None y main.py le responde 409.
+    Devuelve None si la solicitud ya no estaba PENDIENTE: si dos usuarios
+    la convierten a la vez, solo un UPDATE encuentra fila, y al otro
+    main.py le responde 409.
     """
     conn = get_conn()
     with conn:
@@ -325,11 +295,9 @@ def registrar_cargo_en_visita(visita_id: int, cargo_id: int | None) -> dict | No
     """
     Anota en la visita el cargo que devolvio el microservicio de Cobros.
 
-    Se hace en una llamada aparte, DESPUES de la conversion, porque
-    entre una y otra hay una peticion HTTP a otro servicio. Mantener
-    una transaccion de MySQL abierta mientras se espera la red es mala
-    practica: bloquea filas durante segundos y puede dejar la conexion
-    colgada si el otro servicio no responde.
+    Va aparte, despues de la conversion, porque entre una y otra hay una
+    peticion HTTP: una transaccion abierta mientras se espera la red
+    bloquearia filas durante segundos.
     """
     conn = get_conn()
     with conn:

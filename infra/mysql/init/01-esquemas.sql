@@ -3,31 +3,21 @@
 -- Universidad Mariano Galvez de Guatemala - Centro Regional de Mazatenango
 -- Analisis y Diseno de Sistemas II
 --
--- Este script se ejecuta UNA SOLA VEZ, cuando el contenedor de MySQL
--- arranca con el volumen de datos vacio. La imagen oficial de MySQL
--- corre automaticamente todo archivo .sql que encuentre en la carpeta
--- /docker-entrypoint-initdb.d
---
--- Aqui NO se crean tablas. Solo se crea el "terreno" de cada
--- microservicio: su esquema y su usuario. Las tablas las crea cada
--- servicio al arrancar, desde su propio db.py, igual que hoy.
+-- Se ejecuta una sola vez, cuando MySQL arranca con el volumen vacio.
+-- Crea el esquema y el usuario de cada servicio; las tablas las crea
+-- cada servicio al arrancar, desde su db.py.
 -- =====================================================================
 
--- utf8mb4 es el juego de caracteres que guarda bien tildes y enies.
--- Sin esto, "Muñoz" o "Sagastume Villavicencio" se guardan corruptos.
+-- Sin utf8mb4, las tildes y las enies se guardan corruptas.
 SET NAMES utf8mb4;
 
 
 -- ---------------------------------------------------------------------
--- 1. Un esquema (base de datos) por microservicio
+-- 1. Un esquema por microservicio ("database per service"): ningun
+-- servicio ve las tablas de otro.
 --
--- Este es el patron "database per service" del documento de
--- arquitectura: ningun servicio ve las tablas de otro. La diferencia
--- con la version anterior es que en vez de 6 archivos .db sueltos,
--- ahora son 6 esquemas dentro de un mismo motor MySQL.
---
--- ms-reportes no aparece aqui a proposito: no tiene base de datos.
--- Arma los informes preguntandole por HTTP a los demas servicios.
+-- ms-reportes no tiene esquema: arma los informes pidiendole los datos
+-- por HTTP a los demas servicios.
 -- ---------------------------------------------------------------------
 
 CREATE DATABASE IF NOT EXISTS asilo_gateway
@@ -50,14 +40,12 @@ CREATE DATABASE IF NOT EXISTS asilo_cobros
 
 
 -- ---------------------------------------------------------------------
--- 2. Un usuario por microservicio, con permiso SOLO sobre su esquema
+-- 2. Un usuario por microservicio, con permiso solo sobre su esquema
 --
--- Esto es lo que vuelve real el aislamiento. Si manana ms-cobros
--- intentara leer la tabla de pacientes, MySQL se lo niega aunque el
--- programador se equivoque: no tiene permiso, no es solo una regla
--- escrita en un documento.
+-- El aislamiento lo impone MySQL y no el codigo: si ms-cobros intenta
+-- leer las tablas de pacientes, el motor se lo niega.
 --
--- El '%' significa "desde cualquier host de la red de Docker".
+-- '%' = desde cualquier host de la red de Docker.
 -- ---------------------------------------------------------------------
 
 CREATE USER IF NOT EXISTS 'u_gateway'@'%'     IDENTIFIED BY 'gateway_2026';

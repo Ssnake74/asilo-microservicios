@@ -1,9 +1,4 @@
-"""
-Modelos de entrada y salida del microservicio de Pacientes.
-
-Corresponde a la entidad "Paciente (interno del asilo)" definida en el
-documento de Estructura de Capas del proyecto.
-"""
+"""Modelos de entrada y salida del microservicio de Pacientes."""
 
 from datetime import date, datetime
 from typing import Literal, Optional

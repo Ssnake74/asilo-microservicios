@@ -21,7 +21,7 @@
 
 <main>
 
-  <!-- ============ A quién se le consulta ============ -->
+  <!-- ============ A quien se le consulta ============ -->
   <section class="tarjeta">
     <h2>Cuenta del interno</h2>
     <p class="ayuda">Escoja al interno para ver lo que su familiar responsable debe al asilo,
@@ -112,7 +112,7 @@ let internos = [];
 
 const internoDe = (codigo) => internos.find(p => p.codigo === codigo);
 
-// De dónde salió cada cobro, dicho en palabras del asilo. El sistema lo
+// De donde salio cada cobro, dicho en palabras del asilo. El sistema lo
 // guarda como «VISITA-7».
 function origenDe(referencia){
   if(!referencia) return "Cargado en caja";
@@ -136,7 +136,7 @@ async function cargarCuenta(){
 
   const ficha = internoDe(codigo);
   if(ficha){
-    // El descuento se propone según lo que dice la ficha del interno,
+    // El descuento se propone segun lo que dice la ficha del interno,
     // pero quien cobra puede quitarlo si ese cobro no lo cubre.
     porId("g-fundacion").checked = !!ficha.cubierto_fundacion;
     cabecera.innerHTML = `
@@ -212,7 +212,7 @@ async function cargarConceptos(){
   try{
     const tarifas = await api("/api/tarifas?solo_activas=true");
     // Las consultas no se cobran a mano: las carga sola la visita
-    // médica cuando la fundación la programa.
+    // medica cuando la fundacion la programa.
     const cobrables = tarifas.filter(t => t.tipo !== "CITA");
 
     selector.innerHTML = cobrables.map(t =>

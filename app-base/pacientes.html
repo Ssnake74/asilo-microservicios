@@ -238,7 +238,7 @@ const FORM = {
   MINIMOS: {}
 };
 
-// Límites del calendario: entre 60 y 120 años de edad
+// Limites del calendario: entre 60 y 120 anios de edad
 (function topesDeFecha(){
   const hoy = new Date();
   const iso = (d) => d.toISOString().slice(0,10);
@@ -258,7 +258,7 @@ function mostrarEdad(){
   caja.textContent = e + " años";
 }
 
-// Revisiones propias de la ficha, además de las obligatorias comunes.
+// Revisiones propias de la ficha, ademas de las obligatorias comunes.
 function revisarFicha(){
   const faltantes = validarLocalmente(FORM);
 

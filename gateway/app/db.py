@@ -1,20 +1,10 @@
 """
-Capa de Acceso a Datos del Gateway.
+Capa de Acceso a Datos del Gateway (esquema asilo_gateway): usuarios,
+sesiones, intentos fallidos y bitacora. Es el unico archivo del gateway
+con SQL.
 
-Guarda cuatro cosas en el esquema asilo_gateway:
-
-  usuarios           quien puede entrar y con que rol
-  sesiones           que tokens estan activos en este momento
-  intentos_fallidos  ingresos rechazados, para poder bloquear
-  bitacora           quien cambio que cosa y cuando
-
-Guardar las sesiones en la base y no solo en memoria tiene una ventaja
-concreta: si el gateway se reinicia, nadie pierde la sesion. Y permite
-cerrar sesion de verdad, borrando la fila, cosa que un token firmado
-tipo JWT no permite sin trabajo extra.
-
-Como en el resto del proyecto, este es el UNICO archivo del gateway con
-SQL. main.py no escribe consultas: llama funciones con nombre.
+Las sesiones van en la base y no en memoria: sobreviven a un reinicio
+del gateway y se cierran de verdad borrando la fila.
 """
 
 import os
@@ -36,25 +26,20 @@ CONFIG = {
     "cursorclass": DictCursor,
 }
 
-# Cuanto dura una sesion sin actividad.
+# Cuanto dura una sesion desde que se abre.
 HORAS_DE_SESION = 8
 
 # ---------------------------------------------------------------------
-# Reglas del bloqueo por intentos fallidos
+# Bloqueo por intentos fallidos
 #
-# Cinco intentos fallidos dentro de una ventana de quince minutos dejan
-# al usuario bloqueado otros quince. Los numeros estan aqui arriba, con
-# nombre, para poder cambiarlos sin buscarlos dentro de una consulta.
-#
-# La ventana es CORREDIZA: se cuentan los fallos de los ultimos quince
-# minutos. El bloqueo se levanta solo cuando el quinto fallo mas
-# reciente cumple quince minutos y sale de la ventana.
+# Cinco fallos dentro de una ventana corrediza de quince minutos. El
+# bloqueo se levanta solo cuando el quinto fallo mas reciente sale de
+# la ventana.
 # ---------------------------------------------------------------------
 INTENTOS_PERMITIDOS = 5
 MINUTOS_DE_VENTANA = 15
 
-# Los intentos viejos no sirven para nada y no deben quedarse guardados
-# mas de la cuenta: son un registro de actividad de personas.
+# Los intentos viejos se borran: son un registro de actividad de personas.
 HORAS_DE_RETENCION_INTENTOS = 24
 
 
@@ -89,17 +74,14 @@ CREATE TABLE IF NOT EXISTS sesiones (
 # ---------------------------------------------------------------------
 # Intentos de ingreso fallidos
 #
-# No lleva llave foranea contra usuarios A PROPOSITO. Tambien hay que
-# anotar los intentos contra nombres que NO existen: si solo se contaran
-# los usuarios reales, probar "admin" quedaria registrado y probar
-# "adminn" no, y esa diferencia -por ejemplo, que uno se bloquee y el
-# otro nunca- le revelaria a un atacante cuales nombres son validos.
+# Sin llave foranea contra usuarios a proposito: tambien se anotan los
+# nombres que no existen, para que el bloqueo no delate cuales son
+# validos.
 #
-# El indice por (usuario, fecha) es el que hace barata la pregunta que
-# se hace en cada ingreso: cuantos fallos tiene este usuario en los
-# ultimos quince minutos.
+# El indice (usuario, fecha) abarata la pregunta de cada ingreso:
+# cuantos fallos tiene este usuario en los ultimos quince minutos.
 #
-# 45 caracteres para el origen: es lo que mide una direccion IPv6.
+# 45 caracteres para el origen: lo que mide una direccion IPv6.
 # ---------------------------------------------------------------------
 TABLA_INTENTOS_FALLIDOS = """
 CREATE TABLE IF NOT EXISTS intentos_fallidos (
@@ -114,16 +96,12 @@ CREATE TABLE IF NOT EXISTS intentos_fallidos (
 # ---------------------------------------------------------------------
 # Bitacora de auditoria
 #
-# Responde a "quien cambio esto y cuando". Solo se anotan las
-# operaciones que MODIFICAN datos y los intentos rechazados; las
-# consultas no, porque llenarian la tabla sin aportar nada.
+# Quien cambio que y cuando. Que se anota lo decide main.py.
 #
-# NUNCA se guarda el cuerpo de la peticion. Por ahi viajan contrasenas
-# y datos medicos de los internos, y una bitacora que los copie se
-# convierte ella misma en el problema que venia a resolver.
+# Nunca se guarda el cuerpo de la peticion: por ahi viajan contrasenas
+# y datos medicos de los internos.
 #
-# usuario y rol admiten NULL: un intento rechazado con 401 es
-# justamente alguien de quien todavia no se sabe quien es.
+# usuario y rol admiten NULL: un rechazo 401 es de alguien sin identificar.
 # ---------------------------------------------------------------------
 TABLA_BITACORA = """
 CREATE TABLE IF NOT EXISTS bitacora (
@@ -140,14 +118,9 @@ CREATE TABLE IF NOT EXISTS bitacora (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
 
-# Usuarios de demostracion. La contrasena es la misma para todos a
-# proposito, para que la demostracion sea fluida. En un sistema real
-# cada quien pone la suya y se obliga a cambiarla al primer ingreso.
-#
-# Los NOMBRES llevan tildes: no son identificadores del codigo, son lo
-# que la persona ve en la barra de arriba de cada pantalla. Los nombres
-# de usuario con que se ingresa (admin, secretaria...) van sin tildes y
-# en minusculas, porque hay que escribirlos a mano.
+# Usuarios de demostracion, todos con la misma contrasena. Los nombres
+# llevan tildes porque se ven en pantalla; los nombres de usuario van
+# sin tildes y en minusculas porque se escriben a mano.
 USUARIOS_SEMILLA = [
     ("admin",      "Julio César Sagastume",  ADMIN),
     ("secretaria", "Marta Lucía González",   SECRETARIA),
@@ -159,6 +132,10 @@ CONTRASENA_DEMO = "asilo2026"
 
 
 def init_db(intentos: int = 15, espera: float = 3.0) -> None:
+    """
+    Crea las tablas y los usuarios de demostracion si no existen.
+    Reintenta porque MySQL tarda mas que este contenedor en aceptar conexiones.
+    """
     ultimo_error = None
     for intento in range(1, intentos + 1):
         try:
@@ -212,7 +189,7 @@ def _normalizar(fila: dict | None) -> dict | None:
 # =====================================================================
 
 def buscar_usuario(usuario: str) -> dict | None:
-    """Devuelve la fila COMPLETA, con la contrasena cifrada incluida."""
+    """Devuelve la fila completa, contrasena cifrada incluida, o None si no hay usuario activo."""
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
@@ -232,8 +209,7 @@ def abrir_sesion(token: str, usuario_id: int) -> None:
         with conn.cursor() as cur:
             # Aprovecha el login para limpiar sesiones ya vencidas.
             cur.execute("DELETE FROM sesiones WHERE expira < NOW()")
-            # Y de paso los intentos fallidos viejos, por la misma razon:
-            # es el momento en que ya se esta escribiendo en la base.
+            # Y de paso los intentos fallidos viejos.
             cur.execute(
                 "DELETE FROM intentos_fallidos WHERE fecha < NOW() - INTERVAL %s HOUR",
                 (HORAS_DE_RETENCION_INTENTOS,),
@@ -249,9 +225,8 @@ def usuario_de_sesion(token: str) -> dict | None:
     """
     Devuelve el usuario dueno del token, o None si no existe o vencio.
 
-    El JOIN entre sesiones y usuarios es valido porque ambas tablas
-    viven en el MISMO esquema (asilo_gateway). Nunca se hace un JOIN
-    contra los esquemas de otros microservicios.
+    El JOIN es valido porque ambas tablas viven en asilo_gateway. Nunca
+    se hace un JOIN contra el esquema de otro microservicio.
     """
     conn = get_conn()
     with conn:
@@ -280,11 +255,9 @@ def cerrar_sesion(token: str) -> None:
 
 def registrar_intento_fallido(usuario: str, origen: str) -> None:
     """
-    Anota un ingreso rechazado.
-
-    Se llama TAMBIEN cuando el usuario no existe. Es lo que hace que el
-    conteo no delate cuales nombres son validos: probar "secretaria" y
-    probar "secretarias" se bloquean igual.
+    Anota un ingreso rechazado, tambien cuando el usuario no existe: asi
+    "secretaria" y "secretarias" se bloquean igual y el conteo no delata
+    cuales nombres son validos.
     """
     conn = get_conn()
     with conn:
@@ -301,15 +274,11 @@ def minutos_de_bloqueo(usuario: str) -> int:
     Minutos que le faltan a este usuario para poder volver a intentar.
     Devuelve 0 si no esta bloqueado.
 
-    Como funciona: se piden los ultimos cinco fallos que caen dentro de
-    la ventana de quince minutos. Si no hay cinco, no hay bloqueo. Si si
-    los hay, el mas ANTIGUO de esos cinco es el que manda: cuando el
-    cumpla quince minutos saldra de la ventana, quedaran cuatro y el
-    ingreso se abrira solo. No hace falta guardar una fecha de
-    desbloqueo ni un proceso que la revise.
+    Se piden los ultimos cinco fallos dentro de la ventana. Si hay cinco,
+    manda el mas antiguo: cuando salga de la ventana el ingreso se abre
+    solo, sin guardar una fecha de desbloqueo.
 
-    El calculo de los minutos se hace en SQL (TIMESTAMPDIFF) y no en
-    Python a proposito: asi la hora que cuenta es siempre la del motor,
+    Los minutos se calculan en SQL para que cuente la hora del motor,
     aunque el contenedor del gateway tuviera otra.
     """
     conn = get_conn()
@@ -339,11 +308,8 @@ def minutos_de_bloqueo(usuario: str) -> int:
 
 def limpiar_intentos(usuario: str) -> None:
     """
-    Borra los fallos de un usuario. Se llama al entrar bien.
-
-    Sin esto, alguien que se equivoco cuatro veces y a la quinta
-    acerto quedaria a un solo error de bloquearse durante los proximos
-    quince minutos, ya habiendo demostrado que es quien dice ser.
+    Borra los fallos de un usuario al entrar bien: quien acerto tras
+    cuatro errores no debe quedar a uno solo de bloquearse.
     """
     conn = get_conn()
     with conn:
@@ -358,7 +324,7 @@ def limpiar_intentos(usuario: str) -> None:
 
 def registrar_en_bitacora(usuario: str | None, rol: str | None, metodo: str,
                           recurso: str, codigo: int, origen: str) -> None:
-    """Anota una linea. Quien decide QUE se anota es main.py."""
+    """Anota una linea. Que se anota lo decide main.py."""
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
@@ -373,8 +339,7 @@ def registrar_en_bitacora(usuario: str | None, rol: str | None, metodo: str,
         conn.commit()
 
 
-# Tope de filas que puede devolver una consulta a la bitacora. Existe
-# para que pedirla entera no termine cargando cien mil filas de golpe.
+# Tope de filas por consulta, para no cargar la bitacora entera de golpe.
 LIMITE_BITACORA = 500
 
 
@@ -383,14 +348,12 @@ def consultar_bitacora(usuario: str | None = None, desde: str | None = None,
     """
     Devuelve las lineas de la bitacora, de la mas reciente a la mas vieja.
 
-    Los filtros se van pegando al SQL segun vengan, pero los valores
-    viajan SIEMPRE como parametros (%s), nunca concatenados: eso es lo
-    que evita la inyeccion SQL. Es el mismo patron de listar() en los
-    demas microservicios.
+    Los filtros se pegan al SQL segun vengan, pero los valores van
+    siempre como parametros (%s), nunca concatenados: eso evita la
+    inyeccion SQL.
 
-    En 'hasta' se suma un dia cuando viene solo la fecha: quien escribe
-    "hasta el 9 de septiembre" espera que se incluya ese dia completo, y
-    un DATETIME del 9 a las 15:00 es mayor que "2026-09-09 00:00:00".
+    A 'hasta' sin hora se le suma un dia, para que "hasta el 9" incluya
+    el 9 completo.
     """
     sql = "SELECT * FROM bitacora WHERE 1 = 1"
     params: list = []

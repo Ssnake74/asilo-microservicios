@@ -2,15 +2,11 @@
 Microservicio de Cobros y Descuentos de la Fundacion
 Sistema para Administracion Asilo de Ancianos "Cabeza de Algodon"
 
-Responsabilidad unica: administrar las tarifas del asilo, generar los
-cargos de citas, examenes y medicamentos aplicando el descuento de la
-fundacion, y llevar el estado de cuenta que el familiar debe cancelar.
-
-Capa de presentacion/controlador: recibe HTTP, decide y responde. El
-calculo del dinero esta en reglas.py y el SQL en db.py.
+Tarifas del asilo, cargos de citas, examenes y medicamentos con el
+descuento de la fundacion, y estado de cuenta del familiar. Capa de
+presentacion: el calculo del dinero esta en reglas.py y el SQL en db.py.
 
 Puerto: 8082
-Documentacion interactiva: http://localhost:8082/docs
 """
 
 from contextlib import asynccontextmanager
@@ -106,9 +102,8 @@ def eliminar_tarifa(tarifa_id: int):
     """
     Elimina una tarifa que aun no tenga cobros asociados.
 
-    La verificacion se hace aqui para poder devolver un mensaje claro.
-    Aun asi, la llave foranea de MySQL lo impediria de todos modos: es
-    una segunda barrera por si alguien borra desde otro lado.
+    Se verifica aqui para devolver un mensaje claro; la llave foranea de
+    MySQL lo impide igual, por si alguien borra desde otro lado.
     """
     if db.obtener_tarifa(tarifa_id) is None:
         raise HTTPException(status_code=404, detail="La tarifa no existe.")
@@ -129,8 +124,7 @@ def crear_cargo(datos: CargoCrear):
     """
     Genera un cargo a la cuenta del familiar aplicando el descuento de la fundacion.
 
-    Este es el endpoint que consume el microservicio de Solicitudes cuando
-    una solicitud se convierte en visita medica formal.
+    Lo llama ms-solicitudes cuando una solicitud se convierte en visita.
     """
     tarifa = db.buscar_tarifa_para_cargo(datos.tarifa_id, datos.tipo)
     if tarifa is None:

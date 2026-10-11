@@ -1,16 +1,9 @@
 """
 Capa de Acceso a Datos del microservicio de Pacientes.
 
-Corresponde a la "Capa de Acceso a Datos (Repositorio)" del documento de
-Estructura de Capas del proyecto. Este archivo es el UNICO del servicio
-que contiene SQL y el unico que sabe que el motor es MySQL.
-
-main.py ya no escribe consultas: llama a funciones con nombre
-(crear, obtener_por_codigo, actualizar...). Eso es lo que hace que esto
-sea un repositorio y no solo "un archivo con la conexion".
-
-Ventaja practica: si manana el servidor de la universidad usa SQL Server
-u Oracle en vez de MySQL, se reescribe este archivo y nada mas.
+Es el unico archivo del servicio con SQL y el unico que sabe que el
+motor es MySQL. main.py llama a funciones con nombre (crear,
+obtener_por_codigo, actualizar...).
 """
 
 import os
@@ -25,8 +18,7 @@ from pymysql.cursors import DictCursor
 # Conexion
 #
 # Los datos de conexion llegan por variables de entorno desde
-# docker-compose.yml. Nunca se escriben aqui: asi la misma imagen sirve
-# para su maquina y para el servidor de la universidad.
+# docker-compose.yml.
 # ---------------------------------------------------------------------
 
 CONFIG = {
@@ -48,16 +40,8 @@ def get_conn() -> pymysql.connections.Connection:
 # ---------------------------------------------------------------------
 # Esquema
 #
-# Diferencias frente a la version en SQLite, que son las mismas que
-# vamos a encontrar en los otros dos servicios:
-#
-#   AUTOINCREMENT      ->  AUTO_INCREMENT
-#   TEXT               ->  VARCHAR(n), con el largo declarado
-#   TEXT con fecha     ->  DATE / DATETIME de verdad
-#   INTEGER 0 o 1      ->  BOOLEAN
-#
-# Declarar el largo de cada VARCHAR obliga a pensar cuanto mide cada
-# dato, y MySQL rechaza lo que no quepa en vez de guardarlo cortado.
+# Cada VARCHAR declara su largo: MySQL rechaza lo que no quepa en vez de
+# guardarlo cortado.
 # ---------------------------------------------------------------------
 
 SCHEMA = """
@@ -99,9 +83,8 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
     """
     Crea la tabla si no existe, esperando a que MySQL este disponible.
 
-    El reintento no es adorno: Docker levanta este contenedor y el de
-    MySQL casi al mismo tiempo, y MySQL tarda mas en aceptar conexiones.
-    Sin este bucle, el servicio se cae al arrancar la primera vez.
+    Reintenta porque Docker levanta este contenedor y el de MySQL casi a
+    la vez, y MySQL tarda mas en aceptar conexiones.
     """
     ultimo_error = None
     for intento in range(1, intentos + 1):
@@ -123,10 +106,9 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
 # ---------------------------------------------------------------------
 # Normalizacion de filas
 #
-# MySQL devuelve tipos de Python de verdad: DATE llega como date,
-# DATETIME como datetime y BOOLEAN como 0 o 1. Los modelos de schemas.py
-# esperan texto y booleanos, asi que se convierte aqui, en la frontera
-# de la capa de datos, y no en cada endpoint.
+# MySQL devuelve date, datetime y BOOLEAN como 0 o 1; schemas.py espera
+# texto y booleanos. Se convierte aqui, en la frontera de la capa de
+# datos, y no en cada endpoint.
 # ---------------------------------------------------------------------
 
 def _normalizar(fila: dict | None) -> dict | None:
@@ -168,14 +150,11 @@ def crear(datos: dict) -> dict:
     """
     Da de alta a un anciano y le asigna su codigo correlativo.
 
-    El codigo se arma DESPUES del INSERT, a partir del id que genero
-    MySQL: PAC-001, PAC-002... Es mas seguro que el "buscar el ultimo y
-    sumarle uno" de la version anterior, porque ahi dos altas
-    simultaneas podian calcular el mismo numero. Aqui el id lo entrega
-    el motor y no se repite nunca.
+    El codigo (PAC-001, PAC-002...) se arma despues del INSERT con el id
+    que genera MySQL: dos altas simultaneas nunca calculan el mismo.
 
-    El INSERT y el UPDATE del codigo van en la MISMA transaccion: si
-    algo falla a medias, no queda un registro sin codigo.
+    El INSERT y el UPDATE del codigo van en la misma transaccion: si algo
+    falla a medias, no queda un registro sin codigo.
     """
     conn = get_conn()
     with conn:
@@ -245,7 +224,7 @@ def actualizar(codigo: str, cambios: dict) -> dict | None:
 
     Los nombres de columna se validan contra CAMPOS_ACTUALIZABLES antes
     de armar el SQL. Los valores siempre viajan como parametros (%s),
-    nunca concatenados: eso es lo que evita la inyeccion SQL.
+    nunca concatenados: eso evita la inyeccion SQL.
     """
     permitidos = {k: v for k, v in cambios.items() if k in CAMPOS_ACTUALIZABLES}
     if not permitidos:

@@ -1,13 +1,11 @@
 """
 Comunicacion entre microservicios.
 
-Cuando una solicitud se convierte en visita medica formal, este modulo le
-pide al microservicio de Cobros que genere el cargo de la consulta con el
-descuento de la fundacion ya aplicado.
+Al convertir una solicitud en visita, le pide a ms-cobros el cargo de la
+consulta con el descuento de la fundacion ya aplicado.
 
-La llamada es HTTP y tolerante a fallos: si el microservicio de Cobros no
-responde, la visita medica se registra igual y queda marcada para generar
-el cobro despues. Un microservicio no debe tumbar al otro.
+Si cobros no responde, la visita se registra igual y el cargo queda
+pendiente (RNF-12): un microservicio no debe tumbar al otro.
 """
 
 import os
@@ -15,19 +13,17 @@ import os
 import httpx
 
 MS_COBROS_URL = os.getenv("MS_COBROS_URL", "http://localhost:8082")
-# Limite corto a proposito: cobros vive en la misma red de Docker y,
-# cuando funciona, contesta en milisegundos. Esperar mas solo retrasa el
-# aviso de "cargo pendiente" y acerca la respuesta al limite de 8 s del
-# gateway, que entonces le muestra al usuario un error por una visita que
-# SI quedo registrada.
+# Limite corto a proposito: en la red de Docker cobros contesta en
+# milisegundos. Esperar mas acerca la respuesta al limite de 8 s del
+# gateway, que mostraria un error por una visita que si quedo registrada.
 TIMEOUT = 2.0
 
 
 def _buscar_tarifa_de_especialista(cliente: httpx.Client) -> int | None:
     """
-    Consulta el tarifario del MS de Cobros y devuelve el id de la tarifa de
-    consulta con especialista, que es la que corresponde a una solicitud
-    remitida por el medico general.
+    Devuelve el id de la tarifa de consulta con especialista, la que
+    corresponde a una remision del medico general. Si ninguna lo dice,
+    devuelve la primera cita activa; None si no hay ninguna.
     """
     respuesta = cliente.get(
         f"{MS_COBROS_URL}/tarifas", params={"tipo": "CITA", "solo_activas": True}

@@ -2,23 +2,17 @@
    Hoja de estilos comun del Sistema del Asilo «Cabeza de Algodon»
    =====================================================================
 
-   Antes cada pantalla llevaba su propio bloque <style> con la misma
-   paleta, la misma tipografia y los mismos formularios copiados. Con
-   seis pantallas eso eran seis copias que se desincronizaban solas.
-
-   Aqui vive lo que TODAS las pantallas comparten. Lo propio de cada
+   Aqui vive lo que todas las pantallas comparten. Lo propio de cada
    una (las fichas del registro de internos, las tarjetas del panel)
    se queda en el <style> de esa pantalla.
 
-   REGLA: ningun color se escribe a mano fuera del bloque :root de
-   abajo. Las pantallas y comun.js solo usan var(--...). Asi cambiar la
-   identidad del asilo es cambiar este bloque y nada mas.
+   Ningun color se escribe a mano fuera del bloque :root de abajo: las
+   pantallas y comun.js solo usan var(--...).
    ===================================================================== */
 
 :root{
-  /* Identidad: violeta sobre un fondo calido. El violeta distingue al
-     asilo de los demas sistemas del curso; el fondo crema evita que se
-     sienta frio o de oficina. */
+  /* Identidad: violeta sobre un fondo calido. El fondo crema evita que
+     se sienta frio o de oficina. */
   --violeta-profundo:#4C3A75;
   --violeta-medio:#6B5499;
   --violeta-suave:#EDE9F4;
@@ -36,7 +30,7 @@
   --advertencia:#9A6B1E;
   --info:#3A5A8C;
 
-  /* Derivados. --advertencia como TEXTO no llega a 4.5:1 sobre fondo
+  /* Derivados. --advertencia como texto no llega a 4.5:1 sobre fondo
      claro (queda en 4.2), asi que se usa solo en franjas y bordes y el
      texto va en este tono mas oscuro. */
   --advertencia-texto:#82591A;
@@ -63,7 +57,7 @@
 *{box-sizing:border-box;}
 
 /* 16 px de base: varias de las personas que usan el sistema son adultos
-   mayores, y el texto de 13 px de antes se les hacia pequeño. */
+   mayores. */
 body{
   margin:0;
   background:var(--fondo);
@@ -211,7 +205,7 @@ input.malo,select.malo,textarea.malo{border-color:var(--error);background:var(--
 /* --------------------------------------------------------------------- */
 
 /* Tres clases de boton y nada mas: el principal relleno, el secundario
-   con borde, y el destructivo con borde rojo. El destructivo NUNCA va
+   con borde, y el destructivo con borde rojo. El destructivo nunca va
    relleno: un bloque rojo grande invita a pulsarlo, y es justo el boton
    que hay que pensar dos veces. */
 button{

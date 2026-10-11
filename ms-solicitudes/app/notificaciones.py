@@ -1,28 +1,11 @@
 """
 Aviso por correo al familiar del interno (RF-44).
 
-Cuando el medico general registra una remision, el familiar recibe un
-correo contandole que a su pariente lo van a ver con un especialista.
+El envio va en try/except y nunca tumba la remision (RNF-11): si el
+servidor de correo no responde, se anota en el log. Se llama con
+BackgroundTasks, despues de responderle al medico.
 
-El envio es hacia AFUERA del sistema, igual que la llamada de
-cliente_cobros.py al microservicio de Cobros, y se trata con el mismo
-criterio (RNF-11): va envuelto en try/except y nunca puede tumbar la
-operacion principal. Si el servidor de correo no responde, la remision
-ya quedo guardada y lo unico que pasa es que se anota en el log.
-
-Quien llama a este modulo lo hace con BackgroundTasks, asi que el envio
-ocurre DESPUES de haberle respondido al medico: el no espera a que el
-correo salga para que la pantalla le confirme la remision.
-
-Nota sobre las tildes: los nombres del codigo van sin ellas, como en
-todo el proyecto, pero el texto del correo SI las lleva. Ese texto no lo
-lee un programador, lo lee la hija o el hijo de un interno, y una
-institucion que escribe "remision" y "medico" sin tilde se ve descuidada.
-
-En desarrollo el servidor de correo es Mailpit, que recibe los mensajes
-pero no los manda a internet: se leen en http://localhost:8025. Para el
-servidor de la universidad basta con cambiar las variables de entorno,
-sin tocar este archivo.
+El texto del correo lleva tildes porque lo lee el familiar.
 """
 
 import os
@@ -38,9 +21,8 @@ SMTP_HOST = os.getenv("SMTP_HOST", "mailpit")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
 SMTP_REMITENTE = os.getenv("SMTP_REMITENTE", "notificaciones@asilocabezadealgodon.org")
 
-# Si el servidor de correo esta caido, conectarse puede quedarse colgado.
-# Este limite existe para que la tarea de fondo no se quede esperando
-# indefinidamente y ocupando un hilo del servicio.
+# Con el servidor de correo caido, conectarse puede quedarse colgado: el
+# limite evita que la tarea de fondo ocupe un hilo indefinidamente.
 TIMEOUT = 10.0
 
 ASILO = 'Asilo de Ancianos "Cabeza de Algodón"'
@@ -53,12 +35,10 @@ MESES = (
 
 def _fecha_en_palabras(fecha_solicitud: str) -> str:
     """
-    Convierte la fecha de la base a algo que se lea como fecha y no como
-    dato de sistema: de "2026-09-22 15:26:03" a "22 de septiembre de 2026".
+    De "2026-09-22 15:26:03" a "22 de septiembre de 2026".
 
-    Si por alguna razon la fecha no viene en el formato esperado, se
-    devuelve tal cual: un correo con la fecha fea es mejor que ningun
-    correo.
+    Si la fecha no viene en ese formato se devuelve tal cual: un correo
+    con la fecha fea es mejor que ningun correo.
     """
     try:
         fecha = datetime.strptime(fecha_solicitud, "%Y-%m-%d %H:%M:%S")
@@ -71,9 +51,8 @@ def _cuerpo_texto(solicitud: dict, fecha: str) -> str:
     """
     Version en texto plano del aviso.
 
-    Va dirigido al familiar, que no conoce el sistema ni sus terminos:
-    aqui no se habla de "solicitudes", "estados" ni "registros", se habla
-    de que a su pariente lo va a ver un especialista.
+    Va para el familiar, que no conoce el sistema: no habla de
+    "solicitudes" ni "estados", sino de que lo va a ver un especialista.
     """
     return f"""Estimada familia:
 
@@ -103,17 +82,12 @@ def _cuerpo_html(solicitud: dict, fecha: str) -> str:
     """
     Version en HTML del mismo aviso.
 
-    Deliberadamente sobrio: sin imagenes, sin tipografias ni hojas de
-    estilo traidas de internet. Un correo institucional debe verse igual
-    y completo aunque el lector tenga bloqueado el contenido externo, que
-    es como llegan por omision a la mayoria de bandejas.
+    Sin imagenes ni recursos de internet, para que se vea completo aunque
+    el lector bloquee el contenido externo. Los estilos van en cada
+    etiqueta porque varios lectores descartan el bloque <style>.
 
-    Los estilos van escritos dentro de cada etiqueta y no en un bloque
-    <style> porque varios lectores de correo descartan ese bloque.
-
-    El motivo y los nombres los escribe el personal en texto libre, asi
-    que se escapan antes de entrar al HTML: si alguien escribe un signo
-    "<" en el motivo, el correo no debe romperse.
+    El motivo y los nombres son texto libre y se escapan: un "<" en el
+    motivo no debe romper el correo.
     """
     paciente = escape(solicitud["paciente_nombre"])
     especialidad = escape(solicitud["especialidad_remitida"])
@@ -181,19 +155,16 @@ def avisar_al_familiar(solicitud: dict) -> None:
     """
     Envia el aviso de la remision al familiar del interno.
 
-    Recibe la fila completa de la solicitud, tal como la devolvio el
-    repositorio, para no tener que consultar la base otra vez desde la
-    tarea de fondo.
+    Recibe la fila completa de la solicitud para no volver a consultar la
+    base desde la tarea de fondo.
 
-    No devuelve nada ni levanta excepciones a proposito: corre despues de
-    que el medico ya recibio su confirmacion, cuando ya no hay a quien
-    avisarle de un error mas que al log del contenedor.
+    No devuelve nada ni levanta excepciones: corre cuando el medico ya
+    recibio su confirmacion, y un error solo puede ir al log.
     """
     destinatario = (solicitud.get("familiar_email") or "").strip()
 
-    # Un interno sin familiar registrado es un caso normal, no un error:
-    # hay quienes no tienen a nadie o nunca dejaron un correo. Se anota
-    # para que quede constancia de POR QUE no salio el aviso, y se sigue.
+    # Un interno sin correo de familiar es un caso normal, no un error: se
+    # anota por que no salio el aviso y se sigue.
     if not destinatario:
         print(
             f"[ms-solicitudes] La remision {solicitud['id']} de "
@@ -212,8 +183,7 @@ def avisar_al_familiar(solicitud: dict) -> None:
         )
         mensaje["From"] = SMTP_REMITENTE
         mensaje["To"] = destinatario
-        # El texto plano se pone primero y el HTML como alternativa: asi
-        # lo pide el estandar, y quien lea el correo en un lector que no
+        # Texto plano primero y HTML como alternativa: un lector que no
         # muestra HTML recibe igual el aviso completo.
         mensaje.set_content(_cuerpo_texto(solicitud, fecha))
         mensaje.add_alternative(_cuerpo_html(solicitud, fecha), subtype="html")
@@ -226,11 +196,9 @@ def avisar_al_familiar(solicitud: dict) -> None:
             f"a {destinatario}.",
             flush=True,
         )
-    # El except es amplio a proposito. Aqui caben desde el servidor de
-    # correo apagado hasta una direccion que el servidor rechaza, y
-    # ninguno de esos casos justifica perder la remision, que a estas
-    # alturas ya esta guardada en la base. Se anota el error con el numero
-    # de remision para poder reenviar el aviso a mano si hiciera falta.
+    # Except amplio a proposito: ningun fallo del correo justifica perder la
+    # remision, que ya esta guardada. Se anota con el numero de remision
+    # para poder reenviar el aviso a mano.
     except Exception as error:
         print(
             f"[ms-solicitudes] No se pudo enviar el aviso de la remision "

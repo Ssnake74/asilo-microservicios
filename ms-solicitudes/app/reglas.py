@@ -1,24 +1,16 @@
 """
 Reglas de negocio del microservicio de Solicitudes.
 
-Se mantienen fuera de main.py (la API) y de db.py (los datos), igual que
-en ms-pacientes y ms-cobros. Son funciones puras: reciben datos,
-calculan y devuelven. No tocan la base ni saben que existe HTTP, y por
-eso se pueden probar solas.
-
-Estas funciones aparecieron con la migracion a MySQL. En SQLite la
-fecha de la visita se guardaba como texto y cualquier cosa entraba;
-MySQL tiene una columna DATETIME de verdad y rechaza lo que no sea una
-fecha valida. Validar aqui permite responder un 422 con un mensaje
-entendible en vez de dejar que reviente la capa de datos con un 500.
+Funciones puras: no tocan la base ni saben que existe HTTP. Validar la
+fecha aqui permite responder 422 con un mensaje entendible, en vez de
+un 500 cuando MySQL la rechaza.
 """
 
 from datetime import datetime
 
-# Formatos que se aceptan al asignar la visita medica.
-# El primero es el que escribe la aplicacion base; el segundo es el que
-# produce un <input type="datetime-local"> del navegador; el tercero es
-# para cuando solo se asigna el dia, sin hora.
+# Formatos que se aceptan al asignar la visita medica: el de la
+# aplicacion base, el de un <input type="datetime-local">, el mismo con
+# segundos y el del dia solo, sin hora.
 FORMATOS_FECHA = ("%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d")
 
 
@@ -35,9 +27,8 @@ def normalizar_especialidad(texto: str) -> str:
 
 def especialidades_coinciden(remitida: str, asignada: str) -> bool:
     """
-    Regla del documento de Estructura de Capas: la especialidad del
-    medico tratante debe ser la misma a la que remitio el medico
-    general. No se compara el texto crudo, sino el ya normalizado.
+    La especialidad del medico tratante debe ser la misma a la que
+    remitio el medico general. Se compara el texto ya normalizado.
     """
     return normalizar_especialidad(remitida) == normalizar_especialidad(asignada)
 

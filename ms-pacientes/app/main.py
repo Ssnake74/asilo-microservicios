@@ -2,16 +2,11 @@
 Microservicio de Registro de Ancianos (Pacientes internos)
 Sistema para Administracion Asilo de Ancianos "Cabeza de Algodon"
 
-Responsabilidad unica: llevar el registro de los ancianos internos del
-asilo, sus datos personales, su familiar responsable y su estado dentro
-de la institucion.
-
-Este archivo es la capa de presentacion/controlador del servicio: recibe
-peticiones HTTP, aplica las reglas del negocio y responde. No contiene
-una sola linea de SQL; todo el acceso a datos pasa por db.py.
+Registro de los ancianos internos: datos personales, familiar responsable
+y estado dentro del asilo. Capa de presentacion: recibe las peticiones
+HTTP y aplica las reglas; el SQL vive en db.py.
 
 Puerto: 8083
-Documentacion interactiva: http://localhost:8083/docs
 """
 
 from contextlib import asynccontextmanager
@@ -26,13 +21,7 @@ from .schemas import Paciente, PacienteActualizar, PacienteCrear
 
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
-    """
-    Prepara la base al arrancar el servicio.
-
-    Reemplaza al @app.on_event("startup") de la version anterior, que
-    FastAPI marco como obsoleto. Lo que va antes del 'yield' corre al
-    encender el servicio; lo que fuera despues correria al apagarlo.
-    """
+    """Prepara la base al arrancar el servicio."""
     db.init_db()
     yield
 
@@ -128,11 +117,6 @@ def actualizar_paciente(codigo: str, datos: PacienteActualizar):
 
 @app.delete("/pacientes/{codigo}", status_code=204, tags=["Pacientes"])
 def eliminar_paciente(codigo: str):
-    """
-    Elimina el registro de un anciano.
-
-    Nota: en produccion conviene marcarlo como EGRESADO en lugar de
-    borrarlo, para conservar su historial medico.
-    """
+    """Elimina el registro de un anciano."""
     if not db.eliminar(codigo):
         raise HTTPException(status_code=404, detail="No existe un anciano con ese codigo.")

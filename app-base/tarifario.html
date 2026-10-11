@@ -6,7 +6,7 @@
 <title>Tarifario · Asilo Cabeza de Algodón</title>
 <link rel="stylesheet" href="/comun.css">
 <style>
-  /* Propio de esta pantalla: la tabla se edita en el mismo renglón. */
+  /* Propio de esta pantalla: la tabla se edita en el mismo renglon. */
   td input{width:110px;text-align:right;padding:6px 8px;font-size:15px;font-variant-numeric:tabular-nums;}
   td .acciones{margin:0;justify-content:flex-end;gap:6px;}
   tr.retirada td{color:var(--texto-suave);}
@@ -98,7 +98,7 @@ const FORM_NUEVA = {
   MINIMOS: { concepto: 3 }
 };
 
-// Cada renglón de la tabla es un formulario diminuto con sus propias
+// Cada renglon de la tabla es un formulario diminuto con sus propias
 // casillas (p-3, d-3), y todos comparten el mismo aviso de arriba.
 function formRenglon(id){
   return {
@@ -233,8 +233,8 @@ async function eliminar(id, nombre){
     avisar("aviso-tarifas", `«${nombre}» se eliminó del tarifario.`);
     cargarTarifas();
   }catch(e){
-    // Un concepto que ya se le cobró a alguien no se puede borrar sin
-    // dejar cuentas sin explicación. Se dice para qué sirve la casilla
+    // Un concepto que ya se le cobro a alguien no se puede borrar sin
+    // dejar cuentas sin explicacion. Se dice para que sirve la casilla
     // «En uso» en lugar de dejarlo en un mensaje seco.
     const mensaje = e.codigo === 409
       ? `«${nombre}» ya se le cobró a algún interno, por eso no se puede borrar. `

@@ -28,10 +28,8 @@ def get_conn() -> pymysql.connections.Connection:
 #                   Q99,999,999.99, de sobra para el asilo.
 # DECIMAL(5,2)   -> el porcentaje de descuento: 0.00 a 100.00.
 #
-# La llave foranea ahora si se cumple siempre. InnoDB no permite crear
-# un cargo apuntando a una tarifa que no existe, ni borrar una tarifa
-# que ya tenga cargos (ON DELETE RESTRICT). En SQLite esa restriccion
-# dependia de encender un PRAGMA en cada conexion.
+# La llave foranea impide crear un cargo hacia una tarifa que no existe
+# y borrar una tarifa que ya tenga cargos (ON DELETE RESTRICT).
 # ---------------------------------------------------------------------
 
 SCHEMA_TARIFAS = """
@@ -88,7 +86,10 @@ CAMPOS_TARIFA_ACTUALIZABLES = {
 
 
 def init_db(intentos: int = 15, espera: float = 3.0) -> None:
-    """Crea las tablas y siembra el tarifario, esperando a que MySQL responda."""
+    """
+    Crea las tablas y siembra el tarifario, esperando a que MySQL responda.
+    Reintenta porque MySQL tarda mas que este contenedor en aceptar conexiones.
+    """
     ultimo_error = None
     for intento in range(1, intentos + 1):
         try:

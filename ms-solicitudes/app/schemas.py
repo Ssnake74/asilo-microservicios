@@ -1,9 +1,4 @@
-"""
-Modelos de entrada y salida del microservicio de Solicitudes.
-
-Reflejan las entidades "Solicitud de Consulta" y "Visita Medica" definidas
-en el documento de Estructura de Capas del proyecto.
-"""
+"""Modelos de entrada y salida del microservicio de Solicitudes."""
 
 from typing import Optional
 
