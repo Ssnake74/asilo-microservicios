@@ -1,0 +1,49 @@
+# Cada push a main construye las cuatro imagenes y las publica en el
+# registro de Azure, etiquetadas con el commit. Las credenciales del
+# registro van como secretos del repositorio, nunca en este archivo.
+name: Publicar imagenes
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "pruebas/**"
+  workflow_dispatch:
+
+env:
+  REGISTRO: asiloae0794.azurecr.io
+
+jobs:
+  imagen:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - servicio: gateway
+            contexto: .
+            dockerfile: gateway/Dockerfile
+          - servicio: ms-pacientes
+            contexto: ms-pacientes
+            dockerfile: ms-pacientes/Dockerfile
+          - servicio: ms-solicitudes
+            contexto: ms-solicitudes
+            dockerfile: ms-solicitudes/Dockerfile
+          - servicio: ms-cobros
+            contexto: ms-cobros
+            dockerfile: ms-cobros/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRO }}
+          username: ${{ secrets.ACR_USUARIO }}
+          password: ${{ secrets.ACR_CLAVE }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.contexto }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ env.REGISTRO }}/asilo/${{ matrix.servicio }}:${{ github.sha }}

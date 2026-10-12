@@ -70,6 +70,14 @@ declaran en cada Container App, y las claves como secretos (RNF-21).
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_REMITENTE` | `ms-solicitudes` | Servidor de correo y remitente |
 | `SMTP_USUARIO`, `SMTP_CLAVE` | `ms-solicitudes` | Activan STARTTLS y el inicio de sesión en el servidor de correo |
 
+### Publicación de imágenes
+
+Cada push a `main` construye las cuatro imágenes y las publica en el registro de
+Azure, etiquetadas con el commit (`.github/workflows/publicar-imagenes.yml`). Los
+cambios que solo tocan documentación o pruebas no disparan la construcción. Las
+credenciales del registro son los secretos `ACR_USUARIO` y `ACR_CLAVE` del
+repositorio.
+
 ---
 
 ## 3. Usuarios de demostración
