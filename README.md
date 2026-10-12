@@ -78,6 +78,20 @@ cambios que solo tocan documentación o pruebas no disparan la construcción. La
 credenciales del registro son los secretos `ACR_USUARIO` y `ACR_CLAVE` del
 repositorio.
 
+### Despliegue en Azure
+
+Las cuatro aplicaciones y el trabajo que crea los esquemas de MySQL están
+descritos en `infra/azure/asilo.bicep`. Se despliegan desde Cloud Shell con un
+solo comando, que usa las imágenes más recientes del registro:
+
+```bash
+bash asilo-microservicios/infra/azure/desplegar.sh
+```
+
+Pide la clave del administrador de MySQL y la contraseña de aplicación del correo.
+La clave de cada usuario de servicio se deriva de la del administrador, así que
+no hay que guardarla aparte.
+
 ---
 
 ## 3. Usuarios de demostración

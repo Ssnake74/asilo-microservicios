@@ -9,6 +9,7 @@ on:
     paths-ignore:
       - "**.md"
       - "pruebas/**"
+      - "infra/**"
   workflow_dispatch:
 
 env:
