@@ -348,10 +348,10 @@ def totales_paciente(paciente_id: str) -> dict:
             )
             identidad = cur.fetchone()
 
+    # La resta va en Decimal, antes de pasar los totales a float (RNF-15).
+    saldo = totales["total_neto"] - totales["total_pagado"]
     resultado = _normalizar(totales)
-    resultado["saldo_pendiente"] = round(
-        resultado["total_neto"] - resultado["total_pagado"], 2
-    )
+    resultado["saldo_pendiente"] = float(saldo)
     resultado["paciente_nombre"] = identidad["paciente_nombre"] if identidad else None
     resultado["familiar_email"] = identidad["familiar_email"] if identidad else None
     return resultado
