@@ -7,6 +7,7 @@ rol, reenvia al microservicio y anota en la bitacora. Los microservicios
 no conocen los usuarios ni los roles.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 import httpx
@@ -31,6 +32,10 @@ from .seguridad import (
 PUBLICO = "/code/publico"
 TIEMPO_LIMITE = 8.0
 
+# En produccion el sitio va por HTTPS y la cookie de sesion solo viaja
+# cifrada. En desarrollo (http://localhost) queda apagado.
+COOKIE_SEGURA = os.getenv("COOKIE_SEGURA") == "1"
+
 # El mismo texto para un recurso que no existe y para una ruta armada a
 # mano que se rechaza: quien la intenta no debe poder distinguirlos.
 RECURSO_INEXISTENTE = "Ese recurso no existe en el sistema."
@@ -53,8 +58,7 @@ app = FastAPI(
     lifespan=ciclo_de_vida,
 )
 
-# Sin CORSMiddleware a proposito: pantallas y API salen del mismo origen
-# (localhost:8080).
+# Sin CORSMiddleware a proposito: pantallas y API salen del mismo origen.
 
 
 # =====================================================================
@@ -172,7 +176,8 @@ def login(datos: Credenciales, request: Request, response: Response):
     # httponly: un script inyectado no puede leer la sesion. lax: la
     # cookie no viaja en peticiones desde otros sitios.
     response.set_cookie(
-        key="sesion", value=token, httponly=True, samesite="lax", path="/"
+        key="sesion", value=token, httponly=True, samesite="lax",
+        secure=COOKIE_SEGURA, path="/",
     )
 
     return {

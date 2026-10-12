@@ -10,6 +10,7 @@ El texto del correo lleva tildes porque lo lee el familiar.
 
 import os
 import smtplib
+import ssl
 from datetime import datetime
 from email.message import EmailMessage
 from html import escape
@@ -20,6 +21,10 @@ from html import escape
 SMTP_HOST = os.getenv("SMTP_HOST", "mailpit")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
 SMTP_REMITENTE = os.getenv("SMTP_REMITENTE", "notificaciones@asilocabezadealgodon.org")
+# Mailpit no pide usuario. Con SMTP_USUARIO (Gmail en produccion, puerto
+# 587) la conexion se cifra con STARTTLS y se autentica.
+SMTP_USUARIO = os.getenv("SMTP_USUARIO", "")
+SMTP_CLAVE = os.getenv("SMTP_CLAVE", "")
 
 # Con el servidor de correo caido, conectarse puede quedarse colgado: el
 # limite evita que la tarea de fondo ocupe un hilo indefinidamente.
@@ -189,6 +194,9 @@ def avisar_al_familiar(solicitud: dict) -> None:
         mensaje.add_alternative(_cuerpo_html(solicitud, fecha), subtype="html")
 
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=TIMEOUT) as servidor:
+            if SMTP_USUARIO:
+                servidor.starttls(context=ssl.create_default_context())
+                servidor.login(SMTP_USUARIO, SMTP_CLAVE)
             servidor.send_message(mensaje)
 
         print(

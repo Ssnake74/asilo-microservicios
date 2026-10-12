@@ -55,6 +55,21 @@ MySQL queda además en el puerto 3307 del equipo, para conectarse con un cliente
 
 Para apagar: `docker compose down`. No use `docker compose down -v`: borra los datos.
 
+### Variables de producción
+
+En desarrollo no hace falta definirlas: el compose ya trae las suyas. En Azure se
+declaran en cada Container App, y las claves como secretos (RNF-21).
+
+| Variable | Servicio | Qué hace |
+|---|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Todos | Conexión a MySQL |
+| `DB_SSL_CA` | Todos | Certificado raíz con que se verifica a MySQL; activa TLS. En las imágenes: `/etc/ssl/certs/ca-certificates.crt` |
+| `COOKIE_SEGURA` | `gateway` | Con `1`, la cookie de sesión solo viaja por HTTPS |
+| `MS_PACIENTES_URL`, `MS_SOLICITUDES_URL`, `MS_COBROS_URL` | `gateway` | Dirección de cada microservicio |
+| `MS_COBROS_URL` | `ms-solicitudes` | Dirección de cobros |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_REMITENTE` | `ms-solicitudes` | Servidor de correo y remitente |
+| `SMTP_USUARIO`, `SMTP_CLAVE` | `ms-solicitudes` | Activan STARTTLS y el inicio de sesión en el servidor de correo |
+
 ---
 
 ## 3. Usuarios de demostración

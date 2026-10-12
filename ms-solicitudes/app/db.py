@@ -30,6 +30,9 @@ CONFIG = {
     "database": os.getenv("DB_NAME", "asilo_solicitudes"),
     "charset": "utf8mb4",
     "cursorclass": DictCursor,
+    # Con DB_SSL_CA la conexion va cifrada y se verifica el certificado del
+    # servidor. En Azure es obligatorio; en desarrollo queda sin definir.
+    "ssl_ca": os.getenv("DB_SSL_CA") or None,
 }
 
 
