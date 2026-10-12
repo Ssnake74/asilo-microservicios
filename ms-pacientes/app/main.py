@@ -12,7 +12,6 @@ Puerto: 8083
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
 from .reglas import calcular_edad, ingreso_es_coherente
@@ -31,13 +30,6 @@ app = FastAPI(
     description="Microservicio de registro de los ancianos internos del asilo.",
     version="2.0.0",
     lifespan=ciclo_de_vida,
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 

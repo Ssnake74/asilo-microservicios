@@ -118,7 +118,6 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
 
 
 def _normalizar(fila: dict | None) -> dict | None:
-
     if fila is None:
         return None
     limpia = dict(fila)
@@ -173,7 +172,6 @@ def obtener_tarifa(tarifa_id: int) -> dict | None:
 
 
 def buscar_tarifa_para_cargo(tarifa_id: int | None, tipo: str) -> dict | None:
-
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
@@ -254,7 +252,6 @@ def eliminar_tarifa(tarifa_id: int) -> bool:
 # =====================================================================
 
 def crear_cargo(datos: dict, tarifa: dict, montos: dict) -> dict:
-
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
@@ -327,7 +324,6 @@ def eliminar_cargo(cargo_id: int) -> bool:
 
 
 def totales_paciente(paciente_id: str) -> dict:
-
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:

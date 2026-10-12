@@ -24,7 +24,6 @@ def calcular_montos(
     descuento_fundacion,
     cubierto_fundacion: bool,
 ) -> dict[str, Decimal]:
-    
     precio = a_decimal(precio)
     porcentaje = a_decimal(descuento_fundacion) if cubierto_fundacion else Decimal("0")
 

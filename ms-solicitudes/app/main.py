@@ -12,7 +12,6 @@ Puerto: 8081
 from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
 
 from . import db
 from .cliente_cobros import generar_cargo_consulta
@@ -46,13 +45,6 @@ app = FastAPI(
     ),
     version="2.0.0",
     lifespan=ciclo_de_vida,
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 
