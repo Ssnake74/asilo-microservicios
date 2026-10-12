@@ -12,7 +12,7 @@ import os
 
 import httpx
 
-MS_COBROS_URL = os.getenv("MS_COBROS_URL", "http://localhost:8082")
+MS_COBROS_URL = os.getenv("MS_COBROS_URL", "http://ms-cobros:8082")
 # Limite corto a proposito: en la red de Docker cobros contesta en
 # milisegundos. Esperar mas acerca la respuesta al limite de 8 s del
 # gateway, que mostraria un error por una visita que si quedo registrada.
