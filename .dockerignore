@@ -1,0 +1,7 @@
+# Solo lo usa la imagen del gateway, que se construye desde la raiz.
+.git
+pruebas
+infra
+ms-*
+**/__pycache__
+**/*.pyc

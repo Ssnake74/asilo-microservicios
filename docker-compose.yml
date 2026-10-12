@@ -157,7 +157,9 @@ services:
   # en las pantallas se ve al refrescar, sin reconstruir el contenedor.
   # -------------------------------------------------------------------
   gateway:
-    build: ./gateway
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
     container_name: asilo-gateway
     ports:
       - "8080:8080"
