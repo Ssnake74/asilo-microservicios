@@ -9,7 +9,7 @@ del gateway y se cierran de verdad borrando la fila.
 
 import os
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import pymysql
 from pymysql.cursors import DictCursor
@@ -26,7 +26,7 @@ CONFIG = {
     "cursorclass": DictCursor,
 }
 
-# Cuanto dura una sesion desde que se abre.
+# Horas sin actividad tras las que vence la sesion (RF-05).
 HORAS_DE_SESION = 8
 
 # ---------------------------------------------------------------------
@@ -215,8 +215,9 @@ def abrir_sesion(token: str, usuario_id: int) -> None:
                 (HORAS_DE_RETENCION_INTENTOS,),
             )
             cur.execute(
-                "INSERT INTO sesiones (token, usuario_id, expira) VALUES (%s, %s, %s)",
-                (token, usuario_id, datetime.now() + timedelta(hours=HORAS_DE_SESION)),
+                """INSERT INTO sesiones (token, usuario_id, expira)
+                   VALUES (%s, %s, NOW() + INTERVAL %s HOUR)""",
+                (token, usuario_id, HORAS_DE_SESION),
             )
         conn.commit()
 
@@ -238,7 +239,15 @@ def usuario_de_sesion(token: str) -> dict | None:
                    WHERE s.token = %s AND s.expira > NOW() AND u.activo = TRUE""",
                 (token,),
             )
-            return _normalizar(cur.fetchone())
+            fila = cur.fetchone()
+            if fila is not None:
+                # Cada peticion valida renueva el plazo (RF-05).
+                cur.execute(
+                    "UPDATE sesiones SET expira = NOW() + INTERVAL %s HOUR WHERE token = %s",
+                    (HORAS_DE_SESION, token),
+                )
+        conn.commit()
+    return _normalizar(fila)
 
 
 def cerrar_sesion(token: str) -> None:

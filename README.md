@@ -122,7 +122,7 @@ Con el sistema levantado, desde la raíz del repositorio:
 powershell -ExecutionPolicy Bypass -File .\pruebas\ejecutar.ps1
 ```
 
-Son 167 casos en 13 grupos, cada uno ligado al requisito que verifica. El reporte
+Son 169 casos en 14 grupos, cada uno ligado al requisito que verifica. El reporte
 queda en `pruebas/resultado.txt` y lista los casos que fallan y los pendientes
 conocidos.
 
