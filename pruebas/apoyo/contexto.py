@@ -182,8 +182,9 @@ class Contexto:
     # Remisiones y visitas
     # ------------------------------------------------------------------
 
-    def crear_remision(self, paciente: dict, especialidad: str, correo: str | None = None,
-                       etiqueta: str = "", rol: str = "MEDICO_GENERAL"):
+    def crear_remision(self, paciente: dict, especialidad: str | None, correo: str | None = None,
+                       etiqueta: str = "", rol: str = "MEDICO_GENERAL",
+                       especialidad_id: int | None = None):
         cuerpo = {
             "paciente_id": paciente["codigo"],
             "paciente_nombre": f"{paciente['nombres']} {paciente['apellidos']}"[:120],
@@ -192,6 +193,7 @@ class Contexto:
             "especialidad_remitida": especialidad,
             "motivo": f"{self.marca}: remisión de prueba {etiqueta}".strip(),
             "cubierto_fundacion": paciente.get("cubierto_fundacion", True),
+            "especialidad_id": especialidad_id,
         }
         r = self.gw.post(rol, "/api/solicitudes", json=cuerpo)
         if r.status_code == 201:
@@ -200,7 +202,7 @@ class Contexto:
             self.creados["correos"].append(correo)
         return r
 
-    def remision(self, paciente: dict, especialidad: str, **kw) -> dict:
+    def remision(self, paciente: dict, especialidad: str | None, **kw) -> dict:
         r = self.crear_remision(paciente, especialidad, **kw)
         if r.status_code != 201:
             raise RuntimeError(f"no se pudo crear la remisión de apoyo: {resumen(r)}")
@@ -208,11 +210,15 @@ class Contexto:
 
     def convertir(self, solicitud_id: int, especialidad: str, fecha: str = "2026-12-01 09:30",
                   medico: str = "Dra. Prueba Automática", rol: str = "FUNDACION"):
-        r = self.gw.post(
-            rol,
-            f"/api/solicitudes/{solicitud_id}/convertir",
-            json={"medico_tratante": medico, "especialidad": especialidad, "fecha_visita": fecha},
+        return self.programar(
+            solicitud_id, rol=rol,
+            medico_tratante=medico, especialidad=especialidad, fecha_visita=fecha,
         )
+
+    def programar(self, solicitud_id: int, rol: str = "FUNDACION", **campos):
+        """Programa la visita con los campos que se indiquen (por ejemplo medico_id y enfermero_id)."""
+        cuerpo = {"fecha_visita": "2026-12-01 09:30", **campos}
+        r = self.gw.post(rol, f"/api/solicitudes/{solicitud_id}/convertir", json=cuerpo)
         if r.status_code == 201:
             visita = r.json()["visita"]
             self.creados["visitas"].append(visita["id"])

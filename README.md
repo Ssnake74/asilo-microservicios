@@ -16,8 +16,10 @@ sobre Docker Compose.
 
 ```
 Navegador ──► gateway :8080 ──┬──► ms-pacientes
-                              ├──► ms-solicitudes ──► ms-cobros
-                              └──► ms-cobros
+                              ├──► ms-solicitudes ──┬──► ms-cobros
+                              │                     └──► ms-catalogo
+                              ├──► ms-cobros
+                              └──► ms-catalogo ──► ms-cobros (precios)
 
 MySQL 8: un esquema y un usuario por servicio
 ```
@@ -28,12 +30,16 @@ MySQL 8: un esquema y un usuario por servicio
 | `ms-pacientes` | Registro de los internos y de su familiar responsable. |
 | `ms-solicitudes` | Remisiones del médico general y su conversión en visita médica. Avisa por correo al familiar. |
 | `ms-cobros` | Tarifario, cargos con el descuento de la fundación y estado de cuenta. |
+| `ms-catalogo` | Especialidades, médicos, enfermeros, exámenes y medicamentos de la fundación. |
 
 - El gateway es la única entrada: los microservicios no publican puerto (RNF-03).
 - Cada servicio entra a MySQL con su propio usuario y solo ve su esquema. Lo impone
   el motor, no el código (RNF-04).
 - Si `ms-cobros` no responde, la visita se registra igual y queda pendiente de cobro
   (RNF-12).
+- La remisión y la visita eligen especialidad, médico y enfermero del catálogo, y la
+  regla RN-05 compara identificadores. Sin el catálogo no se puede comprobar esa
+  regla, así que una remisión o visita que lo usa espera a que responda.
 
 ---
 
@@ -65,14 +71,15 @@ declaran en cada Container App, y las claves como secretos (RNF-21).
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Todos | Conexión a MySQL |
 | `DB_SSL_CA` | Todos | Certificado raíz con que se verifica a MySQL; activa TLS. En las imágenes: `/etc/ssl/certs/ca-certificates.crt` |
 | `COOKIE_SEGURA` | `gateway` | Con `1`, la cookie de sesión solo viaja por HTTPS |
-| `MS_PACIENTES_URL`, `MS_SOLICITUDES_URL`, `MS_COBROS_URL` | `gateway` | Dirección de cada microservicio |
-| `MS_COBROS_URL` | `ms-solicitudes` | Dirección de cobros |
+| `MS_PACIENTES_URL`, `MS_SOLICITUDES_URL`, `MS_COBROS_URL`, `MS_CATALOGO_URL` | `gateway` | Dirección de cada microservicio |
+| `MS_COBROS_URL`, `MS_CATALOGO_URL` | `ms-solicitudes` | Dirección de cobros y del catálogo |
+| `MS_COBROS_URL` | `ms-catalogo` | Dirección de cobros, para dar precio a los exámenes y medicamentos sembrados |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_REMITENTE` | `ms-solicitudes` | Servidor de correo y remitente |
 | `SMTP_USUARIO`, `SMTP_CLAVE` | `ms-solicitudes` | Activan STARTTLS y el inicio de sesión en el servidor de correo |
 
 ### Publicación de imágenes
 
-Cada push a `main` construye las cuatro imágenes y las publica en el registro de
+Cada push a `main` construye las imágenes de los cinco servicios y las publica en el registro de
 Azure, etiquetadas con el commit (`.github/workflows/publicar-imagenes.yml`). Los
 cambios que solo tocan documentación o pruebas no disparan la construcción. Las
 credenciales del registro son los secretos `ACR_USUARIO` y `ACR_CLAVE` del
@@ -80,7 +87,7 @@ repositorio.
 
 ### Despliegue en Azure
 
-Las cuatro aplicaciones y el trabajo que crea los esquemas de MySQL están
+Las cinco aplicaciones y el trabajo que crea los esquemas de MySQL están
 descritos en `infra/azure/asilo.bicep`. Se despliegan desde Cloud Shell con un
 solo comando, que usa las imágenes más recientes del registro:
 
@@ -101,8 +108,11 @@ no hay que guardarla aparte.
 | `admin` | Administrador | Todo, y consulta la bitácora |
 | `secretaria` | Secretaria del asilo | Registra a los internos y a sus familiares |
 | `medico` | Médico general | Remite al interno a una especialidad |
-| `fundacion` | Fundación | Asigna horario y médico, y convierte la remisión en visita |
+| `fundacion` | Fundación | Asigna horario, médico y enfermero, convierte la remisión en visita y mantiene el catálogo médico |
 | `caja` | Caja y cobros | Tarifario, cobros y estado de cuenta |
+| `especialista` | Médico especialista | Atiende la visita y completa la ficha médica |
+| `laboratorio` | Laboratorio clínico | Registra los resultados de los exámenes |
+| `farmacia` | Farmacia | Despacha los medicamentos recetados |
 
 Contraseña de todos en desarrollo: `asilo2026`. Cinco intentos fallidos en quince
 minutos bloquean al usuario.
@@ -115,9 +125,11 @@ minutos bloquean al usuario.
 app-base/        Pantallas: HTML, CSS y JavaScript sin framework. Las sirve el gateway
 gateway/         app/  main.py · seguridad.py · db.py · schemas.py
 ms-pacientes/    app/  main.py · reglas.py · db.py · schemas.py
-ms-solicitudes/  app/  los mismos, más cliente_cobros.py y notificaciones.py
+ms-solicitudes/  app/  los mismos, más cliente_cobros.py, cliente_catalogo.py y notificaciones.py
 ms-cobros/       app/  main.py · reglas.py · db.py · schemas.py
+ms-catalogo/     app/  main.py · reglas.py · db.py · schemas.py
 infra/mysql/init/01-esquemas.sql   Esquemas y usuarios de MySQL
+infra/azure/     Plantilla y script del despliegue en Azure
 pruebas/         Pruebas automatizadas y su reporte
 docker-compose.yml
 ```
@@ -145,6 +157,7 @@ Todas entran por el gateway.
 | `/api/pacientes` | `ms-pacientes` |
 | `/api/solicitudes`, `/api/visitas` | `ms-solicitudes` |
 | `/api/tarifas`, `/api/cargos`, `/api/estado-cuenta` | `ms-cobros` |
+| `/api/catalogo/especialidades`, `/medicos`, `/enfermeros`, `/examenes`, `/medicamentos` | `ms-catalogo` |
 
 Qué rol puede usar cada ruta está en la tabla `PERMISOS` de
 `gateway/app/seguridad.py`. Lo que no aparece ahí se niega.
@@ -159,7 +172,7 @@ Con el sistema levantado, desde la raíz del repositorio:
 powershell -ExecutionPolicy Bypass -File .\pruebas\ejecutar.ps1
 ```
 
-Son 169 casos en 14 grupos, cada uno ligado al requisito que verifica. El reporte
+Son 191 casos en 15 grupos, cada uno ligado al requisito que verifica. El reporte
 queda en `pruebas/resultado.txt` y lista los casos que fallan y los pendientes
 conocidos.
 
@@ -167,9 +180,9 @@ conocidos.
 
 ## 7. Estado
 
-**Construido:** acceso con sesión, cinco roles y bitácora · registro de internos ·
-remisiones médicas · asignación de visitas · tarifario · cuentas y cobros · aviso
-por correo al familiar.
+**Construido:** acceso con sesión, roles y bitácora · registro de internos ·
+remisiones médicas · asignación de visitas con médico y enfermero · catálogo
+médico · tarifario · cuentas y cobros · aviso por correo al familiar.
 
-**Pendiente:** catálogo de médicos, especialidades y exámenes · laboratorio y
-farmacia · donaciones, gastos y cuota mensual · reportes.
+**Pendiente:** ficha médica, laboratorio y farmacia · donaciones, gastos y cuota
+mensual · administración de usuarios · reportes.

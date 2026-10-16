@@ -102,6 +102,7 @@ var servicios = [
       { name: 'MS_PACIENTES_URL', value: 'http://ms-pacientes' }
       { name: 'MS_SOLICITUDES_URL', value: 'http://ms-solicitudes' }
       { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
+      { name: 'MS_CATALOGO_URL', value: 'http://ms-catalogo' }
       { name: 'COOKIE_SEGURA', value: '1' }
     ]
   }
@@ -121,6 +122,7 @@ var servicios = [
     externo: false
     extra: [
       { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
+      { name: 'MS_CATALOGO_URL', value: 'http://ms-catalogo' }
       { name: 'SMTP_HOST', value: 'smtp.gmail.com' }
       { name: 'SMTP_PORT', value: '587' }
       { name: 'SMTP_USUARIO', value: usuarioCorreo }
@@ -135,6 +137,16 @@ var servicios = [
     puerto: 8082
     externo: false
     extra: []
+  }
+  {
+    nombre: 'ms-catalogo'
+    imagen: 'ms-catalogo'
+    esquema: 'catalogo'
+    puerto: 8084
+    externo: false
+    extra: [
+      { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
+    ]
   }
 ]
 

@@ -51,26 +51,41 @@
 <script>
 // El formulario de programar se dibuja una vez por cada interno en
 // espera, asi que sus casillas llevan pegado el numero de la solicitud
-// (mt-7, es-7, fv-7). El aviso si es uno solo: se programa una visita a
+// (mt-7, en-7, fv-7). El aviso si es uno solo: se programa una visita a
 // la vez.
 function formVisita(solicitudId){
   return {
     aviso: "aviso-conversion",
     ids: {
-      medico_tratante: `mt-${solicitudId}`,
-      especialidad:    `es-${solicitudId}`,
-      fecha_visita:    `fv-${solicitudId}`,
-      observaciones:   `ob-${solicitudId}`
+      medico_id:     `mt-${solicitudId}`,
+      enfermero_id:  `en-${solicitudId}`,
+      fecha_visita:  `fv-${solicitudId}`,
+      observaciones: `ob-${solicitudId}`
     },
     ETIQUETAS: {
-      medico_tratante: "Médico que la atenderá",
-      especialidad:    "Especialidad",
-      fecha_visita:    "Fecha y hora de la cita",
-      observaciones:   "Indicaciones"
+      medico_id:     "Médico que la atenderá",
+      enfermero_id:  "Enfermero que lo acompaña",
+      fecha_visita:  "Fecha y hora de la cita",
+      observaciones: "Indicaciones"
     },
-    OBLIGATORIOS: ["medico_tratante", "especialidad", "fecha_visita"],
-    MINIMOS: { medico_tratante: 3, especialidad: 3 }
+    OBLIGATORIOS: ["medico_id", "enfermero_id", "fecha_visita"],
+    MINIMOS: {}
   };
+}
+
+// Medicos y enfermeros en uso, leidos una vez del catalogo.
+let medicos = [];
+let enfermeros = [];
+
+// Para las remisiones anteriores al catalogo, que solo traen el nombre
+// de la especialidad: se compara sin tildes, mayusculas ni espacios.
+const comparable = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/\s+/g, " ").trim().toLowerCase();
+
+function medicosPara(s){
+  return medicos.filter(m => s.especialidad_id
+    ? m.especialidad_id === s.especialidad_id
+    : comparable(m.especialidad) === comparable(s.especialidad_remitida));
 }
 
 // -------------------------------------------------- internos en espera
@@ -112,14 +127,17 @@ function dibujarEspera(s){
         <div class="rejilla">
           <div class="campo">
             <label for="mt-${s.id}">Médico que la atenderá <span class="obligatorio">*</span></label>
-            <input id="mt-${s.id}" placeholder="Dra. Ana Sical" autocomplete="off">
+            <select id="mt-${s.id}">${opcionesMedico(s)}</select>
             <div class="error-campo" id="e-mt-${s.id}"></div>
+            <div class="pista">${medicosPara(s).length
+              ? `Solo aparecen los médicos de ${texto(s.especialidad_remitida)}.`
+              : `No hay médicos de ${texto(s.especialidad_remitida)} en el catálogo médico. Agregue uno allí.`}</div>
           </div>
           <div class="campo">
-            <label for="es-${s.id}">Especialidad <span class="obligatorio">*</span></label>
-            <input id="es-${s.id}" value="${texto(s.especialidad_remitida)}">
-            <div class="error-campo" id="e-es-${s.id}"></div>
-            <div class="pista">Debe ser la misma a la que se remitió al interno.</div>
+            <label for="en-${s.id}">Enfermero que lo acompaña <span class="obligatorio">*</span></label>
+            <select id="en-${s.id}"><option value="">— Seleccione —</option>${
+              enfermeros.map(e => `<option value="${e.id}">${texto(e.nombre)}</option>`).join("")}</select>
+            <div class="error-campo" id="e-en-${s.id}"></div>
           </div>
           <div class="campo">
             <label for="fv-${s.id}">Fecha y hora de la cita <span class="obligatorio">*</span></label>
@@ -140,6 +158,12 @@ function dibujarEspera(s){
     </div>`;
 }
 
+function opcionesMedico(s){
+  const propios = medicosPara(s);
+  return `<option value="">${propios.length ? "— Seleccione —" : "— Sin médicos disponibles —"}</option>`
+    + propios.map(m => `<option value="${m.id}">${texto(m.nombre)}</option>`).join("");
+}
+
 async function programar(id){
   const form = formVisita(id);
   limpiarErrores(form);
@@ -152,10 +176,10 @@ async function programar(id){
   }
 
   const cuerpo = {
-    medico_tratante: porId(`mt-${id}`).value.trim(),
-    especialidad:    porId(`es-${id}`).value.trim(),
-    fecha_visita:    porId(`fv-${id}`).value.trim(),
-    observaciones:   porId(`ob-${id}`).value.trim() || null
+    medico_id:     Number(porId(`mt-${id}`).value),
+    enfermero_id:  Number(porId(`en-${id}`).value),
+    fecha_visita:  porId(`fv-${id}`).value.trim(),
+    observaciones: porId(`ob-${id}`).value.trim() || null
   };
 
   try{
@@ -171,7 +195,8 @@ async function programar(id){
 
     avisoResumen(form,
       `Visita programada: ${r.visita.paciente_nombre} verá a ${r.visita.medico_tratante} `
-      + `(${r.visita.especialidad}) el ${fechaLegible(r.visita.fecha_visita)}. ${cobro}`,
+      + `(${r.visita.especialidad}) el ${fechaLegible(r.visita.fecha_visita)}, `
+      + `acompañado por ${r.visita.enfermero}. ${cobro}`,
       null, true);
 
     cargarTodo();
@@ -199,7 +224,7 @@ async function cargarVisitas(){
     caja.innerHTML = `
       <table>
         <thead>
-          <tr><th>Interno</th><th>Especialidad</th><th>Médico</th>
+          <tr><th>Interno</th><th>Especialidad</th><th>Médico</th><th>Acompaña</th>
               <th>Fecha y hora</th><th>Indicaciones</th><th>Costo de la consulta</th></tr>
         </thead>
         <tbody>${visitas.slice().reverse().map(v => `
@@ -207,6 +232,7 @@ async function cargarVisitas(){
             <td>${texto(v.paciente_nombre)}</td>
             <td>${texto(v.especialidad)}</td>
             <td>${texto(v.medico_tratante)}</td>
+            <td>${texto(v.enfermero) || "—"}</td>
             <td>${fechaLegible(v.fecha_visita)}</td>
             <td style="color:var(--texto-suave);">${texto(v.observaciones) || "—"}</td>
             <td>${v.cargo_generado
@@ -234,6 +260,16 @@ function cargarTodo(){
     requiere: "visitas"
   });
   if(!yo) return;
+
+  [medicos, enfermeros] = await Promise.all([
+    apiSilenciosa("/api/catalogo/medicos?solo_activos=true", []),
+    apiSilenciosa("/api/catalogo/enfermeros?solo_activos=true", [])
+  ]);
+  if(!medicos.length){
+    avisar("aviso-conversion",
+      "No se pudo leer el catálogo médico: sin él no se pueden elegir médico ni enfermero. Intente de nuevo en un momento.",
+      false);
+  }
 
   cargarTodo();
 })();

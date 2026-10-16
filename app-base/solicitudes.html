@@ -45,12 +45,7 @@
       </div>
       <div class="campo">
         <label for="s-especialidad">Especialidad a la que se remite <span class="obligatorio">*</span></label>
-        <input id="s-especialidad" list="especialidades" placeholder="Cardiología" autocomplete="off">
-        <datalist id="especialidades">
-          <option>Cardiología</option><option>Neurología</option><option>Traumatología</option>
-          <option>Oftalmología</option><option>Geriatría</option><option>Nefrología</option>
-          <option>Dermatología</option><option>Endocrinología</option><option>Urología</option>
-        </datalist>
+        <select id="s-especialidad"></select>
         <div class="error-campo" id="e-s-especialidad"></div>
         <div class="pista">La fundación debe asignar un médico de esta misma especialidad.</div>
       </div>
@@ -117,10 +112,11 @@ const FORM = {
     motivo:                "Motivo de la remisión"
   },
   OBLIGATORIOS: ["paciente_id", "medico_general", "especialidad_remitida", "motivo"],
-  MINIMOS: { medico_general: 3, especialidad_remitida: 3, motivo: 5 }
+  MINIMOS: { medico_general: 3, motivo: 5 }
 };
 
 let internos = [];      // fichas de los internos, para sacar nombre y fundacion
+let especialidades = []; // las del catalogo que estan en uso
 let solicitudes = [];   // lo ultimo que se leyo, para filtrar sin volver a pedir
 
 const internoDe = (codigo) => internos.find(p => p.codigo === codigo);
@@ -151,12 +147,14 @@ async function crearSolicitud(){
   }
 
   const ficha = internoDe(porId("s-interno").value);
+  const especialidad = especialidades.find(e => e.id === Number(porId("s-especialidad").value));
   const cuerpo = {
     paciente_id:           ficha.codigo,
     paciente_nombre:       `${ficha.nombres} ${ficha.apellidos}`.trim(),
     familiar_email:        ficha.familiar_email || null,
     medico_general:        porId("s-medico").value.trim(),
-    especialidad_remitida: porId("s-especialidad").value.trim(),
+    especialidad_id:       especialidad.id,
+    especialidad_remitida: especialidad.nombre,
     motivo:                porId("s-motivo").value.trim(),
     cubierto_fundacion:    porId("s-fundacion").checked
   };
@@ -267,6 +265,17 @@ async function anular(id, nombre){
   // Quien esta trabajando es casi siempre el medico que remite: se deja
   // escrito y se puede cambiar si firma otro.
   porId("s-medico").value = yo.nombre;
+
+  // Las especialidades salen del catalogo: elegirlas de la lista evita
+  // que la misma se escriba de dos formas y la fundacion no la reconozca.
+  especialidades = await apiSilenciosa("/api/catalogo/especialidades?solo_activas=true", []);
+  porId("s-especialidad").innerHTML = '<option value="">— Seleccione la especialidad —</option>'
+    + especialidades.map(e => `<option value="${e.id}">${texto(e.nombre)}</option>`).join("");
+  if(!especialidades.length){
+    avisar("aviso-solicitud",
+      "No se pudo leer la lista de especialidades del catálogo médico. Intente de nuevo en un momento.",
+      false);
+  }
 
   internos = await llenarInternos("s-interno");
   if(!internos.length){

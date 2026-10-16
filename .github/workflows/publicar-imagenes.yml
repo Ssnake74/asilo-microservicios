@@ -33,6 +33,9 @@ jobs:
           - servicio: ms-cobros
             contexto: ms-cobros
             dockerfile: ms-cobros/Dockerfile
+          - servicio: ms-catalogo
+            contexto: ms-catalogo
+            dockerfile: ms-catalogo/Dockerfile
     steps:
       - uses: actions/checkout@v4
 

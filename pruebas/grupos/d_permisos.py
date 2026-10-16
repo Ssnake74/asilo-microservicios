@@ -59,6 +59,9 @@ MATRIZ = [
     ("Cargos", "Registrar", "POST", "/api/cargos", None, {}, 422, {A, F, C}),
     ("Cargos", "Anular", "DELETE", f"/api/cargos/{NO_EXISTE}", None, None, 404, {A, C}),
     ("Estado de cuenta", "Consultar", "GET", "/api/estado-cuenta/NOEXISTE", None, None, 200, {A, S, C}),
+    ("Catálogo médico", "Consultar", "GET", "/api/catalogo/especialidades", None, None, 200, {A, S, M, F, C}),
+    ("Catálogo médico", "Registrar", "POST", "/api/catalogo/medicos", None, {}, 422, {A, F}),
+    ("Catálogo médico", "Modificar", "PUT", f"/api/catalogo/enfermeros/{NO_EXISTE}", None, {"activo": True}, 404, {A, F}),
 ]
 
 # El 404 propio del gateway, que NO cuenta como "llego al servicio".
@@ -73,6 +76,7 @@ NO_DECLARADAS = [
     ("POST", "/api/estado-cuenta/NOEXISTE"),
     ("DELETE", "/api/estado-cuenta/NOEXISTE"),
     ("PATCH", "/api/pacientes/PAC-NOEXISTE"),
+    ("DELETE", f"/api/catalogo/medicos/{NO_EXISTE}"),
 ]
 
 

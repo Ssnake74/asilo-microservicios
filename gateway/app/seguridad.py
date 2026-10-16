@@ -67,6 +67,7 @@ def nuevo_token() -> str:
 MS_PACIENTES = os.getenv("MS_PACIENTES_URL", "http://ms-pacientes:8083")
 MS_SOLICITUDES = os.getenv("MS_SOLICITUDES_URL", "http://ms-solicitudes:8081")
 MS_COBROS = os.getenv("MS_COBROS_URL", "http://ms-cobros:8082")
+MS_CATALOGO = os.getenv("MS_CATALOGO_URL", "http://ms-catalogo:8084")
 
 RUTAS: dict[str, tuple[str, str]] = {
     "pacientes":     (MS_PACIENTES,   "/pacientes"),
@@ -75,6 +76,8 @@ RUTAS: dict[str, tuple[str, str]] = {
     "tarifas":       (MS_COBROS,      "/tarifas"),
     "cargos":        (MS_COBROS,      "/cargos"),
     "estado-cuenta": (MS_COBROS,      "/estado-cuenta"),
+    # El catalogo tiene cinco listas; todas viajan bajo /catalogo.
+    "catalogo":      (MS_CATALOGO,    "/catalogo"),
 }
 
 # Para el tablero de estado: nombre visible -> URL de su /health
@@ -82,6 +85,7 @@ SERVICIOS = {
     "ms-pacientes":   MS_PACIENTES,
     "ms-solicitudes": MS_SOLICITUDES,
     "ms-cobros":      MS_COBROS,
+    "ms-catalogo":    MS_CATALOGO,
 }
 
 
@@ -93,6 +97,9 @@ SERVICIOS = {
 #   MEDICO_GENERAL evalua al interno y lo remite a una especialidad
 #   FUNDACION      asigna horario y medico, y convierte la solicitud en visita
 #   CAJA           tarifario, cobros y estado de cuenta de los familiares
+#   ESPECIALISTA   atiende la visita y completa la ficha medica
+#   LABORATORIO    registra los resultados de los examenes
+#   FARMACIA       despacha los medicamentos recetados
 #
 # Si el rol no aparece en la lista del recurso y el metodo, el gateway
 # responde 403 y la peticion no llega al microservicio. Los servicios no
@@ -104,8 +111,11 @@ SECRETARIA = "SECRETARIA"
 MEDICO_GENERAL = "MEDICO_GENERAL"
 FUNDACION = "FUNDACION"
 CAJA = "CAJA"
+ESPECIALISTA = "ESPECIALISTA"
+LABORATORIO = "LABORATORIO"
+FARMACIA = "FARMACIA"
 
-ROLES = (ADMIN, SECRETARIA, MEDICO_GENERAL, FUNDACION, CAJA)
+ROLES = (ADMIN, SECRETARIA, MEDICO_GENERAL, FUNDACION, CAJA, ESPECIALISTA, LABORATORIO, FARMACIA)
 
 # Nombre de cada rol en pantalla. Lleva tildes porque lo lee la persona,
 # en la barra de arriba y cuando se le niega un permiso.
@@ -115,6 +125,9 @@ NOMBRE_ROL = {
     MEDICO_GENERAL: "Médico general",
     FUNDACION: "Fundación",
     CAJA: "Caja y cobros",
+    ESPECIALISTA: "Médico especialista",
+    LABORATORIO: "Laboratorio clínico",
+    FARMACIA: "Farmacia",
 }
 
 # Casi todo el mundo necesita consultar la lista de internos, aunque
@@ -153,6 +166,13 @@ PERMISOS: dict[str, dict[str, set[str]]] = {
     "estado-cuenta": {
         "GET":    {ADMIN, SECRETARIA, CAJA},
     },
+    "catalogo": {
+        # Todos lo leen para llenar sus listas; lo mantiene la fundacion,
+        # que es quien tiene el cuadro de medicos.
+        "GET":    TODOS,
+        "POST":   {ADMIN, FUNDACION},
+        "PUT":    {ADMIN, FUNDACION},
+    },
 }
 
 
@@ -171,6 +191,11 @@ def puede(rol: str, recurso: str, metodo: str) -> bool:
 def recursos_visibles(rol: str) -> list[str]:
     """Recursos que ese rol puede al menos consultar. Sirve para el menu."""
     return [r for r in RUTAS if puede(rol, r, "GET")]
+
+
+def recursos_gestionables(rol: str) -> list[str]:
+    """Recursos que ese rol puede modificar. El menu los usa para las pantallas de mantenimiento."""
+    return [r for r in RUTAS if any(puede(rol, r, m) for m in ("POST", "PUT", "DELETE"))]
 
 
 # ---------------------------------------------------------------------

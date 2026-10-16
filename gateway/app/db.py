@@ -14,7 +14,17 @@ from datetime import date, datetime
 import pymysql
 from pymysql.cursors import DictCursor
 
-from .seguridad import ADMIN, CAJA, FUNDACION, MEDICO_GENERAL, SECRETARIA, cifrar_contrasena
+from .seguridad import (
+    ADMIN,
+    CAJA,
+    ESPECIALISTA,
+    FARMACIA,
+    FUNDACION,
+    LABORATORIO,
+    MEDICO_GENERAL,
+    SECRETARIA,
+    cifrar_contrasena,
+)
 
 CONFIG = {
     "host": os.getenv("DB_HOST", "mysql"),
@@ -130,6 +140,9 @@ USUARIOS_SEMILLA = [
     ("medico",     "Dr. Luis Marroquín",     MEDICO_GENERAL),
     ("fundacion",  "Lic. Ana Beatriz Rivas", FUNDACION),
     ("caja",       "Sergio Estuardo López",  CAJA),
+    ("especialista", "Dra. Ana Sical",       ESPECIALISTA),
+    ("laboratorio",  "Lic. Carlos Pérez",    LABORATORIO),
+    ("farmacia",     "Lic. Sofía Méndez",    FARMACIA),
 ]
 CONTRASENA_DEMO = "asilo2026"
 
@@ -150,18 +163,23 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
                     cur.execute(TABLA_SESIONES)
                     cur.execute(TABLA_INTENTOS_FALLIDOS)
                     cur.execute(TABLA_BITACORA)
-                    cur.execute("SELECT COUNT(*) AS n FROM usuarios")
-                    if cur.fetchone()["n"] == 0:
+                    # Se agregan solo los que falten, por nombre de usuario: una
+                    # base que ya tenia los primeros cinco recibe los nuevos
+                    # roles sin tocar a los demas.
+                    cur.execute("SELECT usuario FROM usuarios")
+                    existentes = {f["usuario"] for f in cur.fetchall()}
+                    faltantes = [s for s in USUARIOS_SEMILLA if s[0] not in existentes]
+                    if faltantes:
                         ahora = datetime.now().replace(microsecond=0)
                         cur.executemany(
                             """INSERT INTO usuarios (usuario, nombre, contrasena, rol, fecha_alta)
                                VALUES (%s, %s, %s, %s, %s)""",
                             [
                                 (u, n, cifrar_contrasena(CONTRASENA_DEMO), r, ahora)
-                                for u, n, r in USUARIOS_SEMILLA
+                                for u, n, r in faltantes
                             ],
                         )
-                        print("[gateway] Usuarios de demostracion creados.", flush=True)
+                        print(f"[gateway] Usuarios de demostracion creados: {len(faltantes)}.", flush=True)
                 conn.commit()
             print(f"[gateway] Conectado a MySQL en el intento {intento}.", flush=True)
             return

@@ -64,6 +64,11 @@
    ver que: si el puesto de la persona no alcanza para consultarlo, la
    tarjeta ni se dibuja. El menu no esta escrito a mano rol por rol.
 
+   «gestiona» marca las pantallas de mantenimiento: esas se muestran a
+   quien puede modificar el recurso, no a todo el que puede leerlo. El
+   catalogo lo leen todos para llenar sus listas, pero lo mantiene la
+   fundacion.
+
    «cifra» saca su numero de los datos del modulo mismo. Si la consulta
    no se puede hacer -porque a ese puesto no le toca- la tarjeta sale
    sin número y nada más: no es un error que la persona deba ver.
@@ -125,13 +130,23 @@ const MODULOS = [
       const porCobrar = cargos.filter(c => c.estado === "PENDIENTE").length;
       return { valor: porCobrar, pie: porCobrar === 1 ? "cobro por cobrar" : "cobros por cobrar" };
     }
+  },
+  {
+    recurso: "catalogo",
+    gestiona: true,
+    titulo:  "Catálogo médico",
+    texto:   "Médicos, especialidades, enfermeros, exámenes y medicamentos de la fundación.",
+    enlace:  "/catalogo.html",
+    cifra:   async () => {
+      const medicos = await apiSilenciosa("/api/catalogo/medicos?solo_activos=true");
+      return medicos && { valor: medicos.length, pie: medicos.length === 1 ? "médico en el cuadro" : "médicos en el cuadro" };
+    }
   }
 ];
 
 // Todavia no existen. Se muestran apagados para que se vea el alcance
 // completo del sistema y lo que falta por hacer.
 const FUTUROS = [
-  { titulo:"Catálogo médico",      texto:"Médicos, especialidades, enfermeros, exámenes y medicamentos." },
   { titulo:"Laboratorio y farmacia", texto:"Resultados de exámenes y despacho de medicamentos." },
   { titulo:"Reportes",             texto:"Los siete informes estadísticos que pide el asilo." }
 ];
@@ -152,7 +167,9 @@ function dibujarModulo(m, cifra){
   const yo = await iniciarPantalla({ subtitulo: "Sistema de administración" });
   if(!yo) return;
 
-  const visibles = MODULOS.filter(m => yo.recursos.includes(m.recurso));
+  const visibles = MODULOS.filter(m => m.gestiona
+    ? (yo.gestiona || []).includes(m.recurso)
+    : yo.recursos.includes(m.recurso));
 
   // Se dibujan primero sin numero, para que el menu aparezca de una vez,
   // y las cifras se van poniendo conforme llegan.

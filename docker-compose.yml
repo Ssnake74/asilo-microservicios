@@ -97,9 +97,34 @@ services:
     restart: unless-stopped
 
   # -------------------------------------------------------------------
+  # Catalogo medico: especialidades, medicos, enfermeros, examenes y
+  # medicamentos (esquema asilo_catalogo). Le pregunta a cobros el precio
+  # de los examenes y medicamentos sembrados.
+  # -------------------------------------------------------------------
+  ms-catalogo:
+    build: ./ms-catalogo
+    container_name: asilo-ms-catalogo
+    # Sin "ports" a proposito (RNF-03).
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=u_catalogo
+      - DB_PASSWORD=catalogo_2026
+      - DB_NAME=asilo_catalogo
+      - MS_COBROS_URL=http://ms-cobros:8082
+      - TZ=America/Guatemala
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ms-cobros:
+        condition: service_started
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------
   # Remisiones y visitas medicas (esquema asilo_solicitudes). Al
   # convertir una remision le pide el cargo a ms-cobros; si cobros no
   # responde, la visita se guarda igual (RNF-12, cliente_cobros.py).
+  # Especialidad, medico y enfermero los comprueba con ms-catalogo.
   # -------------------------------------------------------------------
   ms-solicitudes:
     build: ./ms-solicitudes
@@ -112,6 +137,7 @@ services:
       - DB_PASSWORD=solicitudes_2026
       - DB_NAME=asilo_solicitudes
       - MS_COBROS_URL=http://ms-cobros:8082
+      - MS_CATALOGO_URL=http://ms-catalogo:8084
       # Servidor de correo del aviso al familiar (RF-44).
       - SMTP_HOST=mailpit
       - SMTP_PORT=1025
@@ -121,6 +147,8 @@ services:
       mysql:
         condition: service_healthy
       ms-cobros:
+        condition: service_started
+      ms-catalogo:
         condition: service_started
       mailpit:
         # Solo espera a que exista: si Mailpit se cae, la remision se
@@ -172,6 +200,7 @@ services:
       - MS_PACIENTES_URL=http://ms-pacientes:8083
       - MS_SOLICITUDES_URL=http://ms-solicitudes:8081
       - MS_COBROS_URL=http://ms-cobros:8082
+      - MS_CATALOGO_URL=http://ms-catalogo:8084
       - TZ=America/Guatemala
     volumes:
       - ./app-base:/code/publico:ro

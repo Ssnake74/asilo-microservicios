@@ -25,6 +25,7 @@ MICROSERVICIOS = {
     "8081": ("ms-solicitudes", "asilo-ms-solicitudes"),
     "8082": ("ms-cobros", "asilo-ms-cobros"),
     "8083": ("ms-pacientes", "asilo-ms-pacientes"),
+    "8084": ("ms-catalogo", "asilo-ms-catalogo"),
 }
 
 
@@ -45,7 +46,7 @@ def puertos_desde_windows() -> tuple[dict[str, str], str]:
         return resultado, "probado desde Windows"
 
     resultado = {}
-    for puerto in ("8080", "8081", "8082", "8083"):
+    for puerto in ("8080", *MICROSERVICIOS):
         try:
             with socket.create_connection(("host.docker.internal", int(puerto)), timeout=2):
                 resultado[puerto] = "abierto"
@@ -59,9 +60,9 @@ def ejecutar(ctx) -> None:
     puertos, origen = puertos_desde_windows()
 
     with rep.caso(
-        "Los siete contenedores del sistema están en ejecución",
+        f"Los {len(CONTENEDORES)} contenedores del sistema están en ejecución",
         "RNF-22 (despliegue completo con un solo comando)",
-        "Los 7 contenedores del docker-compose en estado «running»",
+        f"Los {len(CONTENEDORES)} contenedores del docker-compose en estado «running»",
     ) as c:
         estados = {n: docker.estado(n) for n in CONTENEDORES}
         c.obtenido = ", ".join(f"{n.removeprefix('asilo-')}: {e}" for n, e in estados.items())
@@ -88,10 +89,10 @@ def ejecutar(ctx) -> None:
         c.pasa = abierto == "abierto" and (http in ("", "200"))
 
     with rep.caso(
-        "Los microservicios no responden en 8081, 8082 ni 8083 desde fuera",
+        "Los microservicios no responden en 8081 a 8084 desde fuera",
         "RNF-03",
-        "Los tres puertos cerrados desde la máquina, ningún microservicio publica "
-        "puertos, y aun así los tres responden dentro de la red interna",
+        "Los cuatro puertos cerrados desde la máquina, ningún microservicio publica "
+        "puertos, y aun así los cuatro responden dentro de la red interna",
     ) as c:
         lineas, todo_bien = [], True
         for puerto, (servicio, contenedor) in MICROSERVICIOS.items():

@@ -34,6 +34,15 @@ from .contexto import PREFIJO_MARCA
 
 MARCA_LIKE = f"%{PREFIJO_MARCA}%"
 
+# En orden de dependencia: los medicos antes que su especialidad.
+TABLAS_CATALOGO = (
+    ("medicos", "medicos"),
+    ("enfermeros", "enfermeros"),
+    ("examenes", "tipos_examen"),
+    ("medicamentos", "medicamentos"),
+    ("especialidades", "especialidades"),
+)
+
 
 def _ids(filas: list[dict], campo: str = "id") -> list:
     return [f[campo] for f in filas]
@@ -95,12 +104,19 @@ def datos_de_prueba(ctx) -> dict[str, list[dict]]:
             WHERE apellidos LIKE %s OR {filtro_codigos}""",
         (MARCA_LIKE, *codigos),
     )
+    # El catalogo no tiene operacion de borrado (lo que sobra se retira),
+    # asi que sus datos de prueba se encuentran por la marca en el nombre.
+    catalogo = {
+        clave: root.consulta(f"SELECT id FROM asilo_catalogo.{tabla} WHERE nombre LIKE %s", (MARCA_LIKE,))
+        for clave, tabla in TABLAS_CATALOGO
+    }
     return {
         "solicitudes": solicitudes,
         "visitas": visitas,
         "cargos": cargos,
         "tarifas": tarifas,
         "pacientes": pacientes,
+        **catalogo,
     }
 
 
@@ -219,6 +235,10 @@ def limpiar(ctx) -> bool:
         ("cargos", "asilo_cobros.cargos", "Cargos que la aplicación no deja borrar (pagados, RN-12)"),
         ("tarifas", "asilo_cobros.tarifas", "Tarifas que tenían cargos pagados (RN-11)"),
         ("pacientes", "asilo_pacientes.pacientes", "Internos que la aplicación no dejó borrar"),
+        *(
+            (clave, f"asilo_catalogo.{tabla}", f"Catálogo, {clave} (el catálogo no tiene operación de borrado)")
+            for clave, tabla in TABLAS_CATALOGO
+        ),
     ]
     for clave, tabla, _ in pasos:
         ids = _ids(datos[clave])
@@ -343,7 +363,7 @@ def limpiar(ctx) -> bool:
             rep.parrafo(f"- QUEDÓ: {p}", sangria="     ")
     else:
         rep.parrafo(
-            "El sistema quedó como estaba: los 7 contenedores en su estado inicial "
+            f"El sistema quedó como estaba: los {len(contenedores)} contenedores en su estado inicial "
             f"({', '.join(sorted(set(contenedores.values())))}), sin cuentas bloqueadas "
             f"({intentos_final} intentos fallidos guardados, igual que al empezar), sin "
             "internos, remisiones, visitas, tarifas, cargos ni correos de prueba, la "

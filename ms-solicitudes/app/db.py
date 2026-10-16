@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS solicitudes (
     familiar_email        VARCHAR(120) NULL,
     medico_general        VARCHAR(120) NOT NULL,
     especialidad_remitida VARCHAR(60)  NOT NULL,
+    especialidad_id       INT          NULL,
     motivo                VARCHAR(400) NOT NULL,
     cubierto_fundacion    BOOLEAN      NOT NULL DEFAULT TRUE,
     estado                VARCHAR(12)  NOT NULL DEFAULT 'PENDIENTE',
@@ -76,8 +77,11 @@ CREATE TABLE IF NOT EXISTS visitas (
     solicitud_id    INT          NOT NULL UNIQUE,
     paciente_id     VARCHAR(40)  NOT NULL,
     paciente_nombre VARCHAR(120) NOT NULL,
+    medico_id       INT          NULL,
     medico_tratante VARCHAR(120) NOT NULL,
     especialidad    VARCHAR(60)  NOT NULL,
+    enfermero_id    INT          NULL,
+    enfermero       VARCHAR(120) NULL,
     fecha_visita    DATETIME     NOT NULL,
     observaciones   VARCHAR(400) NULL,
     cargo_id        INT          NULL,
@@ -87,6 +91,29 @@ CREATE TABLE IF NOT EXISTS visitas (
         FOREIGN KEY (solicitud_id) REFERENCES solicitudes (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
+
+
+# Columnas que llegaron con el catalogo. Los identificadores apuntan a
+# asilo_catalogo: relacion logica, sin llave foranea. CREATE TABLE IF NOT
+# EXISTS no toca una tabla que ya existe, asi que a las bases anteriores
+# se les agregan aqui.
+COLUMNAS_DEL_CATALOGO = [
+    ("solicitudes", "especialidad_id", "INT NULL AFTER especialidad_remitida"),
+    ("visitas", "medico_id", "INT NULL AFTER paciente_nombre"),
+    ("visitas", "enfermero_id", "INT NULL AFTER especialidad"),
+    ("visitas", "enfermero", "VARCHAR(120) NULL AFTER enfermero_id"),
+]
+
+
+def _agregar_columnas_faltantes(cur) -> None:
+    for tabla, columna, definicion in COLUMNAS_DEL_CATALOGO:
+        cur.execute(
+            """SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s""",
+            (tabla, columna),
+        )
+        if cur.fetchone()["n"] == 0:
+            cur.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {definicion}")
 
 
 def init_db(intentos: int = 15, espera: float = 3.0) -> None:
@@ -104,6 +131,7 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
                 with conn.cursor() as cur:
                     cur.execute(TABLA_SOLICITUDES)
                     cur.execute(TABLA_VISITAS)
+                    _agregar_columnas_faltantes(cur)
                 conn.commit()
             print(f"[ms-solicitudes] Conectado a MySQL en el intento {intento}.")
             return
@@ -170,15 +198,16 @@ def crear_solicitud(datos: dict) -> dict:
             cur.execute(
                 """INSERT INTO solicitudes (
                        paciente_id, paciente_nombre, familiar_email, medico_general,
-                       especialidad_remitida, motivo, cubierto_fundacion,
+                       especialidad_remitida, especialidad_id, motivo, cubierto_fundacion,
                        estado, fecha_solicitud)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, 'PENDIENTE', %s)""",
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'PENDIENTE', %s)""",
                 (
                     datos["paciente_id"],
                     datos["paciente_nombre"],
                     datos["familiar_email"],
                     datos["medico_general"],
                     datos["especialidad_remitida"],
+                    datos["especialidad_id"],
                     datos["motivo"],
                     datos["cubierto_fundacion"],
                     datetime.now().replace(microsecond=0),
@@ -274,15 +303,19 @@ def convertir_en_visita(solicitud: dict, datos_visita: dict) -> dict | None:
 
             cur.execute(
                 """INSERT INTO visitas (
-                       solicitud_id, paciente_id, paciente_nombre, medico_tratante,
-                       especialidad, fecha_visita, observaciones, cargo_generado)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE)""",
+                       solicitud_id, paciente_id, paciente_nombre, medico_id, medico_tratante,
+                       especialidad, enfermero_id, enfermero, fecha_visita, observaciones,
+                       cargo_generado)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, FALSE)""",
                 (
                     solicitud["id"],
                     solicitud["paciente_id"],
                     solicitud["paciente_nombre"],
+                    datos_visita["medico_id"],
                     datos_visita["medico_tratante"],
                     datos_visita["especialidad"],
+                    datos_visita["enfermero_id"],
+                    datos_visita["enfermero"],
                     datos_visita["fecha_visita"],
                     datos_visita["observaciones"],
                 ),

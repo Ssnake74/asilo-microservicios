@@ -16,13 +16,14 @@ FORMATOS_FECHA = ("%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%
 
 def normalizar_especialidad(texto: str) -> str:
     """
-    Deja la especialidad siempre escrita igual: sin espacios sobrantes y
-    con la primera letra de cada palabra en mayuscula.
+    Deja la especialidad siempre escrita igual: un solo espacio entre
+    palabras y la primera letra de cada una en mayuscula.
 
-    Sirve para que "cardiologia", " Cardiologia " y "CARDIOLOGIA" se
-    guarden como "Cardiologia" y se puedan comparar entre si.
+    Sirve para que "cardiologia", " Cardiologia " y "medicina   interna"
+    se guarden como "Cardiologia" y "Medicina Interna". Solo se usa
+    cuando la especialidad llega escrita y no elegida del catalogo.
     """
-    return texto.strip().title()
+    return " ".join(texto.split()).title()
 
 
 def especialidades_coinciden(remitida: str, asignada: str) -> bool:

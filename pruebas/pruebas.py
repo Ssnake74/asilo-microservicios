@@ -4,7 +4,7 @@ Pruebas automatizadas del Sistema del Asilo "Cabeza de Algodon".
 No se corre directamente: lo lanza ejecutar.ps1 dentro de un contenedor
 de un solo uso, conectado a la red del docker-compose.
 
-Recorre los grupos A a N en orden, numerando los casos CP-01 en adelante
+Recorre los grupos A a O en orden, numerando los casos CP-01 en adelante
 sin reiniciar entre grupos, y al final SIEMPRE limpia los datos de prueba
 y deja el sistema como estaba, aunque un caso haya fallado o la corrida
 se haya cortado con Ctrl+C.
@@ -37,6 +37,7 @@ from grupos import (
     l_correo,
     m_bitacora,
     n_sesion,
+    o_catalogo,
 )
 
 GRUPOS = (
@@ -54,6 +55,7 @@ GRUPOS = (
     l_correo,
     m_bitacora,
     n_sesion,
+    o_catalogo,
 )
 
 RESULTADO = "/pruebas/resultado.txt"
@@ -134,7 +136,7 @@ def main() -> int:
                 except Exception as error:  # noqa: BLE001
                     rep.nota(
                         f"No se puede ingresar al sistema ({error}). Se omiten los grupos "
-                        "B a N: fallarían todos por esta misma causa."
+                        "B a O: fallarían todos por esta misma causa."
                     )
                     break
     except KeyboardInterrupt:

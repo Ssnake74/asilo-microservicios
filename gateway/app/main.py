@@ -24,6 +24,7 @@ from .seguridad import (
     SERVICIOS,
     nuevo_token,
     puede,
+    recursos_gestionables,
     recursos_visibles,
     ruta_sospechosa,
     verificar_contrasena,
@@ -186,6 +187,7 @@ def login(datos: Credenciales, request: Request, response: Response):
         "rol": fila["rol"],
         "rol_nombre": NOMBRE_ROL.get(fila["rol"], fila["rol"]),
         "recursos": recursos_visibles(fila["rol"]),
+        "gestiona": recursos_gestionables(fila["rol"]),
     }
 
 
@@ -213,6 +215,7 @@ def quien_soy(sesion: str | None = Cookie(default=None)):
         "rol": usuario["rol"],
         "rol_nombre": NOMBRE_ROL.get(usuario["rol"], usuario["rol"]),
         "recursos": recursos_visibles(usuario["rol"]),
+        "gestiona": recursos_gestionables(usuario["rol"]),
     }
 
 

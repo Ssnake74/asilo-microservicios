@@ -30,6 +30,8 @@
        /api/tarifas        tarifario del asilo
        /api/cargos         cargos a la cuenta del interno
        /api/estado-cuenta  cuenta completa de un interno
+       /api/catalogo/...   especialidades, medicos, enfermeros, examenes
+                           y medicamentos
    ===================================================================== */
 
 // Que se le dice a la persona cuando un modulo del sistema no responde.
@@ -42,7 +44,8 @@ const MODULO_DE = {
   "visitas":       "visitas médicas",
   "tarifas":       "cobros",
   "cargos":        "cobros",
-  "estado-cuenta": "cobros"
+  "estado-cuenta": "cobros",
+  "catalogo":      "catálogo médico"
 };
 
 function mensajeNoDisponible(ruta) {

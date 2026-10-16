@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo médico · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: cinco listas iguales, una debajo de otra. */
+  section + section{margin-top:24px;}
+  td select{max-width:340px;padding:6px 8px;font-size:15px;}
+  tr.retirada td{color:var(--texto-suave);}
+  tr.retirada td:first-child{text-decoration:line-through;}
+  .en-uso{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--texto-suave);}
+  .en-uso input{width:auto;}
+  .sin-precio{color:var(--advertencia-texto);font-size:14px;}
+  .indice{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="tarjeta">
+    <h2>Catálogo médico</h2>
+    <p class="ayuda" id="ayuda-general">Las listas con que trabaja la fundación. Lo que se registra aquí
+       aparece después en las listas de remisiones, visitas, laboratorio y farmacia.</p>
+    <div class="indice" id="indice"></div>
+  </section>
+
+  <div id="listas"></div>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+/* ---------------------------------------------------------------------
+   Las cinco listas tienen la misma forma: una tabla con lo registrado y,
+   para quien la mantiene, un formulario para agregar. Cada una se
+   describe aqui y el codigo de abajo las dibuja todas igual.
+
+   Nada se borra: lo que deja de usarse se desmarca de «En uso», para
+   que las visitas viejas sigan diciendo quien las atendio.
+   --------------------------------------------------------------------- */
+
+const LISTAS = [
+  {
+    clave: "especialidades", titulo: "Especialidades", singular: "la especialidad",
+    ayuda: "Ramas de la medicina a las que el médico general puede remitir.",
+    columnas: [],
+    campos: [
+      { campo: "nombre", etiqueta: "Nombre de la especialidad", placeholder: "Cardiología", min: 3, obligatorio: true }
+    ]
+  },
+  {
+    clave: "medicos", titulo: "Médicos de la fundación", singular: "el médico",
+    ayuda: "Cada médico atiende una especialidad. Solo los de la especialidad remitida aparecen al programar la visita.",
+    columnas: [
+      { titulo: "Colegiado", celda: m => texto(m.colegiado) || "—" },
+      { titulo: "Especialidad", celda: m => texto(m.especialidad) }
+    ],
+    campos: [
+      { campo: "nombre", etiqueta: "Nombre del médico", placeholder: "Dra. Ana Sical", min: 3, obligatorio: true },
+      { campo: "colegiado", etiqueta: "Número de colegiado", placeholder: "COL-12345" },
+      { campo: "especialidad_id", etiqueta: "Especialidad", tipo: "especialidad", obligatorio: true }
+    ]
+  },
+  {
+    clave: "enfermeros", titulo: "Enfermeros", singular: "el enfermero",
+    ayuda: "Personal que acompaña al interno a su visita médica.",
+    columnas: [],
+    campos: [
+      { campo: "nombre", etiqueta: "Nombre", placeholder: "Enf. Rosa Tzul", min: 3, obligatorio: true }
+    ]
+  },
+  {
+    clave: "examenes", titulo: "Exámenes de laboratorio", singular: "el examen",
+    ayuda: "Estudios que el especialista puede ordenar. Cada uno se cobra con un concepto del tarifario.",
+    columnas: [
+      { titulo: "Se cobra con", celda: (x, gestiona) => celdaTarifa(x, "examenes", "EXAMEN", gestiona) }
+    ],
+    campos: [
+      { campo: "nombre", etiqueta: "Nombre del examen", placeholder: "Perfil lipídico", min: 3, obligatorio: true },
+      { campo: "tarifa_id", etiqueta: "Se cobra con", tipo: "tarifa", tipoTarifa: "EXAMEN" }
+    ]
+  },
+  {
+    clave: "medicamentos", titulo: "Medicamentos", singular: "el medicamento",
+    ayuda: "Lo que el especialista puede recetar y la farmacia despachar.",
+    columnas: [
+      { titulo: "Presentación", celda: m => texto(m.presentacion) || "—" },
+      { titulo: "Se cobra con", celda: (x, gestiona) => celdaTarifa(x, "medicamentos", "MEDICAMENTO", gestiona) }
+    ],
+    campos: [
+      { campo: "nombre", etiqueta: "Nombre y concentración", placeholder: "Metformina 850 mg", min: 3, obligatorio: true },
+      { campo: "presentacion", etiqueta: "Presentación", placeholder: "caja, frasco, ampolla" },
+      { campo: "tarifa_id", etiqueta: "Se cobra con", tipo: "tarifa", tipoTarifa: "MEDICAMENTO" }
+    ]
+  }
+];
+
+let gestiona = false;   // si a este puesto le toca mantener el catalogo
+let tarifas = [];       // para elegir con que concepto se cobra cada cosa
+let especialidades = [];
+
+// --------------------------------------------------------- ayudas
+
+function opcionesTarifa(tipo, elegida){
+  const propias = tarifas.filter(t => t.tipo === tipo && (t.activo || t.id === elegida));
+  return `<option value="">Sin precio</option>` + propias.map(t =>
+    `<option value="${t.id}" ${t.id === elegida ? "selected" : ""}>${texto(t.concepto)} · ${q(t.precio)}</option>`
+  ).join("");
+}
+
+function celdaTarifa(registro, clave, tipo, puedeCambiar){
+  if(puedeCambiar){
+    return `<select onchange="cambiarTarifa('${clave}', ${registro.id}, this.value)">
+              ${opcionesTarifa(tipo, registro.tarifa_id)}
+            </select>`;
+  }
+  const t = tarifas.find(x => x.id === registro.tarifa_id);
+  return t ? `${texto(t.concepto)} · ${q(t.precio)}` : '<span class="sin-precio">Sin precio</span>';
+}
+
+function formDe(lista){
+  const form = { aviso: `aviso-${lista.clave}`, ids: {}, ETIQUETAS: {}, OBLIGATORIOS: [], MINIMOS: {} };
+  lista.campos.forEach(c => {
+    form.ids[c.campo] = `n-${lista.clave}-${c.campo}`;
+    form.ETIQUETAS[c.campo] = c.etiqueta;
+    if(c.obligatorio) form.OBLIGATORIOS.push(c.campo);
+    if(c.min) form.MINIMOS[c.campo] = c.min;
+  });
+  return form;
+}
+
+function dibujarCampo(lista, c){
+  const id = `n-${lista.clave}-${c.campo}`;
+  let control;
+  if(c.tipo === "especialidad"){
+    control = `<select id="${id}"><option value="">— Seleccione —</option>${
+      especialidades.filter(e => e.activo).map(e => `<option value="${e.id}">${texto(e.nombre)}</option>`).join("")
+    }</select>`;
+  }else if(c.tipo === "tarifa"){
+    control = `<select id="${id}">${opcionesTarifa(c.tipoTarifa, null)}</select>`;
+  }else{
+    control = `<input id="${id}" placeholder="${texto(c.placeholder || "")}" autocomplete="off">`;
+  }
+  return `
+    <div class="campo">
+      <label for="${id}">${c.etiqueta}${c.obligatorio ? ' <span class="obligatorio">*</span>' : ""}</label>
+      ${control}
+      <div class="error-campo" id="e-${id}"></div>
+    </div>`;
+}
+
+// --------------------------------------------------------- dibujar
+
+function dibujarSecciones(){
+  porId("indice").innerHTML = LISTAS.map(l =>
+    `<a class="boton-barra en-tarjeta" href="#lista-${l.clave}">${l.titulo}</a>`).join("");
+
+  porId("listas").innerHTML = LISTAS.map(l => `
+    <section class="plana" id="lista-${l.clave}">
+      <h2>${l.titulo} <span class="conteo" id="conteo-${l.clave}"></span></h2>
+      <div class="cuerpo">
+        <p class="ayuda">${l.ayuda}</p>
+        <div class="tabla-scroll" id="tabla-${l.clave}"><p class="vacio">Cargando…</p></div>
+        ${gestiona ? `
+          <details class="plegable" id="agregar-${l.clave}">
+            <summary>Agregar a esta lista</summary>
+            <div class="rejilla">${l.campos.map(c => dibujarCampo(l, c)).join("")}</div>
+            <div class="acciones">
+              <button class="mini" onclick="agregar('${l.clave}')">Agregar</button>
+            </div>
+          </details>` : ""}
+        <div class="aviso" id="aviso-${l.clave}"></div>
+      </div>
+    </section>`).join("");
+}
+
+async function cargarLista(clave){
+  const lista = LISTAS.find(l => l.clave === clave);
+  const caja = porId(`tabla-${clave}`);
+  try{
+    const registros = await api(`/api/catalogo/${clave}`);
+    if(clave === "especialidades") especialidades = registros;
+
+    const enUso = registros.filter(r => r.activo).length;
+    porId(`conteo-${clave}`).textContent = registros.length ? `${enUso} en uso` : "";
+
+    if(!registros.length){
+      caja.innerHTML = '<p class="vacio">Todavía no hay nada registrado en esta lista.</p>';
+      return;
+    }
+
+    caja.innerHTML = `
+      <table>
+        <thead><tr><th>Nombre</th>${lista.columnas.map(c => `<th>${c.titulo}</th>`).join("")}<th>En uso</th></tr></thead>
+        <tbody>${registros.map(r => `
+          <tr class="${r.activo ? "" : "retirada"}">
+            <td><strong>${texto(r.nombre)}</strong></td>
+            ${lista.columnas.map(c => `<td>${c.celda(r, gestiona)}</td>`).join("")}
+            <td>
+              <label class="en-uso">
+                <input type="checkbox" ${r.activo ? "checked" : ""} ${gestiona ? "" : "disabled"}
+                       onchange="cambiarUso('${clave}', ${r.id}, this.checked)">
+                ${r.activo ? "Sí" : "Retirado"}
+              </label>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }catch(e){
+    caja.innerHTML = `<p class="vacio">${e.message}</p>`;
+    porId(`conteo-${clave}`).textContent = "";
+  }
+}
+
+// --------------------------------------------------------- cambios
+
+async function cambiarUso(clave, id, enUso){
+  const lista = LISTAS.find(l => l.clave === clave);
+  try{
+    const r = await api(`/api/catalogo/${clave}/${id}`, { method: "PUT", body: JSON.stringify({ activo: enUso }) });
+    avisar(`aviso-${clave}`, enUso
+      ? `«${r.nombre}» vuelve a estar en uso.`
+      : `«${r.nombre}» se retiró: ya no aparecerá en las listas. Lo registrado antes no cambia.`);
+  }catch(e){
+    avisar(`aviso-${clave}`, e.message, false);
+  }
+  await cargarLista(clave);
+  // Retirar una especialidad cambia lo que se puede elegir al agregar un medico.
+  if(clave === "especialidades" && gestiona) dibujarYCargar();
+}
+
+async function cambiarTarifa(clave, id, valor){
+  try{
+    const r = await api(`/api/catalogo/${clave}/${id}`, {
+      method: "PUT", body: JSON.stringify({ tarifa_id: valor ? Number(valor) : null })
+    });
+    const t = tarifas.find(x => x.id === r.tarifa_id);
+    avisar(`aviso-${clave}`, t
+      ? `«${r.nombre}» se cobrará con «${t.concepto}» (${q(t.precio)}).`
+      : `«${r.nombre}» quedó sin precio: no generará cobro hasta que se le asigne uno.`);
+  }catch(e){
+    avisar(`aviso-${clave}`, e.message, false);
+    cargarLista(clave);
+  }
+}
+
+async function agregar(clave){
+  const lista = LISTAS.find(l => l.clave === clave);
+  const form = formDe(lista);
+  limpiarErrores(form);
+
+  const faltantes = validarLocalmente(form);
+  if(faltantes.length){
+    avisoResumen(form, "No se agregó. Falta corregir:", faltantes, false);
+    irAlPrimerError(form);
+    return;
+  }
+
+  const cuerpo = {};
+  lista.campos.forEach(c => {
+    const valor = porId(form.ids[c.campo]).value.trim();
+    cuerpo[c.campo] = (c.tipo === "especialidad" || c.tipo === "tarifa")
+      ? (valor ? Number(valor) : null)
+      : (valor || null);
+  });
+
+  try{
+    const r = await api(`/api/catalogo/${clave}`, { method: "POST", body: JSON.stringify(cuerpo) });
+    avisoResumen(form, `«${r.nombre}» se agregó a ${lista.titulo.toLowerCase()}.`, null, true);
+    lista.campos.forEach(c => { porId(form.ids[c.campo]).value = ""; });
+    cargarLista(clave);
+  }catch(e){
+    mostrarFallo(form, "No se agregó:", e);
+  }
+}
+
+// --------------------------------------------------------- arranque
+
+async function dibujarYCargar(){
+  // Las especialidades van primero: el formulario de medicos las necesita.
+  especialidades = await apiSilenciosa("/api/catalogo/especialidades", []);
+  dibujarSecciones();
+  LISTAS.forEach(l => cargarLista(l.clave));
+}
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({
+    subtitulo: "Catálogo médico de la fundación",
+    requiere: "catalogo"
+  });
+  if(!yo) return;
+
+  gestiona = (yo.gestiona || []).includes("catalogo");
+  if(!gestiona){
+    porId("ayuda-general").textContent =
+      "Las listas con que trabaja la fundación. Puede consultarlas; las mantiene la fundación.";
+  }
+
+  tarifas = await apiSilenciosa("/api/tarifas", []);
+  dibujarYCargar();
+})();
+</script>
+
+</body>
+</html>

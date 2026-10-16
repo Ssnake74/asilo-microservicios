@@ -18,7 +18,7 @@ entorno de los contenedores, que son la fuente de verdad del despliegue.
 import pymysql
 from pymysql.cursors import DictCursor
 
-ESQUEMAS = ("asilo_gateway", "asilo_pacientes", "asilo_solicitudes", "asilo_cobros")
+ESQUEMAS = ("asilo_gateway", "asilo_pacientes", "asilo_solicitudes", "asilo_cobros", "asilo_catalogo")
 
 
 def conectar(usuario: str, contrasena: str, esquema: str | None = None):

@@ -14,12 +14,13 @@ import time
 
 import httpx
 
-# Los siete contenedores del docker-compose.yml.
+# Los ocho contenedores del docker-compose.yml.
 CONTENEDORES = (
     "asilo-mysql",
     "asilo-mailpit",
     "asilo-adminer",
     "asilo-ms-cobros",
+    "asilo-ms-catalogo",
     "asilo-ms-solicitudes",
     "asilo-ms-pacientes",
     "asilo-gateway",
