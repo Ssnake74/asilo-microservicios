@@ -133,12 +133,12 @@ def anular_solicitud(solicitud_id: int):
     if solicitud["estado"] == "CONVERTIDA":
         raise HTTPException(
             status_code=409,
-            detail="La solicitud ya tiene una visita medica asignada y no puede anularse.",
+            detail="La solicitud ya tiene una visita médica asignada y no puede anularse.",
         )
     if not db.anular_solicitud(solicitud_id):
         raise HTTPException(
             status_code=409,
-            detail=f"La solicitud esta en estado {solicitud['estado']} y ya no puede anularse.",
+            detail=f"La solicitud está en estado {solicitud['estado']} y ya no puede anularse.",
         )
 
 
@@ -177,7 +177,7 @@ def convertir_en_visita(solicitud_id: int, datos: ConversionSolicitud):
     if solicitud["estado"] != "PENDIENTE":
         raise HTTPException(
             status_code=409,
-            detail=f"La solicitud esta en estado {solicitud['estado']} y ya no puede convertirse.",
+            detail=f"La solicitud está en estado {solicitud['estado']} y ya no puede convertirse.",
         )
 
     if datos.medico_id is not None:
@@ -203,19 +203,19 @@ def convertir_en_visita(solicitud_id: int, datos: ConversionSolicitud):
     else:
         if not (datos.medico_tratante or "").strip():
             raise HTTPException(
-                status_code=422, detail="La visita medica requiere un medico tratante."
+                status_code=422, detail="La visita médica requiere un médico tratante."
             )
         if not datos.especialidad:
             raise HTTPException(
-                status_code=422, detail="Indique la especialidad del medico tratante."
+                status_code=422, detail="Indique la especialidad del médico tratante."
             )
         especialidad = normalizar_especialidad(datos.especialidad)
         if not especialidades_coinciden(solicitud["especialidad_remitida"], datos.especialidad):
             raise HTTPException(
                 status_code=422,
                 detail=(
-                    f"El medico general remitio a {solicitud['especialidad_remitida']}, "
-                    f"pero se intento asignar {especialidad}."
+                    f"El médico general remitió a {solicitud['especialidad_remitida']}, "
+                    f"pero se intentó asignar {especialidad}."
                 ),
             )
         medico_tratante = datos.medico_tratante.strip()
@@ -252,7 +252,7 @@ def convertir_en_visita(solicitud_id: int, datos: ConversionSolicitud):
     if visita is None:
         raise HTTPException(
             status_code=409,
-            detail="La solicitud dejo de estar pendiente mientras se asignaba la visita.",
+            detail="La solicitud dejó de estar pendiente mientras se asignaba la visita.",
         )
 
     # Va fuera de la transaccion a proposito: si cobros no responde, la

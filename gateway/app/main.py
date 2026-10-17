@@ -16,13 +16,17 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import db
-from .schemas import Credenciales
+from .schemas import CambioContrasena, Credenciales, UsuarioActualizar, UsuarioCrear
 from .seguridad import (
     ADMIN,
     NOMBRE_ROL,
+    ROLES,
     RUTAS,
     SERVICIOS,
+    cifrar_contrasena,
+    contrasena_temporal,
     nuevo_token,
+    problema_de_contrasena,
     puede,
     recursos_gestionables,
     recursos_visibles,
@@ -122,14 +126,37 @@ def anotar(request: Request, usuario: str | None, rol: str | None, codigo: int,
 # Sesion
 # =====================================================================
 
-def sesion_actual(token: str | None) -> dict:
-    """Devuelve el usuario de la sesion o corta con 401."""
+DEBE_CAMBIAR = "Debe cambiar su contraseña antes de continuar."
+
+
+def sesion_actual(token: str | None, aunque_deba_cambiar: bool = False) -> dict:
+    """
+    Devuelve el usuario de la sesion o corta con 401.
+
+    Quien entro con una contrasena temporal solo puede ver quien es, salir
+    y cambiarla: cualquier otra cosa responde 403 hasta que elija la suya.
+    """
     if not token:
         raise HTTPException(status_code=401, detail="Debe iniciar sesión.")
     usuario = db.usuario_de_sesion(token)
     if usuario is None:
         raise HTTPException(status_code=401, detail="Su sesión venció. Vuelva a entrar.")
+    if usuario["debe_cambiar"] and not aunque_deba_cambiar:
+        raise HTTPException(status_code=403, detail=DEBE_CAMBIAR)
     return usuario
+
+
+def datos_de_sesion(usuario: dict) -> dict:
+    """Lo que el navegador necesita para armar el menu de la persona."""
+    return {
+        "usuario": usuario["usuario"],
+        "nombre": usuario["nombre"],
+        "rol": usuario["rol"],
+        "rol_nombre": NOMBRE_ROL.get(usuario["rol"], usuario["rol"]),
+        "recursos": recursos_visibles(usuario["rol"]),
+        "gestiona": recursos_gestionables(usuario["rol"]),
+        "debe_cambiar": bool(usuario.get("debe_cambiar")),
+    }
 
 
 @app.post("/api/login", tags=["Sesion"])
@@ -181,14 +208,7 @@ def login(datos: Credenciales, request: Request, response: Response):
         secure=COOKIE_SEGURA, path="/",
     )
 
-    return {
-        "usuario": fila["usuario"],
-        "nombre": fila["nombre"],
-        "rol": fila["rol"],
-        "rol_nombre": NOMBRE_ROL.get(fila["rol"], fila["rol"]),
-        "recursos": recursos_visibles(fila["rol"]),
-        "gestiona": recursos_gestionables(fila["rol"]),
-    }
+    return datos_de_sesion(fila)
 
 
 @app.post("/api/logout", tags=["Sesion"])
@@ -208,15 +228,7 @@ def logout(request: Request, response: Response, sesion: str | None = Cookie(def
 @app.get("/api/yo", tags=["Sesion"])
 def quien_soy(sesion: str | None = Cookie(default=None)):
     """Lo consulta el panel al cargar, para saber a quien mostrarle que."""
-    usuario = sesion_actual(sesion)
-    return {
-        "usuario": usuario["usuario"],
-        "nombre": usuario["nombre"],
-        "rol": usuario["rol"],
-        "rol_nombre": NOMBRE_ROL.get(usuario["rol"], usuario["rol"]),
-        "recursos": recursos_visibles(usuario["rol"]),
-        "gestiona": recursos_gestionables(usuario["rol"]),
-    }
+    return datos_de_sesion(sesion_actual(sesion, aunque_deba_cambiar=True))
 
 
 # =====================================================================
@@ -282,6 +294,178 @@ def ver_bitacora(
         )
 
     return db.consultar_bitacora(usuario=usuario, desde=desde, hasta=hasta, limite=limite)
+
+
+# =====================================================================
+# Usuarios del sistema (RF-06)
+#
+# Viven en el gateway, como la bitacora: los usuarios son de su esquema.
+# Solo el administrador los maneja. Los roles no se crean aqui: lo que
+# puede hacer cada uno esta en PERMISOS, y un rol inventado no tendria
+# ningun permiso. El administrador solo los asigna.
+#
+# Nunca se borra un usuario: se desactiva, y la bitacora sigue diciendo
+# quien hizo cada cosa.
+# =====================================================================
+
+def exigir_admin(request: Request, sesion: str | None) -> dict:
+    """Devuelve al administrador de la sesion, o anota el rechazo y corta."""
+    try:
+        quien = sesion_actual(sesion)
+    except HTTPException as fallo:
+        anotar(request, None, None, fallo.status_code)
+        raise
+    if quien["rol"] != ADMIN:
+        anotar(request, quien["usuario"], quien["rol"], 403)
+        raise HTTPException(
+            status_code=403,
+            detail="Solo el administrador del sistema puede administrar usuarios.",
+        )
+    return quien
+
+
+def usuario_o_404(usuario_id: int) -> dict:
+    encontrado = db.obtener_usuario(usuario_id)
+    if encontrado is None:
+        raise HTTPException(status_code=404, detail="El usuario no existe.")
+    return encontrado
+
+
+def con_nombre_de_rol(usuario: dict) -> dict:
+    return {**usuario, "rol_nombre": NOMBRE_ROL.get(usuario["rol"], usuario["rol"])}
+
+
+@app.get("/api/usuarios", tags=["Usuarios"])
+def listar_usuarios(request: Request, sesion: str | None = Cookie(default=None)):
+    exigir_admin(request, sesion)
+    return [con_nombre_de_rol(u) for u in db.listar_usuarios()]
+
+
+@app.get("/api/usuarios/roles", tags=["Usuarios"])
+def listar_roles(request: Request, sesion: str | None = Cookie(default=None)):
+    """Los roles que se pueden asignar, con su nombre en pantalla."""
+    exigir_admin(request, sesion)
+    return [{"rol": r, "nombre": NOMBRE_ROL[r]} for r in ROLES]
+
+
+@app.post("/api/usuarios", status_code=201, tags=["Usuarios"])
+def crear_usuario(datos: UsuarioCrear, request: Request,
+                  sesion: str | None = Cookie(default=None)):
+    """
+    Crea la cuenta con una contrasena temporal y la devuelve una sola vez,
+    para que el administrador se la entregue a la persona. No se guarda en
+    ninguna parte legible: la bitacora nunca anota el cuerpo.
+    """
+    admin = exigir_admin(request, sesion)
+    temporal = contrasena_temporal()
+    try:
+        nuevo = db.crear_usuario(datos.usuario, datos.nombre, datos.rol, cifrar_contrasena(temporal))
+    except db.UsuarioRepetido:
+        anotar(request, admin["usuario"], admin["rol"], 409)
+        raise HTTPException(status_code=409, detail=f"Ya existe un usuario «{datos.usuario}».")
+    anotar(request, admin["usuario"], admin["rol"], 201)
+    return {**con_nombre_de_rol(nuevo), "contrasena_temporal": temporal}
+
+
+@app.put("/api/usuarios/{usuario_id}", tags=["Usuarios"])
+def actualizar_usuario(usuario_id: int, datos: UsuarioActualizar, request: Request,
+                       sesion: str | None = Cookie(default=None)):
+    """
+    Cambia el nombre, el rol o el estado. El cambio de rol surte efecto en
+    la siguiente peticion de esa persona: el rol se lee de la base cada vez.
+    """
+    admin = exigir_admin(request, sesion)
+    try:
+        usuario_o_404(usuario_id)
+        cambios = datos.model_dump(exclude_none=True)
+        if not cambios:
+            raise HTTPException(status_code=400, detail="No se enviaron campos por actualizar.")
+        # Si el administrador pudiera desactivarse o quitarse el rol, el
+        # sistema podria quedarse sin nadie que lo administre.
+        if usuario_id == admin["id"] and (
+            cambios.get("activo") is False or cambios.get("rol", ADMIN) != ADMIN
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="No puede desactivarse ni quitarse el rol de administrador a usted mismo.",
+            )
+    except HTTPException as fallo:
+        anotar(request, admin["usuario"], admin["rol"], fallo.status_code)
+        raise
+    actualizado = db.actualizar_usuario(usuario_id, cambios)
+    anotar(request, admin["usuario"], admin["rol"], 200)
+    return con_nombre_de_rol(actualizado)
+
+
+@app.post("/api/usuarios/{usuario_id}/restablecer", tags=["Usuarios"])
+def restablecer_contrasena(usuario_id: int, request: Request,
+                           sesion: str | None = Cookie(default=None)):
+    """
+    Para quien olvido su contrasena: le pone una temporal, cierra sus
+    sesiones y le quita el bloqueo por intentos fallidos. Al entrar con
+    ella el sistema le pide elegir una propia.
+    """
+    admin = exigir_admin(request, sesion)
+    try:
+        objetivo = usuario_o_404(usuario_id)
+        if usuario_id == admin["id"]:
+            raise HTTPException(
+                status_code=409,
+                detail="Su propia contraseña se cambia en «Mi contraseña».",
+            )
+    except HTTPException as fallo:
+        anotar(request, admin["usuario"], admin["rol"], fallo.status_code)
+        raise
+    temporal = contrasena_temporal()
+    db.poner_contrasena(usuario_id, cifrar_contrasena(temporal), debe_cambiar=True)
+    db.limpiar_intentos(objetivo["usuario"])
+    anotar(request, admin["usuario"], admin["rol"], 200)
+    return {**con_nombre_de_rol(db.obtener_usuario(usuario_id)), "contrasena_temporal": temporal}
+
+
+@app.post("/api/mi-contrasena", tags=["Usuarios"])
+def cambiar_mi_contrasena(datos: CambioContrasena, request: Request,
+                          sesion: str | None = Cookie(default=None)):
+    """
+    Cualquier usuario cambia la suya escribiendo la actual. Es tambien la
+    salida obligada de quien entro con una contrasena temporal.
+
+    Una actual equivocada cuenta como intento fallido: con una sesion
+    robada no se pueden probar contrasenas sin limite.
+    """
+    try:
+        quien = sesion_actual(sesion, aunque_deba_cambiar=True)
+    except HTTPException as fallo:
+        anotar(request, None, None, fallo.status_code)
+        raise
+
+    minutos = db.minutos_de_bloqueo(quien["usuario"])
+    if minutos > 0:
+        anotar(request, quien["usuario"], quien["rol"], 429)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Por seguridad, espere {minutos} minuto{'s' if minutos != 1 else ''} "
+                   "antes de volver a intentar.",
+        )
+
+    guardada = db.contrasena_guardada(quien["id"]) or ""
+    if not verificar_contrasena(datos.actual, guardada):
+        db.registrar_intento_fallido(quien["usuario"], direccion_de_origen(request))
+        anotar(request, quien["usuario"], quien["rol"], 422)
+        raise HTTPException(status_code=422, detail="La contraseña actual no es correcta.")
+
+    problema = problema_de_contrasena(datos.nueva, quien["usuario"])
+    if problema is None and verificar_contrasena(datos.nueva, guardada):
+        problema = "La contraseña nueva debe ser distinta de la actual."
+    if problema:
+        anotar(request, quien["usuario"], quien["rol"], 422)
+        raise HTTPException(status_code=422, detail=problema)
+
+    db.limpiar_intentos(quien["usuario"])
+    db.poner_contrasena(quien["id"], cifrar_contrasena(datos.nueva), debe_cambiar=False,
+                        conservar_sesion=sesion)
+    anotar(request, quien["usuario"], quien["rol"], 200)
+    return {"mensaje": "Su contraseña quedó cambiada."}
 
 
 # =====================================================================
@@ -361,7 +545,19 @@ async def reenviar(recurso: str, resto: str, request: Request,
     if respuesta.status_code == 204:
         return Response(status_code=204)
 
-    return JSONResponse(status_code=respuesta.status_code, content=respuesta.json())
+    # Un error no previsto del microservicio llega como texto plano
+    # («Internal Server Error»), no como JSON. Se responde con un mensaje
+    # en espanol en vez de dejar caer al gateway.
+    try:
+        cuerpo = respuesta.json()
+    except ValueError:
+        print(f"[gateway] {destino} respondio {respuesta.status_code} sin JSON.", flush=True)
+        return JSONResponse(
+            status_code=respuesta.status_code if respuesta.status_code >= 400 else 502,
+            content={"detail": f"El servicio de {recurso} tuvo un error inesperado. "
+                               "La operación no se completó."},
+        )
+    return JSONResponse(status_code=respuesta.status_code, content=cuerpo)
 
 
 # =====================================================================

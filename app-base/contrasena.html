@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi contraseña · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: un formulario angosto y la lista de reglas. */
+  main{max-width:560px;}
+  .campo + .campo{margin-top:14px;}
+  .reglas{margin:0 0 16px;padding-left:20px;font-size:14.5px;color:var(--texto-suave);}
+  .temporal{
+    border-left:4px solid var(--advertencia); background:var(--advertencia-fondo);
+    padding:12px 14px; border-radius:6px; margin-bottom:18px; font-size:15px;
+  }
+  .temporal strong{display:block;color:var(--advertencia-texto);margin-bottom:3px;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="tarjeta">
+    <h2>Cambiar mi contraseña</h2>
+
+    <div class="temporal" id="aviso-temporal" hidden>
+      <strong>Está usando una contraseña temporal</strong>
+      Se la entregó el administrador. Para seguir, elija una contraseña propia que
+      solo usted conozca.
+    </div>
+
+    <ul class="reglas">
+      <li>Al menos 8 caracteres, con letras y números.</li>
+      <li>Distinta de la actual y de su nombre de usuario.</li>
+      <li>Al cambiarla se cierran sus sesiones abiertas en otros equipos.</li>
+    </ul>
+
+    <div class="campo">
+      <label for="actual">Contraseña actual <span class="obligatorio">*</span></label>
+      <input id="actual" type="password" autocomplete="current-password">
+      <div class="error-campo" id="e-actual"></div>
+    </div>
+    <div class="campo">
+      <label for="nueva">Contraseña nueva <span class="obligatorio">*</span></label>
+      <input id="nueva" type="password" autocomplete="new-password">
+      <div class="error-campo" id="e-nueva"></div>
+    </div>
+    <div class="campo">
+      <label for="repetida">Repita la contraseña nueva <span class="obligatorio">*</span></label>
+      <input id="repetida" type="password" autocomplete="new-password">
+      <div class="error-campo" id="e-repetida"></div>
+    </div>
+
+    <div class="acciones">
+      <button id="guardar">Cambiar contraseña</button>
+    </div>
+    <div class="aviso" id="aviso"></div>
+  </section>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+const FORM = {
+  aviso: "aviso",
+  ids: { actual: "actual", nueva: "nueva", repetida: "repetida" },
+  ETIQUETAS: { actual: "Contraseña actual", nueva: "Contraseña nueva", repetida: "Repetición" },
+  OBLIGATORIOS: ["actual", "nueva", "repetida"],
+  MINIMOS: { nueva: 8 }
+};
+
+let obligado = false;   // entro con una contrasena temporal
+
+async function guardar(){
+  limpiarErrores(FORM);
+  const faltantes = validarLocalmente(FORM);
+  const nueva = porId("nueva").value, repetida = porId("repetida").value;
+  if(nueva && repetida && nueva !== repetida){
+    marcarError(FORM, "repetida", "No coincide con la contraseña nueva.");
+    faltantes.push("Las dos contraseñas nuevas no coinciden");
+  }
+  if(faltantes.length){
+    avisoResumen(FORM, "No se cambió. Falta corregir:", faltantes, false);
+    return;
+  }
+
+  porId("guardar").disabled = true;
+  try{
+    await api("/api/mi-contrasena", {
+      method: "POST",
+      body: JSON.stringify({ actual: porId("actual").value, nueva })
+    });
+    ["actual", "nueva", "repetida"].forEach(id => porId(id).value = "");
+    if(obligado){
+      location.replace("/panel");
+      return;
+    }
+    avisoResumen(FORM, "Su contraseña quedó cambiada.", null, true);
+  }catch(e){
+    // La actual equivocada se marca en su casilla; lo demas es de la nueva.
+    if(e.codigo === 422 && typeof e.detalle === "string"){
+      marcarError(FORM, /actual/.test(e.detalle) && !/distinta/.test(e.detalle) ? "actual" : "nueva", e.detalle);
+      avisoResumen(FORM, e.detalle, null, false);
+    }else{
+      avisoResumen(FORM, e.message, null, false);
+    }
+  }finally{
+    porId("guardar").disabled = false;
+  }
+}
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({ subtitulo: "Mi contraseña" });
+  if(!yo) return;
+  obligado = yo.debe_cambiar;
+  porId("aviso-temporal").hidden = !obligado;
+  if(obligado) porId("actual").previousElementSibling.firstChild.textContent = "Contraseña temporal ";
+  porId("guardar").addEventListener("click", guardar);
+  ["actual", "nueva", "repetida"].forEach(id =>
+    porId(id).addEventListener("keydown", e => { if(e.key === "Enter") guardar(); }));
+})();
+</script>
+
+</body>
+</html>

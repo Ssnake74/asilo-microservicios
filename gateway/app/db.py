@@ -68,9 +68,15 @@ CREATE TABLE IF NOT EXISTS usuarios (
     contrasena   VARCHAR(200) NOT NULL,
     rol          VARCHAR(20)  NOT NULL,
     activo       BOOLEAN      NOT NULL DEFAULT TRUE,
+    debe_cambiar BOOLEAN      NOT NULL DEFAULT FALSE,
     fecha_alta   DATETIME     NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
+
+# debe_cambiar se agrega sola a una tabla creada antes de que existiera.
+COLUMNA_DEBE_CAMBIAR = (
+    "ALTER TABLE usuarios ADD COLUMN debe_cambiar BOOLEAN NOT NULL DEFAULT FALSE AFTER activo"
+)
 
 # ON DELETE CASCADE: si se borra un usuario, sus sesiones se van con el.
 TABLA_SESIONES = """
@@ -160,6 +166,14 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
                 with conn.cursor() as cur:
                     # En orden de dependencia: sesiones apunta a usuarios.
                     cur.execute(TABLA_USUARIOS)
+                    cur.execute(
+                        """SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+                           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios'
+                             AND COLUMN_NAME = 'debe_cambiar'"""
+                    )
+                    if cur.fetchone()["n"] == 0:
+                        cur.execute(COLUMNA_DEBE_CAMBIAR)
+                        print("[gateway] Columna debe_cambiar agregada a usuarios.", flush=True)
                     cur.execute(TABLA_SESIONES)
                     cur.execute(TABLA_INTENTOS_FALLIDOS)
                     cur.execute(TABLA_BITACORA)
@@ -199,8 +213,9 @@ def _normalizar(fila: dict | None) -> dict | None:
             limpia[campo] = valor.isoformat(sep=" ", timespec="seconds")
         elif isinstance(valor, date):
             limpia[campo] = valor.isoformat()
-    if "activo" in limpia:
-        limpia["activo"] = bool(limpia["activo"])
+    for campo in ("activo", "debe_cambiar"):
+        if campo in limpia:
+            limpia[campo] = bool(limpia[campo])
     limpia.pop("contrasena", None)  # nunca sale de esta capa
     return limpia
 
@@ -218,6 +233,104 @@ def buscar_usuario(usuario: str) -> dict | None:
                 "SELECT * FROM usuarios WHERE usuario = %s AND activo = TRUE", (usuario,)
             )
             return cur.fetchone()
+
+
+class UsuarioRepetido(Exception):
+    """Ya existe un usuario con ese nombre."""
+
+
+COLUMNAS_PUBLICAS = "id, usuario, nombre, rol, activo, debe_cambiar, fecha_alta"
+
+# Lo unico que el administrador cambia con PUT. El nombre de la columna
+# nunca sale de lo que manda el usuario.
+CAMPOS_EDITABLES = ("nombre", "rol", "activo")
+
+
+def listar_usuarios() -> list[dict]:
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT {COLUMNAS_PUBLICAS} FROM usuarios ORDER BY activo DESC, nombre")
+            return [_normalizar(f) for f in cur.fetchall()]
+
+
+def obtener_usuario(usuario_id: int) -> dict | None:
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT {COLUMNAS_PUBLICAS} FROM usuarios WHERE id = %s", (usuario_id,))
+            return _normalizar(cur.fetchone())
+
+
+def crear_usuario(usuario: str, nombre: str, rol: str, cifrada: str) -> dict:
+    """Lo crea con debe_cambiar: la contrasena la eligio el administrador, no la persona."""
+    conn = get_conn()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO usuarios (usuario, nombre, contrasena, rol, debe_cambiar, fecha_alta)
+                       VALUES (%s, %s, %s, %s, TRUE, %s)""",
+                    (usuario, nombre, cifrada, rol, datetime.now().replace(microsecond=0)),
+                )
+                nuevo = cur.lastrowid
+            conn.commit()
+    except pymysql.err.IntegrityError as error:
+        if error.args and error.args[0] == 1062:
+            raise UsuarioRepetido from error
+        raise
+    return obtener_usuario(nuevo)
+
+
+def actualizar_usuario(usuario_id: int, campos: dict) -> dict | None:
+    """
+    Cambia nombre, rol o estado. Al desactivar se borran sus sesiones: la
+    persona sale en su siguiente clic aunque tuviera el sistema abierto.
+    """
+    cambios = {c: v for c, v in campos.items() if c in CAMPOS_EDITABLES}
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            if cambios:
+                asignaciones = ", ".join(f"{c} = %s" for c in cambios)
+                cur.execute(
+                    f"UPDATE usuarios SET {asignaciones} WHERE id = %s",
+                    (*cambios.values(), usuario_id),
+                )
+            if cambios.get("activo") is False:
+                cur.execute("DELETE FROM sesiones WHERE usuario_id = %s", (usuario_id,))
+        conn.commit()
+    return obtener_usuario(usuario_id)
+
+
+def poner_contrasena(usuario_id: int, cifrada: str, debe_cambiar: bool,
+                     conservar_sesion: str | None = None) -> None:
+    """
+    Guarda la contrasena nueva y cierra las sesiones del usuario, menos la
+    indicada: quien cambia la suya sigue dentro, y una sesion robada con la
+    contrasena vieja se cae.
+    """
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE usuarios SET contrasena = %s, debe_cambiar = %s WHERE id = %s",
+                (cifrada, debe_cambiar, usuario_id),
+            )
+            cur.execute(
+                "DELETE FROM sesiones WHERE usuario_id = %s AND token <> %s",
+                (usuario_id, conservar_sesion or ""),
+            )
+        conn.commit()
+
+
+def contrasena_guardada(usuario_id: int) -> str | None:
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT contrasena FROM usuarios WHERE id = %s", (usuario_id,))
+            fila = cur.fetchone()
+            return fila["contrasena"] if fila else None
 
 
 # =====================================================================
@@ -254,7 +367,7 @@ def usuario_de_sesion(token: str) -> dict | None:
     with conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT u.id, u.usuario, u.nombre, u.rol, u.activo, s.expira
+                """SELECT u.id, u.usuario, u.nombre, u.rol, u.activo, u.debe_cambiar, s.expira
                    FROM sesiones s
                    JOIN usuarios u ON u.id = s.usuario_id
                    WHERE s.token = %s AND s.expira > NOW() AND u.activo = TRUE""",

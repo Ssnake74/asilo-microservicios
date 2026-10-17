@@ -67,7 +67,7 @@ def registrar_paciente(datos: PacienteCrear):
         if repetido:
             raise HTTPException(
                 status_code=409,
-                detail=f"Ese DPI ya esta registrado con el codigo {repetido}.",
+                detail=f"Ese DPI ya está registrado con el código {repetido}.",
             )
 
     valores = datos.model_dump()
@@ -90,7 +90,7 @@ def listar_pacientes(
 def obtener_paciente(codigo: str):
     paciente = db.obtener_por_codigo(codigo)
     if paciente is None:
-        raise HTTPException(status_code=404, detail="No existe un anciano con ese codigo.")
+        raise HTTPException(status_code=404, detail="No existe un interno con ese código.")
     return con_edad(paciente)
 
 
@@ -103,7 +103,7 @@ def actualizar_paciente(codigo: str, datos: PacienteActualizar):
 
     paciente = db.actualizar(codigo, cambios)
     if paciente is None:
-        raise HTTPException(status_code=404, detail="No existe un anciano con ese codigo.")
+        raise HTTPException(status_code=404, detail="No existe un interno con ese código.")
     return con_edad(paciente)
 
 
@@ -111,4 +111,4 @@ def actualizar_paciente(codigo: str, datos: PacienteActualizar):
 def eliminar_paciente(codigo: str):
     """Elimina el registro de un anciano."""
     if not db.eliminar(codigo):
-        raise HTTPException(status_code=404, detail="No existe un anciano con ese codigo.")
+        raise HTTPException(status_code=404, detail="No existe un interno con ese código.")

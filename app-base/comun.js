@@ -32,6 +32,8 @@
        /api/estado-cuenta  cuenta completa de un interno
        /api/catalogo/...   especialidades, medicos, enfermeros, examenes
                            y medicamentos
+       /api/usuarios       cuentas de las personas que usan el sistema
+       /api/mi-contrasena  cambio de la contrasena propia
    ===================================================================== */
 
 // Que se le dice a la persona cuando un modulo del sistema no responde.
@@ -164,6 +166,7 @@ function montarEncabezado(subtitulo) {
         <div class="identidad-pie">
           <span class="rol mono" id="yo-rol">…</span>
           <a class="boton-barra" href="/panel"${location.pathname === "/panel" ? ' aria-current="page"' : ""}>Panel</a>
+          <a class="boton-barra" href="/contrasena.html"${location.pathname === "/contrasena.html" ? ' aria-current="page"' : ""}>Mi contraseña</a>
           <button class="boton-barra" id="yo-salir">Salir</button>
         </div>
       </div>
@@ -179,10 +182,14 @@ function montarEncabezado(subtitulo) {
  * Arranque comun de una pantalla: dibuja el encabezado, averigua quien
  * entro y comprueba que le corresponda esta pantalla.
  *
+ * «requiere» es el recurso que la persona debe poder consultar; «rol»,
+ * el rol exacto, para las pantallas que no salen de un recurso (la de
+ * usuarios es solo del administrador).
+ *
  * Devuelve los datos de la persona, o null si no le corresponde. Quien
  * llama debe parar cuando reciba null.
  */
-async function iniciarPantalla({ subtitulo, requiere }) {
+async function iniciarPantalla({ subtitulo, requiere, rol }) {
   montarEncabezado(subtitulo);
 
   let yo;
@@ -199,10 +206,17 @@ async function iniciarPantalla({ subtitulo, requiere }) {
   porId("yo-nombre").textContent = yo.nombre;
   porId("yo-rol").textContent = yo.rol_nombre;
 
+  // Con una contrasena temporal el sistema no deja hacer nada mas: se
+  // lleva a la persona a elegir la suya en vez de mostrarle errores.
+  if (yo.debe_cambiar && location.pathname !== "/contrasena.html") {
+    location.replace("/contrasena.html");
+    return null;
+  }
+
   // El panel no le muestra esta pantalla a quien no le toca, pero se
   // puede llegar por un enlace guardado. Mejor decirlo claro que dejarlo
   // pelear con botones que siempre fallan.
-  if (requiere && !yo.recursos.includes(requiere)) {
+  if ((requiere && !yo.recursos.includes(requiere)) || (rol && yo.rol !== rol)) {
     document.querySelector("main").innerHTML = `
       <section class="tarjeta">
         <h2>Esta pantalla no le corresponde</h2>

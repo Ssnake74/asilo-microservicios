@@ -41,6 +41,17 @@ class PacienteBase(BaseModel):
     def formato_de_fecha(cls, valor: str) -> str:
         return _validar_fecha(valor)
 
+    @field_validator("dpi")
+    @classmethod
+    def dpi_vacio_es_sin_dpi(cls, valor: Optional[str]) -> Optional[str]:
+        """
+        Un DPI en blanco se guarda como NULL. Guardado como texto vacio, el
+        segundo interno sin DPI chocaria con el UNIQUE de la columna.
+        """
+        if valor is None:
+            return None
+        return valor.strip() or None
+
     @field_validator("fecha_nacimiento")
     @classmethod
     def debe_ser_mayor(cls, valor: str) -> str:
@@ -52,10 +63,10 @@ class PacienteBase(BaseModel):
         )
         if edad < 60:
             raise ValueError(
-                f"El asilo recibe personas de 60 anios o mas. La fecha indicada da {edad} anios."
+                f"El asilo recibe personas de 60 años o más. La fecha indicada da {edad} años."
             )
         if edad > 120:
-            raise ValueError("Revise la fecha de nacimiento, la edad calculada no es valida.")
+            raise ValueError("Revise la fecha de nacimiento: la edad calculada no es válida.")
         return valor
 
 

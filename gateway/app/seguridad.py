@@ -55,6 +55,36 @@ def nuevo_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# Sin 0/o, 1/l ni i: la contrasena temporal se dicta o se copia de un
+# papel, y esas letras se confunden.
+LETRAS_TEMPORAL = "abcdefghjkmnpqrstuvwxyz23456789"
+
+
+def contrasena_temporal() -> str:
+    """Contrasena al azar para un usuario nuevo o que olvido la suya, como 'k7mq-4tzp-x2ra'."""
+    return "-".join(
+        "".join(secrets.choice(LETRAS_TEMPORAL) for _ in range(4)) for _ in range(3)
+    )
+
+
+MINIMO_CONTRASENA = 8
+
+
+def problema_de_contrasena(nueva: str, usuario: str) -> str | None:
+    """
+    Dice que le falta a una contrasena elegida por la persona, o None si
+    sirve. Ocho caracteres con letras y numeros: suficiente con el bloqueo
+    por intentos, y facil de recordar para personal que no es tecnico.
+    """
+    if len(nueva) < MINIMO_CONTRASENA:
+        return f"La contraseña nueva debe tener al menos {MINIMO_CONTRASENA} caracteres."
+    if not any(c.isalpha() for c in nueva) or not any(c.isdigit() for c in nueva):
+        return "La contraseña nueva debe combinar letras y números."
+    if nueva.strip().lower() == usuario.lower():
+        return "La contraseña nueva no puede ser igual al nombre de usuario."
+    return None
+
+
 # ---------------------------------------------------------------------
 # 2. Tabla de rutas
 #

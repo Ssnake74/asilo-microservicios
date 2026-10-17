@@ -177,9 +177,9 @@ def ejecutar(ctx) -> None:
         "404 del gateway para un recurso que no está en su tabla de rutas, y 404 del "
         "servicio para un registro que no existe",
     ) as c:
-        recurso = gw.get("ADMIN", "/api/usuarios")
+        recurso = gw.get("ADMIN", "/api/inventario")
         registro = gw.get("ADMIN", "/api/pacientes/PAC-NOEXISTE")
-        c.obtenido = f"/api/usuarios: {resumen(recurso)}\n/api/pacientes/PAC-NOEXISTE: {resumen(registro)}"
+        c.obtenido = f"/api/inventario: {resumen(recurso)}\n/api/pacientes/PAC-NOEXISTE: {resumen(registro)}"
         c.pasa = (
             recurso.status_code == 404 and detalle(recurso) == NO_EXISTE_RECURSO
             and registro.status_code == 404 and detalle(registro) != NO_EXISTE_RECURSO

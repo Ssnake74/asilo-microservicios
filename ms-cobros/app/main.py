@@ -103,7 +103,7 @@ def eliminar_tarifa(tarifa_id: int):
     if db.tarifa_tiene_cargos(tarifa_id):
         raise HTTPException(
             status_code=409,
-            detail="La tarifa ya tiene cobros registrados. Desactivela en lugar de borrarla.",
+            detail="La tarifa ya tiene cobros registrados. Desactívela en lugar de borrarla.",
         )
 
     db.eliminar_tarifa(tarifa_id)

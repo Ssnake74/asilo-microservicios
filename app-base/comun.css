@@ -97,15 +97,16 @@ header .sub{font-size:14px;color:var(--sobre-violeta-suave);margin-top:3px;}
 
 .identidad{margin-left:auto;text-align:right;font-size:14px;}
 .identidad .quien{font-weight:600;}
-.identidad-pie{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:5px;}
+.identidad-pie{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:5px;flex-wrap:wrap;}
 .identidad .rol{
   padding:3px 10px; border-radius:20px; background:var(--sobre-violeta-hover);
-  font-family:var(--letra-texto); font-size:13px;
+  font-family:var(--letra-texto); font-size:13px; white-space:nowrap;
 }
 .boton-barra{
   padding:6px 13px; border:1px solid var(--sobre-violeta-borde); border-radius:6px;
   background:transparent; color:var(--sobre-violeta); cursor:pointer; font-size:14px;
   font-family:var(--letra-texto); font-weight:500; text-decoration:none; display:inline-block;
+  white-space:nowrap;
 }
 .boton-barra:hover{background:var(--sobre-violeta-hover);color:var(--sobre-violeta);}
 .boton-barra:focus-visible{outline:2px solid var(--sobre-violeta);outline-offset:2px;}

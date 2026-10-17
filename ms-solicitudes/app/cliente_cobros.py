@@ -58,7 +58,7 @@ def generar_cargo_consulta(
             if tarifa_id is None:
                 return None, (
                     "No hay tarifas de consulta activas en el tarifario. "
-                    "La visita quedo registrada sin cargo."
+                    "La visita quedó registrada sin cargo."
                 )
 
             cuerpo = {
@@ -78,15 +78,15 @@ def generar_cargo_consulta(
         return (
             cargo["id"],
             f"Cargo {cargo['id']} generado por Q{cargo['monto_neto']:.2f} "
-            f"(la fundacion cubrio Q{cargo['descuento_aplicado']:.2f}).",
+            f"(la fundación cubrió Q{cargo['descuento_aplicado']:.2f}).",
         )
     except httpx.HTTPStatusError as error:
         return None, (
-            "El servicio de cobros rechazo la operacion "
-            f"(codigo {error.response.status_code}). La visita quedo registrada."
+            "El servicio de cobros rechazó la operación "
+            f"(código {error.response.status_code}). La visita quedó registrada."
         )
     except httpx.RequestError:
         return None, (
-            "El servicio de cobros no respondio. La visita quedo registrada y el "
-            "cargo debera generarse cuando el servicio vuelva a estar disponible."
+            "El servicio de cobros no respondió. La visita quedó registrada y el "
+            "cargo deberá generarse cuando el servicio vuelva a estar disponible."
         )

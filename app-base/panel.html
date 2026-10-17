@@ -69,6 +69,9 @@
    catalogo lo leen todos para llenar sus listas, pero lo mantiene la
    fundacion.
 
+   «rol» marca las pantallas que no salen de un recurso del sistema sino
+   de un puesto: la de usuarios es solo del administrador.
+
    «cifra» saca su numero de los datos del modulo mismo. Si la consulta
    no se puede hacer -porque a ese puesto no le toca- la tarjeta sale
    sin número y nada más: no es un error que la persona deba ver.
@@ -141,6 +144,18 @@ const MODULOS = [
       const medicos = await apiSilenciosa("/api/catalogo/medicos?solo_activos=true");
       return medicos && { valor: medicos.length, pie: medicos.length === 1 ? "médico en el cuadro" : "médicos en el cuadro" };
     }
+  },
+  {
+    rol:     "ADMIN",
+    titulo:  "Usuarios del sistema",
+    texto:   "Cuentas del personal: altas, contraseñas olvidadas, cambios de puesto y bajas.",
+    enlace:  "/usuarios.html",
+    cifra:   async () => {
+      const usuarios = await apiSilenciosa("/api/usuarios");
+      if(!usuarios) return null;
+      const activos = usuarios.filter(u => u.activo).length;
+      return { valor: activos, pie: activos === 1 ? "cuenta activa" : "cuentas activas" };
+    }
   }
 ];
 
@@ -167,9 +182,11 @@ function dibujarModulo(m, cifra){
   const yo = await iniciarPantalla({ subtitulo: "Sistema de administración" });
   if(!yo) return;
 
-  const visibles = MODULOS.filter(m => m.gestiona
-    ? (yo.gestiona || []).includes(m.recurso)
-    : yo.recursos.includes(m.recurso));
+  const visibles = MODULOS.filter(m => m.rol
+    ? yo.rol === m.rol
+    : m.gestiona
+      ? (yo.gestiona || []).includes(m.recurso)
+      : yo.recursos.includes(m.recurso));
 
   // Se dibujan primero sin numero, para que el menu aparezca de una vez,
   // y las cifras se van poniendo conforme llegan.

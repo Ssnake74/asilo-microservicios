@@ -50,5 +50,5 @@ def normalizar_fecha_visita(texto: str) -> datetime:
             continue
     raise ValueError(
         "La fecha y hora de la visita debe escribirse como AAAA-MM-DD HH:MM, "
-        f"por ejemplo 2026-09-15 09:30. Se recibio: {texto}"
+        f"por ejemplo 2026-09-15 09:30. Se recibió: {texto}"
     )

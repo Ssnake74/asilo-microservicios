@@ -105,7 +105,7 @@ no hay que guardarla aparte.
 
 | Usuario | Rol | Qué hace |
 |---|---|---|
-| `admin` | Administrador | Todo, y consulta la bitácora |
+| `admin` | Administrador | Todo, administra los usuarios y consulta la bitácora |
 | `secretaria` | Secretaria del asilo | Registra a los internos y a sus familiares |
 | `medico` | Médico general | Remite al interno a una especialidad |
 | `fundacion` | Fundación | Asigna horario, médico y enfermero, convierte la remisión en visita y mantiene el catálogo médico |
@@ -116,6 +116,13 @@ no hay que guardarla aparte.
 
 Contraseña de todos en desarrollo: `asilo2026`. Cinco intentos fallidos en quince
 minutos bloquean al usuario.
+
+Cada persona del asilo tiene su propia cuenta. El administrador la crea en
+«Usuarios del sistema» con una contraseña temporal; al entrar por primera vez,
+la persona tiene que elegir la suya. El administrador también restablece la
+contraseña a quien la olvida, cambia el puesto y desactiva a quien deja el
+asilo. Las cuentas no se borran, para que la bitácora siga diciendo quién hizo
+cada cosa.
 
 ---
 
@@ -154,6 +161,8 @@ Todas entran por el gateway.
 | `/api/login`, `/api/logout`, `/api/yo` | gateway: sesión |
 | `/api/salud` | gateway: estado de los servicios |
 | `/api/bitacora` | gateway: bitácora, solo para el administrador |
+| `/api/usuarios`, `/api/usuarios/roles`, `/api/usuarios/{id}/restablecer` | gateway: cuentas de usuario, solo para el administrador |
+| `/api/mi-contrasena` | gateway: cambio de la contraseña propia |
 | `/api/pacientes` | `ms-pacientes` |
 | `/api/solicitudes`, `/api/visitas` | `ms-solicitudes` |
 | `/api/tarifas`, `/api/cargos`, `/api/estado-cuenta` | `ms-cobros` |
@@ -172,7 +181,7 @@ Con el sistema levantado, desde la raíz del repositorio:
 powershell -ExecutionPolicy Bypass -File .\pruebas\ejecutar.ps1
 ```
 
-Son 191 casos en 15 grupos, cada uno ligado al requisito que verifica. El reporte
+Son 201 casos en 16 grupos, cada uno ligado al requisito que verifica. El reporte
 queda en `pruebas/resultado.txt` y lista los casos que fallan y los pendientes
 conocidos.
 
@@ -182,7 +191,8 @@ conocidos.
 
 **Construido:** acceso con sesión, roles y bitácora · registro de internos ·
 remisiones médicas · asignación de visitas con médico y enfermero · catálogo
-médico · tarifario · cuentas y cobros · aviso por correo al familiar.
+médico · tarifario · cuentas y cobros · aviso por correo al familiar ·
+administración de usuarios con contraseña temporal.
 
 **Pendiente:** ficha médica, laboratorio y farmacia · donaciones, gastos y cuota
-mensual · administración de usuarios · reportes.
+mensual · reportes.

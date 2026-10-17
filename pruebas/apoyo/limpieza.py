@@ -12,7 +12,8 @@ finally de pruebas.py. El orden importa:
      cargos pendientes, tarifas sin cargos, internos.
   4. Borrado DIRECTO EN MYSQL, como root y filtrando por la marca, de lo
      que el sistema no deja borrar: remisiones y visitas (no existe esa
-     operacion) y cargos pagados (RN-12), y lo que dependa de ellos.
+     operacion), cargos pagados (RN-12) y lo que dependa de ellos, y los
+     usuarios de prueba (se desactivan, no se borran).
   5. Correos de prueba en Mailpit.
   6. Cierre de las sesiones abiertas por la corrida.
   7. Filas de bitacora e intentos fallidos de la corrida. Va al final
@@ -110,7 +111,12 @@ def datos_de_prueba(ctx) -> dict[str, list[dict]]:
         clave: root.consulta(f"SELECT id FROM asilo_catalogo.{tabla} WHERE nombre LIKE %s", (MARCA_LIKE,))
         for clave, tabla in TABLAS_CATALOGO
     }
+    # Los usuarios tampoco se borran por la aplicacion (se desactivan).
+    usuarios = root.consulta(
+        "SELECT id FROM asilo_gateway.usuarios WHERE nombre LIKE %s", (MARCA_LIKE,)
+    )
     return {
+        "usuarios": usuarios,
         "solicitudes": solicitudes,
         "visitas": visitas,
         "cargos": cargos,
@@ -239,6 +245,7 @@ def limpiar(ctx) -> bool:
             (clave, f"asilo_catalogo.{tabla}", f"Catálogo, {clave} (el catálogo no tiene operación de borrado)")
             for clave, tabla in TABLAS_CATALOGO
         ),
+        ("usuarios", "asilo_gateway.usuarios", "Usuarios (el sistema no los borra: los desactiva)"),
     ]
     for clave, tabla, _ in pasos:
         ids = _ids(datos[clave])
@@ -366,7 +373,7 @@ def limpiar(ctx) -> bool:
             f"El sistema quedó como estaba: los {len(contenedores)} contenedores en su estado inicial "
             f"({', '.join(sorted(set(contenedores.values())))}), sin cuentas bloqueadas "
             f"({intentos_final} intentos fallidos guardados, igual que al empezar), sin "
-            "internos, remisiones, visitas, tarifas, cargos ni correos de prueba, la "
+            "internos, remisiones, visitas, tarifas, cargos, usuarios ni correos de prueba, la "
             f"bitácora con sus {bitacora} filas originales y los contadores en su valor inicial.",
             sangria="     ",
         )

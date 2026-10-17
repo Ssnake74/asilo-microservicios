@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usuarios · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla. */
+  section + section{margin-top:24px;}
+  td select{max-width:230px;padding:6px 8px;font-size:15px;}
+  tr.inactivo td{color:var(--texto-suave);}
+  tr.inactivo td:first-child strong{text-decoration:line-through;}
+  .acciones-fila{display:flex;gap:6px;flex-wrap:wrap;}
+  .usted{font-size:13px;color:var(--texto-suave);font-style:italic;}
+  .estado.activo{background:var(--exito-fondo);color:var(--exito);}
+  .estado.inactivo{background:var(--error-fondo);color:var(--error);}
+  .estado.temporal{background:var(--advertencia-fondo);color:var(--advertencia-texto);}
+
+  /* La contrasena temporal se muestra una sola vez: grande, en letra de
+     ancho fijo para que no se confunda una l con un 1 al dictarla. */
+  .entrega{
+    margin-top:14px; padding:14px 16px; border-radius:var(--radio);
+    border:1px solid var(--borde); border-left:4px solid var(--dorado); background:var(--fondo);
+  }
+  .entrega .clave{
+    font-family:var(--letra-codigo); font-size:24px; letter-spacing:1px;
+    color:var(--violeta-profundo); margin:6px 0; user-select:all;
+  }
+  .entrega p{margin:0;font-size:14.5px;color:var(--texto-suave);}
+  .filtro{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px;}
+  .filtro .campo{min-width:220px;}
+  td.ruta{font-family:var(--letra-codigo);font-size:13.5px;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="tarjeta">
+    <h2>Nuevo usuario</h2>
+    <p class="ayuda">Una cuenta por persona, para que la bitácora diga quién hizo cada cosa.
+       El sistema le da una contraseña temporal; al entrar por primera vez, la persona
+       elige la suya.</p>
+    <div class="rejilla">
+      <div class="campo">
+        <label for="n-usuario">Usuario <span class="obligatorio">*</span></label>
+        <input id="n-usuario" placeholder="mgonzalez" autocomplete="off">
+        <div class="pista">Sin espacios ni tildes. Con él entra al sistema.</div>
+        <div class="error-campo" id="e-n-usuario"></div>
+      </div>
+      <div class="campo">
+        <label for="n-nombre">Nombre completo <span class="obligatorio">*</span></label>
+        <input id="n-nombre" placeholder="Marta Lucía González" autocomplete="off">
+        <div class="error-campo" id="e-n-nombre"></div>
+      </div>
+      <div class="campo">
+        <label for="n-rol">Puesto <span class="obligatorio">*</span></label>
+        <select id="n-rol"></select>
+        <div class="error-campo" id="e-n-rol"></div>
+      </div>
+    </div>
+    <div class="acciones">
+      <button id="crear">Crear usuario</button>
+    </div>
+    <div class="aviso" id="aviso-nuevo"></div>
+    <div id="entrega-nuevo"></div>
+  </section>
+
+  <section class="plana">
+    <h2>Usuarios <span class="conteo" id="conteo"></span></h2>
+    <div class="cuerpo">
+      <p class="ayuda">Nadie se borra: quien deja de trabajar en el asilo se desactiva, y
+         su historial queda. El cambio de puesto surte efecto en el siguiente clic de
+         esa persona.</p>
+      <div class="tabla-scroll" id="tabla"><p class="vacio">Cargando…</p></div>
+      <div class="aviso" id="aviso-lista"></div>
+      <div id="entrega-lista"></div>
+    </div>
+  </section>
+
+  <section class="plana">
+    <h2>Bitácora</h2>
+    <div class="cuerpo">
+      <p class="ayuda">Lo que cambió en el sistema y los intentos rechazados, del más
+         reciente al más viejo. Las consultas que salen bien no se anotan.</p>
+      <div class="filtro">
+        <div class="campo">
+          <label for="f-usuario">Usuario</label>
+          <select id="f-usuario"><option value="">Todos</option></select>
+        </div>
+      </div>
+      <div class="tabla-scroll" id="bitacora"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+const FORM = {
+  aviso: "aviso-nuevo",
+  ids: { usuario: "n-usuario", nombre: "n-nombre", rol: "n-rol" },
+  ETIQUETAS: { usuario: "Usuario", nombre: "Nombre completo", rol: "Puesto" },
+  OBLIGATORIOS: ["usuario", "nombre", "rol"],
+  MINIMOS: { usuario: 3, nombre: 3 }
+};
+
+let yo = null;
+let roles = [];
+let usuarios = [];
+let filasBitacora = 30;   // crece con «Ver más»
+
+// La bitacora guarda el metodo y la ruta; aqui se dice en palabras.
+const VERBO = { POST: "Registró", PUT: "Modificó", PATCH: "Modificó", DELETE: "Borró o anuló", GET: "Consultó" };
+// Lo que no es un registro de datos se dice por su nombre.
+function queHizo(f){
+  if(f.recurso === "/api/login") return "Entró al sistema";
+  if(f.recurso === "/api/logout") return "Salió del sistema";
+  if(f.recurso === "/api/mi-contrasena") return "Cambió su contraseña";
+  if(/\/restablecer$/.test(f.recurso)) return "Restableció una contraseña";
+  return VERBO[f.metodo] || texto(f.metodo);
+}
+const RESULTADO = { 400: "Sin cambios", 200: "Hecho", 201: "Hecho", 204: "Hecho", 401: "Sin sesión", 403: "Sin permiso",
+                    404: "No existe", 409: "Rechazado", 422: "Datos rechazados", 429: "Bloqueado", 503: "Módulo caído" };
+
+// --------------------------------------------------------- entrega
+
+function mostrarEntrega(idCaja, usuario, temporal, titulo){
+  porId(idCaja).innerHTML = `
+    <div class="entrega" role="status">
+      <strong>${titulo}</strong>
+      <div class="clave">${texto(temporal)}</div>
+      <p>Entréguesela a <strong>${texto(usuario.nombre)}</strong> (usuario
+         <span class="mono">${texto(usuario.usuario)}</span>). No se volverá a mostrar:
+         si se pierde, restablézcala otra vez. Al entrar, el sistema le pedirá elegir la suya.</p>
+    </div>`;
+}
+
+// --------------------------------------------------------- lista
+
+function opcionesRol(elegido){
+  return roles.map(r => `<option value="${r.rol}" ${r.rol === elegido ? "selected" : ""}>${texto(r.nombre)}</option>`).join("");
+}
+
+function filaUsuario(u){
+  const soyYo = u.id === yo.id;
+  const estado = u.activo
+    ? (u.debe_cambiar ? '<span class="estado temporal">Contraseña temporal</span>' : '<span class="estado activo">Activo</span>')
+    : '<span class="estado inactivo">Desactivado</span>';
+  const puesto = soyYo
+    ? `${texto(u.rol_nombre)} <div class="usted">(usted)</div>`
+    : `<select onchange="cambiar(${u.id}, { rol: this.value }, 'pasa al puesto ' + this.options[this.selectedIndex].text)">${opcionesRol(u.rol)}</select>`;
+  const acciones = soyYo ? '<span class="usted">Su contraseña se cambia en «Mi contraseña».</span>' : `
+    <div class="acciones-fila">
+      <button class="mini secundario" onclick="confirmar(this, () => restablecer(${u.id}))">Restablecer contraseña</button>
+      ${u.activo
+        ? `<button class="mini peligro" onclick="confirmar(this, () => cambiar(${u.id}, { activo: false }, 'quedó desactivada: ya no puede entrar'))">Desactivar</button>`
+        : `<button class="mini secundario" onclick="cambiar(${u.id}, { activo: true }, 'vuelve a estar activa')">Reactivar</button>`}
+    </div>`;
+  return `
+    <tr class="${u.activo ? "" : "inactivo"}">
+      <td><strong>${texto(u.nombre)}</strong><div class="mono">${texto(u.usuario)}</div></td>
+      <td>${puesto}</td>
+      <td>${estado}</td>
+      <td>${acciones}</td>
+    </tr>`;
+}
+
+async function cargarUsuarios(){
+  try{
+    usuarios = await api("/api/usuarios");
+    const activos = usuarios.filter(u => u.activo).length;
+    porId("conteo").textContent = `${activos} activo${activos === 1 ? "" : "s"}`;
+    porId("tabla").innerHTML = `
+      <table>
+        <thead><tr><th>Persona</th><th>Puesto</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>${usuarios.map(filaUsuario).join("")}</tbody>
+      </table>`;
+    const elegido = porId("f-usuario").value;
+    porId("f-usuario").innerHTML = '<option value="">Todos</option>' + usuarios.map(u =>
+      `<option value="${texto(u.usuario)}" ${u.usuario === elegido ? "selected" : ""}>${texto(u.usuario)} · ${texto(u.nombre)}</option>`).join("");
+  }catch(e){
+    porId("tabla").innerHTML = `<p class="vacio">${texto(e.message)}</p>`;
+  }
+}
+
+// Los botones que no se deshacen piden un segundo clic en vez de una
+// ventana emergente: el primero cambia el texto y el segundo ejecuta.
+function confirmar(boton, accion){
+  if(boton.dataset.armado){ accion(); return; }
+  boton.dataset.armado = "1";
+  const original = boton.textContent;
+  boton.textContent = "¿Seguro? Pulse otra vez";
+  setTimeout(() => { delete boton.dataset.armado; boton.textContent = original; }, 4000);
+}
+
+async function cambiar(id, campos, queDice){
+  porId("entrega-lista").innerHTML = "";
+  try{
+    const u = await api(`/api/usuarios/${id}`, { method: "PUT", body: JSON.stringify(campos) });
+    avisar("aviso-lista", `La cuenta de ${u.nombre} ${queDice}.`);
+  }catch(e){
+    avisar("aviso-lista", e.message, false);
+  }
+  await cargarUsuarios();
+  cargarBitacora();
+}
+
+async function restablecer(id){
+  try{
+    const u = await api(`/api/usuarios/${id}/restablecer`, { method: "POST" });
+    porId("aviso-lista").className = "aviso";
+    mostrarEntrega("entrega-lista", u, u.contrasena_temporal,
+      `Contraseña temporal de ${u.nombre}. Sus sesiones abiertas se cerraron.`);
+  }catch(e){
+    avisar("aviso-lista", e.message, false);
+  }
+  await cargarUsuarios();
+  cargarBitacora();
+}
+
+// --------------------------------------------------------- alta
+
+async function crear(){
+  limpiarErrores(FORM);
+  porId("entrega-nuevo").innerHTML = "";
+  const faltantes = validarLocalmente(FORM);
+  if(faltantes.length){
+    avisoResumen(FORM, "No se creó. Falta corregir:", faltantes, false);
+    return;
+  }
+  porId("crear").disabled = true;
+  try{
+    const u = await api("/api/usuarios", {
+      method: "POST",
+      body: JSON.stringify({
+        usuario: porId("n-usuario").value.trim(),
+        nombre: porId("n-nombre").value.trim(),
+        rol: porId("n-rol").value
+      })
+    });
+    porId("aviso-nuevo").className = "aviso";
+    mostrarEntrega("entrega-nuevo", u, u.contrasena_temporal, `Usuario creado. Contraseña temporal:`);
+    porId("n-usuario").value = ""; porId("n-nombre").value = ""; porId("n-rol").value = "";
+    await cargarUsuarios();
+    cargarBitacora();
+  }catch(e){
+    mostrarFallo(FORM, "No se creó:", e);
+  }finally{
+    porId("crear").disabled = false;
+  }
+}
+
+// --------------------------------------------------------- bitacora
+
+async function cargarBitacora(){
+  const usuario = porId("f-usuario").value;
+  const caja = porId("bitacora");
+  try{
+    const filas = await api(`/api/bitacora?limite=${filasBitacora}` + (usuario ? `&usuario=${encodeURIComponent(usuario)}` : ""));
+    if(!filas.length){
+      caja.innerHTML = '<p class="vacio">No hay movimientos anotados.</p>';
+      return;
+    }
+    caja.innerHTML = `
+      <table>
+        <thead><tr><th>Fecha</th><th>Usuario</th><th>Qué hizo</th><th>Dónde</th><th>Resultado</th></tr></thead>
+        <tbody>${filas.map(f => `
+          <tr>
+            <td>${texto(fechaLegible(f.fecha))}</td>
+            <td>${f.usuario ? texto(f.usuario) : '<span class="usted">sin identificar</span>'}</td>
+            <td>${queHizo(f)}</td>
+            <td class="ruta">${texto(f.recurso)}</td>
+            <td>${RESULTADO[f.codigo] || ""} <span class="mono">${f.codigo}</span></td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      ${filas.length === filasBitacora && filasBitacora < 500
+        ? '<div class="acciones"><button class="mini secundario" onclick="verMas()">Ver más</button></div>' : ""}`;
+  }catch(e){
+    caja.innerHTML = `<p class="vacio">${texto(e.message)}</p>`;
+  }
+}
+
+function verMas(){
+  filasBitacora = Math.min(filasBitacora + 70, 500);
+  cargarBitacora();
+}
+
+// --------------------------------------------------------- arranque
+
+(async function arrancar(){
+  yo = await iniciarPantalla({ subtitulo: "Usuarios del sistema", rol: "ADMIN" });
+  if(!yo) return;
+  // /api/yo no trae el id; se busca en la lista por el nombre de usuario.
+  roles = await apiSilenciosa("/api/usuarios/roles", []);
+  porId("n-rol").innerHTML = '<option value="">— Seleccione —</option>' + opcionesRol(null);
+  porId("crear").addEventListener("click", crear);
+  porId("f-usuario").addEventListener("change", () => { filasBitacora = 30; cargarBitacora(); });
+  const lista = await apiSilenciosa("/api/usuarios", []);
+  yo.id = (lista.find(u => u.usuario === yo.usuario) || {}).id;
+  await cargarUsuarios();
+  cargarBitacora();
+})();
+</script>
+
+</body>
+</html>

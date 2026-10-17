@@ -99,6 +99,9 @@
       <tr><td>medico</td><td>Médico general</td></tr>
       <tr><td>fundacion</td><td>Fundación</td></tr>
       <tr><td>caja</td><td>Caja y cobros</td></tr>
+      <tr><td>especialista</td><td>Médico especialista</td></tr>
+      <tr><td>laboratorio</td><td>Laboratorio clínico</td></tr>
+      <tr><td>farmacia</td><td>Farmacia</td></tr>
     </table>
     <div class="clave">Contraseña de todos: <strong style="display:inline">asilo2026</strong></div>
   </div>
@@ -185,7 +188,8 @@ $("formulario").addEventListener("submit", async (evento) => {
       return;
     }
 
-    location.replace("/panel");
+    // Quien entro con una contrasena temporal elige la suya antes de seguir.
+    location.replace(datos.debe_cambiar ? "/contrasena.html" : "/panel");
   }catch{
     mostrarError("No se pudo contactar al servidor. Verifique que el sistema esté encendido.");
   }finally{
