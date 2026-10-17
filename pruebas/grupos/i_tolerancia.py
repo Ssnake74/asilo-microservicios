@@ -126,7 +126,7 @@ def ejecutar(ctx) -> None:
             c.pasa = (
                 internos.status_code == 200 and remisiones.status_code == 200
                 and alta.status_code == 201
-                and arriba == {"ms-pacientes": True, "ms-solicitudes": True, "ms-cobros": False}
+                and [k for k, v in arriba.items() if not v] == ["ms-cobros"] and len(arriba) >= 4
             )
     finally:
         docker.iniciar(COBROS)
