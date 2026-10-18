@@ -1,8 +1,14 @@
 #!/bin/bash
-# Despliega o actualiza las cuatro aplicaciones en Azure y crea los esquemas
+# Despliega o actualiza las siete aplicaciones en Azure y crea los esquemas
 # de MySQL. Se corre en Cloud Shell (Bash):
 #
 #   bash asilo-microservicios/infra/azure/desplegar.sh
+#
+# Cada aplicacion queda con una replica siempre encendida. Para volver a la
+# escala a cero (mas barato, pero la primera visita tras un rato sin uso es
+# lenta):
+#
+#   MINIMO=0 bash asilo-microservicios/infra/azure/desplegar.sh
 #
 # Usa la imagen mas reciente del registro, la que publico GitHub Actions.
 # Se puede repetir: lo que ya existe se actualiza.
@@ -26,6 +32,7 @@ echo; echo "=== Despliegue (2 a 5 minutos)"
 URL_SITIO=$(az deployment group create -g $RG -n "asilo-$(date +%Y%m%d-%H%M%S)" \
   -f "$CARPETA/asilo.bicep" \
   -p etiqueta="$ETIQUETA" claveAdmin="$CLAVE_ADMIN" claveCorreo="$CLAVE_CORREO" \
+     minimoReplicas="${MINIMO:-1}" \
   --query properties.outputs.url.value -o tsv) || fallo "despliegue"
 
 echo; echo "=== Esquemas y usuarios de MySQL"

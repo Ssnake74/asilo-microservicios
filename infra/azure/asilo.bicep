@@ -16,8 +16,12 @@ param claveCorreo string
 
 param usuarioCorreo string = 'ssnakillar74@gmail.com'
 
-@description('Replicas minimas por aplicacion. 0 = escala a cero sin trafico.')
-param minimoReplicas int = 0
+// Una replica siempre encendida: con escala a cero, la primera visita
+// despues de un rato sin uso despertaba cada servicio y tardaba mas que
+// los 8 segundos del gateway. Encendida y sin trafico se cobra a la tarifa
+// reducida de inactividad. Con 0 vuelve la escala a cero.
+@description('Replicas minimas por aplicacion. 1 = siempre encendida; 0 = escala a cero sin trafico.')
+param minimoReplicas int = 1
 
 param ubicacion string = resourceGroup().location
 
