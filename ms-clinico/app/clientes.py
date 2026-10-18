@@ -8,7 +8,7 @@ Comunicacion con los otros microservicios.
 Las dos primeras se necesitan para registrar: si no responden, la
 operacion no se puede hacer y se dice. El cobro no: si cobros no
 responde, el resultado o el despacho quedan registrados igual y el cargo
-pendiente (RNF-12), como pasa con la consulta en ms-solicitudes.
+pendiente (RNF-12), y main.py lo reintenta despues (RNF-13).
 """
 
 import os
@@ -67,6 +67,14 @@ def medicamento(medicamento_id: int) -> dict | None:
     return _obtener(f"{MS_CATALOGO_URL}/catalogo/medicamentos/{medicamento_id}", "catálogo médico")
 
 
+def cobros_responde() -> bool:
+    """Pregunta rapida antes de reintentar, para no esperar el limite por cada cargo."""
+    try:
+        return httpx.get(f"{MS_COBROS_URL}/health", timeout=TIMEOUT).status_code == 200
+    except httpx.RequestError:
+        return False
+
+
 def generar_cargo(ficha: dict, tipo: str, tarifa_id: int | None, cantidad: int,
                   referencia: str, que: str) -> tuple[int | None, str]:
     """
@@ -100,7 +108,7 @@ def generar_cargo(ficha: dict, tipo: str, tarifa_id: int | None, cantidad: int,
     except httpx.RequestError:
         return None, (
             "El servicio de cobros no respondió. Lo registrado quedó guardado y el "
-            "cargo deberá agregarse desde Cuentas cuando el servicio vuelva."
+            "cargo se generará solo cuando el servicio vuelva."
         )
     return cargo["id"], (
         f"Cargo {cargo['id']} generado por Q{cargo['monto_neto']:.2f} "

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entradas y salidas · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla. */
+  section + section{margin-top:24px;}
+  .indice{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .barra-mes{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px;}
+  .barra-mes .campo{min-width:180px;}
+  .por-tipo{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0;}
+  .por-tipo span{background:var(--fondo);border:1px solid var(--borde);border-radius:4px;padding:3px 9px;font-size:14px;}
+  .pie{font-size:13.5px;color:var(--texto-suave);}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="tarjeta">
+    <h2>Entradas, salidas y fundación</h2>
+    <p class="ayuda">El dinero que entra al asilo (cuotas de los familiares y donaciones), lo que
+       sale (gastos de operación) y la cuenta con la fundación por sus consultas, exámenes y
+       medicamentos. Lo registrado aquí no se borra: es el respaldo para fiscalizar.</p>
+    <div class="resumen" id="resumen"></div>
+    <div class="indice" id="indice"></div>
+  </section>
+
+  <!-- ============ Cuotas ============ -->
+  <section class="plana" id="sec-cuotas" hidden>
+    <h2>Cuotas mensuales <span class="conteo" id="conteo-cuotas"></span></h2>
+    <div class="cuerpo">
+      <p class="ayuda">La cuota que paga cada familiar por la estadía del interno. Una por interno y
+         por mes.</p>
+      <div class="barra-mes">
+        <div class="campo">
+          <label for="c-periodo">Mes</label>
+          <input id="c-periodo" type="month">
+        </div>
+        <div class="campo" data-gestiona="cuotas">
+          <label for="c-monto">Cuota del mes (Q)</label>
+          <input id="c-monto" type="number" min="1" step="0.01" placeholder="1500.00">
+          <div class="error-campo" id="e-c-monto"></div>
+        </div>
+        <button data-gestiona="cuotas" onclick="generarCuotas()">Generar cuotas de los internos activos</button>
+      </div>
+      <div class="tabla-scroll" id="tabla-cuotas"><p class="vacio">Cargando…</p></div>
+      <div class="aviso" id="aviso-cuotas"></div>
+    </div>
+  </section>
+
+  <!-- ============ Donaciones ============ -->
+  <section class="plana" id="sec-donaciones" hidden>
+    <h2>Donaciones <span class="conteo" id="conteo-donaciones"></span></h2>
+    <div class="cuerpo">
+      <details class="plegable" data-gestiona="donaciones" id="form-donacion">
+        <summary>Registrar una donación</summary>
+        <div class="rejilla">
+          <div class="campo">
+            <label for="d-origen">Quién dona <span class="obligatorio">*</span></label>
+            <input id="d-origen" placeholder="Rotary Club Mazatenango" autocomplete="off">
+            <div class="error-campo" id="e-d-origen"></div>
+          </div>
+          <div class="campo">
+            <label for="d-tipo">Tipo de donante <span class="obligatorio">*</span></label>
+            <select id="d-tipo">
+              <option value="">— Seleccione —</option>
+              <option value="EMPRESA_INTERNACIONAL">Empresa internacional</option>
+              <option value="EMPRESA_NACIONAL">Empresa nacional</option>
+              <option value="GOBIERNO">Gobierno</option>
+              <option value="PARTICULAR">Persona particular</option>
+            </select>
+            <div class="error-campo" id="e-d-tipo"></div>
+          </div>
+          <div class="campo">
+            <label for="d-monto">Monto (Q) <span class="obligatorio">*</span></label>
+            <input id="d-monto" type="number" min="0.01" step="0.01">
+            <div class="error-campo" id="e-d-monto"></div>
+          </div>
+          <div class="campo">
+            <label for="d-fecha">Fecha</label>
+            <input id="d-fecha" type="date">
+            <div class="pista">Si se deja vacía, es hoy.</div>
+            <div class="error-campo" id="e-d-fecha"></div>
+          </div>
+          <div class="campo">
+            <label for="d-descripcion">Descripción</label>
+            <input id="d-descripcion" placeholder="Donativo navideño" autocomplete="off">
+            <div class="error-campo" id="e-d-descripcion"></div>
+          </div>
+        </div>
+        <div class="acciones"><button class="mini" onclick="registrarDonacion()">Registrar donación</button></div>
+      </details>
+      <div class="aviso" id="aviso-donaciones"></div>
+      <div class="por-tipo" id="donaciones-por-tipo"></div>
+      <div class="tabla-scroll" id="tabla-donaciones"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+
+  <!-- ============ Gastos ============ -->
+  <section class="plana" id="sec-gastos" hidden>
+    <h2>Gastos de operación <span class="conteo" id="conteo-gastos"></span></h2>
+    <div class="cuerpo">
+      <details class="plegable" data-gestiona="gastos" id="form-gasto">
+        <summary>Registrar un gasto</summary>
+        <div class="rejilla">
+          <div class="campo">
+            <label for="g-categoria">Categoría <span class="obligatorio">*</span></label>
+            <select id="g-categoria">
+              <option value="">— Seleccione —</option>
+            </select>
+            <div class="error-campo" id="e-g-categoria"></div>
+          </div>
+          <div class="campo">
+            <label for="g-monto">Monto (Q) <span class="obligatorio">*</span></label>
+            <input id="g-monto" type="number" min="0.01" step="0.01">
+            <div class="error-campo" id="e-g-monto"></div>
+          </div>
+          <div class="campo">
+            <label for="g-fecha">Fecha</label>
+            <input id="g-fecha" type="date">
+            <div class="pista">Si se deja vacía, es hoy.</div>
+            <div class="error-campo" id="e-g-fecha"></div>
+          </div>
+          <div class="campo">
+            <label for="g-descripcion">Descripción <span class="obligatorio">*</span></label>
+            <input id="g-descripcion" placeholder="Recibo de luz de septiembre" autocomplete="off">
+            <div class="error-campo" id="e-g-descripcion"></div>
+          </div>
+          <div class="campo">
+            <label for="g-comprobante">Factura o recibo</label>
+            <input id="g-comprobante" placeholder="Serie A 001234" autocomplete="off">
+            <div class="error-campo" id="e-g-comprobante"></div>
+          </div>
+        </div>
+        <div class="acciones"><button class="mini" onclick="registrarGasto()">Registrar gasto</button></div>
+      </details>
+      <div class="aviso" id="aviso-gastos"></div>
+      <div class="por-tipo" id="gastos-por-categoria"></div>
+      <div class="tabla-scroll" id="tabla-gastos"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+
+  <!-- ============ Fundacion ============ -->
+  <section class="plana" id="sec-fundacion" hidden>
+    <h2>Cuenta con la fundación</h2>
+    <div class="cuerpo">
+      <p class="ayuda">Lo que costaron las consultas, los exámenes y los medicamentos de la fundación
+         después de su descuento, menos lo que el asilo ya le pagó.</p>
+      <div class="resumen" id="deuda"></div>
+      <details class="plegable" data-gestiona="fundacion" id="form-pago">
+        <summary>Registrar un pago a la fundación</summary>
+        <div class="rejilla">
+          <div class="campo">
+            <label for="p-monto">Monto (Q) <span class="obligatorio">*</span></label>
+            <input id="p-monto" type="number" min="0.01" step="0.01">
+            <div class="error-campo" id="e-p-monto"></div>
+          </div>
+          <div class="campo">
+            <label for="p-fecha">Fecha</label>
+            <input id="p-fecha" type="date">
+            <div class="pista">Si se deja vacía, es hoy.</div>
+            <div class="error-campo" id="e-p-fecha"></div>
+          </div>
+          <div class="campo">
+            <label for="p-comprobante">Comprobante</label>
+            <input id="p-comprobante" placeholder="Transferencia 88231" autocomplete="off">
+            <div class="error-campo" id="e-p-comprobante"></div>
+          </div>
+          <div class="campo">
+            <label for="p-descripcion">Descripción</label>
+            <input id="p-descripcion" placeholder="Abono de octubre" autocomplete="off">
+            <div class="error-campo" id="e-p-descripcion"></div>
+          </div>
+        </div>
+        <div class="acciones"><button class="mini" onclick="registrarPago()">Registrar pago</button></div>
+      </details>
+      <div class="aviso" id="aviso-fundacion"></div>
+      <div class="tabla-scroll" id="tabla-pagos"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+let yo = null;
+const TIPO_DONANTE = {
+  EMPRESA_INTERNACIONAL: "Empresa internacional", EMPRESA_NACIONAL: "Empresa nacional",
+  GOBIERNO: "Gobierno", PARTICULAR: "Persona particular"
+};
+const CATEGORIA = {
+  LUZ: "Luz", AGUA: "Agua", TELEFONO_INTERNET: "Teléfono e internet", ALIMENTACION: "Alimentación",
+  LIMPIEZA: "Limpieza", MANTENIMIENTO: "Mantenimiento", SALARIOS: "Salarios", OTROS: "Otros"
+};
+const ESTADO_CUOTA = { PENDIENTE: "Por cobrar", PAGADA: "Pagada" };
+
+const FORM_DONACION = {
+  aviso: "aviso-donaciones",
+  ids: { origen: "d-origen", tipo_donante: "d-tipo", monto: "d-monto", fecha: "d-fecha", descripcion: "d-descripcion" },
+  ETIQUETAS: { origen: "Quién dona", tipo_donante: "Tipo de donante", monto: "Monto", fecha: "Fecha", descripcion: "Descripción" },
+  OBLIGATORIOS: ["origen", "tipo_donante", "monto"], MINIMOS: { origen: 3 }
+};
+const FORM_GASTO = {
+  aviso: "aviso-gastos",
+  ids: { categoria: "g-categoria", monto: "g-monto", fecha: "g-fecha", descripcion: "g-descripcion", comprobante: "g-comprobante" },
+  ETIQUETAS: { categoria: "Categoría", monto: "Monto", fecha: "Fecha", descripcion: "Descripción", comprobante: "Factura o recibo" },
+  OBLIGATORIOS: ["categoria", "monto", "descripcion"], MINIMOS: { descripcion: 3 }
+};
+const FORM_PAGO = {
+  aviso: "aviso-fundacion",
+  ids: { monto: "p-monto", fecha: "p-fecha", descripcion: "p-descripcion", comprobante: "p-comprobante" },
+  ETIQUETAS: { monto: "Monto", fecha: "Fecha", descripcion: "Descripción", comprobante: "Comprobante" },
+  OBLIGATORIOS: ["monto"]
+};
+
+const hoy = () => new Date().toLocaleDateString("en-CA");   // AAAA-MM-DD en hora local
+const mesActual = () => hoy().slice(0, 7);
+const ve = (r) => yo.recursos.includes(r);
+const gestiona = (r) => (yo.gestiona || []).includes(r);
+const suma = (lista, campo = "monto") => lista.reduce((t, x) => t + Number(x[campo] || 0), 0);
+const fechaCorta = (f) => f ? new Date(f + "T00:00").toLocaleDateString("es-GT", { day: "numeric", month: "short", year: "numeric" }) : "";
+
+function porGrupo(lista, campo, nombres){
+  const totales = {};
+  lista.forEach(x => { totales[x[campo]] = (totales[x[campo]] || 0) + Number(x.monto); });
+  return Object.entries(totales).map(([k, v]) => `<span>${texto(nombres[k] || k)}: <b>${q(v)}</b></span>`).join("");
+}
+
+function cuerpoDe(form){
+  const cuerpo = {};
+  Object.entries(form.ids).forEach(([campo, id]) => {
+    const valor = porId(id).value.trim();
+    cuerpo[campo] = campo === "monto" ? Number(valor) : (valor || null);
+  });
+  return cuerpo;
+}
+
+async function enviar(form, ruta, exito, recargar){
+  limpiarErrores(form);
+  const faltantes = validarLocalmente(form);
+  if(faltantes.length){
+    avisoResumen(form, "No se registró. Falta corregir:", faltantes, false);
+    return;
+  }
+  try{
+    const r = await api(ruta, { method: "POST", body: JSON.stringify(cuerpoDe(form)) });
+    Object.values(form.ids).forEach(id => { porId(id).value = ""; });
+    avisoResumen(form, exito(r), null, true);
+    await recargar();
+    resumen();
+  }catch(e){
+    mostrarFallo(form, "No se registró:", e);
+  }
+}
+
+// --------------------------------------------------------- cuotas
+
+let internos = [];
+
+async function cargarCuotas(){
+  const periodo = porId("c-periodo").value;
+  const caja = porId("tabla-cuotas");
+  try{
+    const cuotas = await api(`/api/cuotas?periodo=${encodeURIComponent(periodo)}`);
+    const cobradas = cuotas.filter(c => c.estado === "PAGADA");
+    porId("conteo-cuotas").textContent = cuotas.length ? `${cobradas.length} de ${cuotas.length} pagadas` : "";
+    if(!cuotas.length){
+      caja.innerHTML = `<p class="vacio">No hay cuotas registradas para ${texto(periodo)}.</p>`;
+      return;
+    }
+    caja.innerHTML = `
+      <table>
+        <thead><tr><th>Interno</th><th class="num">Cuota</th><th>Estado</th><th></th></tr></thead>
+        <tbody>${cuotas.map(c => `
+          <tr>
+            <td><strong>${texto(c.paciente_nombre)}</strong><div class="mono">${texto(c.paciente_id)}</div></td>
+            <td class="num">${q(c.monto)}</td>
+            <td>${insignia(c.estado, ESTADO_CUOTA)}${c.fecha_pago ? `<div class="pie">${texto(fechaLegible(c.fecha_pago))}</div>` : ""}</td>
+            <td>${c.estado === "PENDIENTE" && gestiona("cuotas") ? `
+              <div class="acciones" style="margin:0">
+                <button class="mini" onclick="pagarCuota(${c.id})">Registrar pago</button>
+                <button class="mini peligro" onclick="anularCuota(${c.id})">Anular</button>
+              </div>` : ""}</td>
+          </tr>`).join("")}
+        </tbody>
+        <tfoot><tr><td><b>Total del mes</b></td><td class="num"><b>${q(suma(cuotas))}</b></td>
+          <td colspan="2">Cobrado: <b>${q(suma(cobradas))}</b></td></tr></tfoot>
+      </table>`;
+  }catch(e){
+    caja.innerHTML = `<p class="vacio">${texto(e.message)}</p>`;
+  }
+}
+
+async function generarCuotas(){
+  const campo = porId("c-monto"), error = porId("e-c-monto");
+  campo.classList.remove("malo"); error.classList.remove("visible");
+  const monto = Number(campo.value);
+  if(!(monto > 0)){
+    campo.classList.add("malo"); error.textContent = "Escriba el monto de la cuota."; error.classList.add("visible");
+    return;
+  }
+  const activos = internos.filter(p => p.estado === "ACTIVO");
+  if(!activos.length){ avisar("aviso-cuotas", "No hay internos activos.", false); return; }
+  try{
+    const r = await api("/api/cuotas/generar", { method: "POST", body: JSON.stringify({
+      periodo: porId("c-periodo").value, monto,
+      internos: activos.map(p => ({
+        paciente_id: p.codigo, paciente_nombre: `${p.nombres} ${p.apellidos}`, familiar_email: p.familiar_email
+      }))
+    })});
+    avisar("aviso-cuotas", `Se registraron ${r.creadas} cuota${r.creadas === 1 ? "" : "s"}`
+      + (r.ya_existian ? `; ${r.ya_existian} interno${r.ya_existian === 1 ? " ya tenía" : "s ya tenían"} la de este mes.` : "."));
+  }catch(e){
+    avisar("aviso-cuotas", typeof e.detalle === "string" ? e.detalle : e.message, false);
+  }
+  await cargarCuotas(); resumen();
+}
+
+async function pagarCuota(id){
+  try{
+    const c = await api(`/api/cuotas/${id}/pagar`, { method: "POST" });
+    avisar("aviso-cuotas", `Pago registrado: cuota de ${c.paciente_nombre} por ${q(c.monto)}.`);
+  }catch(e){ avisar("aviso-cuotas", e.message, false); }
+  await cargarCuotas(); resumen();
+}
+
+async function anularCuota(id){
+  try{
+    await api(`/api/cuotas/${id}`, { method: "DELETE" });
+    avisar("aviso-cuotas", "La cuota se anuló.");
+  }catch(e){ avisar("aviso-cuotas", e.message, false); }
+  await cargarCuotas(); resumen();
+}
+
+// --------------------------------------------------------- donaciones y gastos
+
+async function cargarDonaciones(){
+  try{
+    const lista = await api("/api/donaciones");
+    porId("conteo-donaciones").textContent = lista.length ? `${q(suma(lista))} en total` : "";
+    porId("donaciones-por-tipo").innerHTML = porGrupo(lista, "tipo_donante", TIPO_DONANTE);
+    porId("tabla-donaciones").innerHTML = lista.length ? `
+      <table>
+        <thead><tr><th>Fecha</th><th>Quién dona</th><th>Tipo</th><th class="num">Monto</th></tr></thead>
+        <tbody>${lista.map(d => `
+          <tr>
+            <td>${fechaCorta(d.fecha)}</td>
+            <td><strong>${texto(d.origen)}</strong>${d.descripcion ? `<div class="pie">${texto(d.descripcion)}</div>` : ""}</td>
+            <td>${texto(TIPO_DONANTE[d.tipo_donante])}</td>
+            <td class="num">${q(d.monto)}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>` : '<p class="vacio">Todavía no hay donaciones registradas.</p>';
+  }catch(e){ porId("tabla-donaciones").innerHTML = `<p class="vacio">${texto(e.message)}</p>`; }
+}
+
+async function cargarGastos(){
+  try{
+    const lista = await api("/api/gastos");
+    porId("conteo-gastos").textContent = lista.length ? `${q(suma(lista))} en total` : "";
+    porId("gastos-por-categoria").innerHTML = porGrupo(lista, "categoria", CATEGORIA);
+    porId("tabla-gastos").innerHTML = lista.length ? `
+      <table>
+        <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="num">Monto</th></tr></thead>
+        <tbody>${lista.map(g => `
+          <tr>
+            <td>${fechaCorta(g.fecha)}</td>
+            <td>${texto(CATEGORIA[g.categoria])}</td>
+            <td>${texto(g.descripcion)}${g.comprobante ? `<div class="pie">${texto(g.comprobante)}</div>` : ""}</td>
+            <td class="num">${q(g.monto)}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>` : '<p class="vacio">Todavía no hay gastos registrados.</p>';
+  }catch(e){ porId("tabla-gastos").innerHTML = `<p class="vacio">${texto(e.message)}</p>`; }
+}
+
+const registrarDonacion = () => enviar(FORM_DONACION, "/api/donaciones",
+  d => `Donación de ${d.origen} por ${q(d.monto)} registrada.`, cargarDonaciones);
+const registrarGasto = () => enviar(FORM_GASTO, "/api/gastos",
+  g => `Gasto de ${q(g.monto)} en ${CATEGORIA[g.categoria].toLowerCase()} registrado.`, cargarGastos);
+
+// --------------------------------------------------------- fundacion
+
+async function cargarFundacion(){
+  try{
+    const [d, pagos] = await Promise.all([api("/api/fundacion/deuda"), api("/api/fundacion/pagos")]);
+    porId("deuda").innerHTML = `
+      <div><span>Consultas</span><strong>${q(d.consultas)}</strong></div>
+      <div><span>Exámenes</span><strong>${q(d.examenes)}</strong></div>
+      <div><span>Medicamentos</span><strong>${q(d.medicamentos)}</strong></div>
+      <div><span>Pagado a la fundación</span><strong>${q(d.total_pagado)}</strong></div>
+      <div class="saldo"><span>Se le debe</span><strong>${q(d.saldo)}</strong></div>
+      <div><span>Citas sin cobrar al familiar</span><strong>${d.citas_por_cobrar}</strong></div>`;
+    porId("tabla-pagos").innerHTML = pagos.length ? `
+      <table>
+        <thead><tr><th>Fecha</th><th>Descripción</th><th>Comprobante</th><th class="num">Monto</th></tr></thead>
+        <tbody>${pagos.map(p => `
+          <tr><td>${fechaCorta(p.fecha)}</td><td>${texto(p.descripcion) || "—"}</td>
+              <td>${texto(p.comprobante) || "—"}</td><td class="num">${q(p.monto)}</td></tr>`).join("")}
+        </tbody>
+      </table>` : '<p class="vacio">Todavía no se han registrado pagos a la fundación.</p>';
+  }catch(e){ porId("deuda").innerHTML = `<p class="vacio">${texto(e.message)}</p>`; }
+}
+
+const registrarPago = () => enviar(FORM_PAGO, "/api/fundacion/pagos",
+  p => `Pago de ${q(p.monto)} a la fundación registrado.`, cargarFundacion);
+
+// --------------------------------------------------------- resumen del mes
+
+async function resumen(){
+  const mes = mesActual();
+  const cajas = [];
+  if(ve("cuotas")){
+    const cuotas = await apiSilenciosa(`/api/cuotas?periodo=${mes}`, []);
+    cajas.push(`<div><span>Cuotas cobradas este mes</span><strong>${q(suma(cuotas.filter(c => c.estado === "PAGADA")))}</strong></div>`);
+  }
+  if(ve("donaciones")){
+    const lista = await apiSilenciosa(`/api/donaciones?desde=${mes}-01`, []);
+    cajas.push(`<div><span>Donaciones este mes</span><strong>${q(suma(lista))}</strong></div>`);
+  }
+  if(ve("gastos")){
+    const lista = await apiSilenciosa(`/api/gastos?desde=${mes}-01`, []);
+    cajas.push(`<div><span>Gastos este mes</span><strong>${q(suma(lista))}</strong></div>`);
+  }
+  if(ve("fundacion")){
+    const d = await apiSilenciosa("/api/fundacion/deuda", null);
+    if(d) cajas.push(`<div class="saldo"><span>Se le debe a la fundación</span><strong>${q(d.saldo)}</strong></div>`);
+  }
+  porId("resumen").innerHTML = cajas.join("");
+}
+
+// --------------------------------------------------------- arranque
+
+(async function arrancar(){
+  yo = await iniciarPantalla({ subtitulo: "Entradas, salidas y fundación" });
+  if(!yo) return;
+  if(!["cuotas", "donaciones", "gastos", "fundacion"].some(ve)){
+    document.querySelector("main").innerHTML = `
+      <section class="tarjeta"><h2>Esta pantalla no le corresponde</h2>
+        <p class="ayuda">Su puesto en el asilo no incluye esta tarea.</p>
+        <div class="acciones"><a class="boton-barra en-tarjeta" href="/panel">Volver al panel</a></div>
+      </section>`;
+    return;
+  }
+
+  const secciones = [
+    ["cuotas", "Cuotas mensuales", cargarCuotas],
+    ["donaciones", "Donaciones", cargarDonaciones],
+    ["gastos", "Gastos", cargarGastos],
+    ["fundacion", "Cuenta con la fundación", cargarFundacion]
+  ].filter(([r]) => ve(r));
+  porId("indice").innerHTML = secciones.map(([r, t]) =>
+    `<a class="boton-barra en-tarjeta" href="#sec-${r}">${t}</a>`).join("");
+  secciones.forEach(([r]) => { porId(`sec-${r}`).hidden = false; });
+  document.querySelectorAll("[data-gestiona]").forEach(el => { el.hidden = !gestiona(el.dataset.gestiona); });
+
+  porId("g-categoria").innerHTML += Object.entries(CATEGORIA).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  porId("c-periodo").value = mesActual();
+  porId("c-periodo").addEventListener("change", cargarCuotas);
+  ["d-fecha", "g-fecha", "p-fecha"].forEach(id => porId(id).max = hoy());
+  if(ve("cuotas")) internos = await apiSilenciosa("/api/pacientes", []);
+
+  resumen();
+  secciones.forEach(([, , cargar]) => cargar());
+})();
+</script>
+
+</body>
+</html>

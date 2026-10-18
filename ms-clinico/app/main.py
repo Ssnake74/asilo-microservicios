@@ -20,6 +20,8 @@ encabezado solo puede ponerlo el gateway.
 Puerto: 8085
 """
 
+import asyncio
+import os
 from contextlib import asynccontextmanager
 from urllib.parse import unquote
 
@@ -46,10 +48,61 @@ from .schemas import (
 )
 
 
+# ---------------------------------------------------------------------
+# Reintento de los cobros pendientes (RNF-13)
+#
+# Igual que en ms-solicitudes: cada tantos segundos se cobran los
+# resultados y despachos que quedaron sin cargo porque cobros no
+# respondia. Solo los que ya estaban pendientes en la vuelta anterior, para
+# no cobrar dos veces uno que se esta registrando en este momento.
+# ---------------------------------------------------------------------
+
+SEGUNDOS_ENTRE_REINTENTOS = float(os.getenv("REINTENTO_SEGUNDOS", "15"))
+
+
+def reintentar_cobros(vistos_antes: set[str]) -> set[str]:
+    ordenes = db.ordenes_sin_cargo()
+    despachos = db.despachos_sin_cargo()
+    vistos_ahora = {f"o{o['id']}" for o in ordenes} | {f"d{d['id']}" for d in despachos}
+    if not vistos_ahora or not clientes.cobros_responde():
+        return vistos_ahora
+    for orden in ordenes:
+        if f"o{orden['id']}" in vistos_antes:
+            cargo_id, _ = clientes.generar_cargo(
+                orden, "EXAMEN", orden["tarifa_id"], 1, referencia_examen(orden["id"]),
+                f"El examen «{orden['examen']}»",
+            )
+            if cargo_id is not None:
+                db.anotar_cargo_de_orden(orden["id"], cargo_id)
+                vistos_ahora.discard(f"o{orden['id']}")
+    for despacho in despachos:
+        if f"d{despacho['id']}" in vistos_antes:
+            cargo_id, _ = clientes.generar_cargo(
+                despacho, "MEDICAMENTO", despacho["tarifa_id"], despacho["cantidad_despachada"],
+                referencia_receta(despacho["receta_id"]), f"El medicamento «{despacho['medicamento']}»",
+            )
+            if cargo_id is not None:
+                db.anotar_cargo_de_despacho(despacho["id"], cargo_id)
+                vistos_ahora.discard(f"d{despacho['id']}")
+    return vistos_ahora
+
+
+async def bucle_de_reintentos() -> None:
+    vistos: set[str] = set()
+    while True:
+        await asyncio.sleep(SEGUNDOS_ENTRE_REINTENTOS)
+        try:
+            vistos = await asyncio.to_thread(reintentar_cobros, vistos)
+        except Exception as error:
+            print(f"[ms-clinico] Reintento de cobros fallido: {error}", flush=True)
+
+
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
     db.init_db()
+    tarea = asyncio.create_task(bucle_de_reintentos())
     yield
+    tarea.cancel()
 
 
 app = FastAPI(

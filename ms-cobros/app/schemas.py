@@ -81,3 +81,122 @@ class EstadoCuenta(BaseModel):
     total_pagado: float
     saldo_pendiente: float
     cargos: list[Cargo]
+
+
+# =====================================================================
+# Entradas y salidas del asilo (RF-33 a RF-36)
+# =====================================================================
+
+# Quienes donan, segun el enunciado: empresas internacionales y
+# nacionales, gobierno y personas particulares.
+TipoDonante = Literal["EMPRESA_INTERNACIONAL", "EMPRESA_NACIONAL", "GOBIERNO", "PARTICULAR"]
+
+CategoriaGasto = Literal[
+    "LUZ", "AGUA", "TELEFONO_INTERNET", "ALIMENTACION", "LIMPIEZA",
+    "MANTENIMIENTO", "SALARIOS", "OTROS",
+]
+
+# Tope por registro: evita que un cero de mas descuadre los informes.
+MONTO_MAXIMO = 1_000_000
+
+
+class DonacionCrear(BaseModel):
+    origen: str = Field(min_length=3, max_length=120, description="Quien dona")
+    tipo_donante: TipoDonante
+    monto: float = Field(gt=0, le=MONTO_MAXIMO)
+    fecha: Optional[str] = Field(default=None, description="AAAA-MM-DD; sin fecha es hoy")
+    descripcion: Optional[str] = Field(default=None, max_length=300)
+
+
+class Donacion(BaseModel):
+    id: int
+    origen: str
+    tipo_donante: TipoDonante
+    monto: float
+    fecha: str
+    descripcion: Optional[str]
+
+
+class GastoCrear(BaseModel):
+    categoria: CategoriaGasto
+    monto: float = Field(gt=0, le=MONTO_MAXIMO)
+    fecha: Optional[str] = None
+    descripcion: str = Field(min_length=3, max_length=300)
+    comprobante: Optional[str] = Field(default=None, max_length=60, description="Factura o recibo")
+
+
+class Gasto(BaseModel):
+    id: int
+    categoria: CategoriaGasto
+    monto: float
+    fecha: str
+    descripcion: str
+    comprobante: Optional[str]
+
+
+class InternoDeCuota(BaseModel):
+    paciente_id: str = Field(min_length=1, max_length=40)
+    paciente_nombre: str = Field(min_length=1, max_length=120)
+    familiar_email: Optional[str] = None
+
+
+class CuotaCrear(InternoDeCuota):
+    periodo: str = Field(description="Mes de la cuota, AAAA-MM")
+    monto: float = Field(gt=0, le=MONTO_MAXIMO)
+
+
+class CuotasGenerar(BaseModel):
+    """Las cuotas de un mes para varios internos a la vez, con el mismo monto."""
+
+    periodo: str
+    monto: float = Field(gt=0, le=MONTO_MAXIMO)
+    internos: list[InternoDeCuota] = Field(min_length=1)
+
+
+class Cuota(BaseModel):
+    id: int
+    paciente_id: str
+    paciente_nombre: str
+    familiar_email: Optional[str]
+    periodo: str
+    monto: float
+    estado: str
+    fecha_registro: str
+    fecha_pago: Optional[str]
+
+
+class CuotasGeneradas(BaseModel):
+    creadas: int
+    ya_existian: int
+    cuotas: list[Cuota]
+
+
+class PagoFundacionCrear(BaseModel):
+    monto: float = Field(gt=0, le=MONTO_MAXIMO)
+    fecha: Optional[str] = None
+    descripcion: Optional[str] = Field(default=None, max_length=300)
+    comprobante: Optional[str] = Field(default=None, max_length=60)
+
+
+class PagoFundacion(BaseModel):
+    id: int
+    monto: float
+    fecha: str
+    descripcion: Optional[str]
+    comprobante: Optional[str]
+
+
+class DeudaFundacion(BaseModel):
+    """
+    Lo que el asilo le debe a la fundacion (RF-36): lo que costaron sus
+    consultas, examenes y medicamentos despues de su descuento, menos lo
+    que ya se le pago.
+    """
+
+    total_servicios: float
+    consultas: float
+    examenes: float
+    medicamentos: float
+    total_pagado: float
+    saldo: float
+    citas_por_cobrar: int

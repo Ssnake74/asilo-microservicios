@@ -107,6 +107,11 @@ RUTAS: dict[str, tuple[str, str]] = {
     "tarifas":       (MS_COBROS,      "/tarifas"),
     "cargos":        (MS_COBROS,      "/cargos"),
     "estado-cuenta": (MS_COBROS,      "/estado-cuenta"),
+    # Entradas y salidas del asilo: tambien las lleva cobros.
+    "cuotas":        (MS_COBROS,      "/cuotas"),
+    "donaciones":    (MS_COBROS,      "/donaciones"),
+    "gastos":        (MS_COBROS,      "/gastos"),
+    "fundacion":     (MS_COBROS,      "/fundacion"),
     # El catalogo tiene cinco listas; todas viajan bajo /catalogo.
     "catalogo":      (MS_CATALOGO,    "/catalogo"),
     # Atencion medica. Ordenar un examen y registrar su resultado son
@@ -207,6 +212,27 @@ PERMISOS: dict[str, dict[str, set[str]]] = {
     },
     "estado-cuenta": {
         "GET":    {ADMIN, SECRETARIA, CAJA},
+    },
+    # La secretaria consulta las cuotas porque atiende al familiar; las
+    # registra y las cobra caja.
+    "cuotas": {
+        "GET":    {ADMIN, SECRETARIA, CAJA},
+        "POST":   {ADMIN, CAJA},
+        "DELETE": {ADMIN, CAJA},
+    },
+    "donaciones": {
+        "GET":    {ADMIN, CAJA},
+        "POST":   {ADMIN, CAJA},
+    },
+    "gastos": {
+        "GET":    {ADMIN, CAJA},
+        "POST":   {ADMIN, CAJA},
+    },
+    # La fundacion ve cuanto se le debe y lo que se le ha pagado; el pago
+    # lo registra caja.
+    "fundacion": {
+        "GET":    {ADMIN, CAJA, FUNDACION},
+        "POST":   {ADMIN, CAJA},
     },
     "catalogo": {
         # Todos lo leen para llenar sus listas; lo mantiene la fundacion,

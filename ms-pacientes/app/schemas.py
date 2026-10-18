@@ -84,11 +84,16 @@ class PacienteActualizar(BaseModel):
     alergias: Optional[str] = Field(default=None, max_length=200)
     cubierto_fundacion: Optional[bool] = None
     estado: Optional[EstadoPaciente] = None
+    # Con estado EGRESADO o FALLECIDO (RF-13). Sin fecha es hoy.
+    fecha_egreso: Optional[str] = None
+    motivo_egreso: Optional[str] = Field(default=None, max_length=300)
 
 
 class Paciente(PacienteBase):
     id: int
     codigo: str
     estado: EstadoPaciente
+    fecha_egreso: Optional[str] = None
+    motivo_egreso: Optional[str] = None
     fecha_registro: str
     edad: int

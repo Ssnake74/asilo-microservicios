@@ -45,6 +45,15 @@ TABLAS_CATALOGO = (
 )
 
 
+# (clave, tabla de asilo_cobros, columna donde va la marca)
+TABLAS_FINANZAS = (
+    ("cuotas", "cuotas_mensuales", "paciente_nombre"),
+    ("donaciones", "donaciones", "origen"),
+    ("gastos", "gastos", "descripcion"),
+    ("pagos a la fundación", "pagos_fundacion", "descripcion"),
+)
+
+
 def _ids(filas: list[dict], campo: str = "id") -> list:
     return [f[campo] for f in filas]
 
@@ -119,7 +128,14 @@ def datos_de_prueba(ctx) -> dict[str, list[dict]]:
     fichas = root.consulta(
         "SELECT id FROM asilo_clinico.fichas_medicas WHERE paciente_nombre LIKE %s", (MARCA_LIKE,)
     )
+    # Entradas y salidas: no tienen operacion de borrado y llevan la marca
+    # en el texto que las describe.
+    finanzas = {
+        clave: root.consulta(f"SELECT id FROM asilo_cobros.{tabla} WHERE {campo} LIKE %s", (MARCA_LIKE,))
+        for clave, tabla, campo in TABLAS_FINANZAS
+    }
     return {
+        **finanzas,
         "fichas": fichas,
         "usuarios": usuarios,
         "solicitudes": solicitudes,
@@ -251,6 +267,10 @@ def limpiar(ctx) -> bool:
             for clave, tabla in TABLAS_CATALOGO
         ),
         ("usuarios", "asilo_gateway.usuarios", "Usuarios (el sistema no los borra: los desactiva)"),
+        *(
+            (clave, f"asilo_cobros.{tabla}", f"{clave.capitalize()} (no tienen operación de borrado)")
+            for clave, tabla, _ in TABLAS_FINANZAS
+        ),
     ]
     # La atencion medica no tiene operacion de borrado. Sus tablas van de
     # las hojas a la raiz por las llaves foraneas.
@@ -398,7 +418,8 @@ def limpiar(ctx) -> bool:
             f"El sistema quedó como estaba: los {len(contenedores)} contenedores en su estado inicial "
             f"({', '.join(sorted(set(contenedores.values())))}), sin cuentas bloqueadas "
             f"({intentos_final} intentos fallidos guardados, igual que al empezar), sin "
-            "internos, remisiones, visitas, fichas, tarifas, cargos, usuarios ni correos de prueba, la "
+            "internos, remisiones, visitas, fichas, tarifas, cargos, cuotas, donaciones, gastos, "
+            "pagos, usuarios ni correos de prueba, la "
             f"bitácora con sus {bitacora} filas originales y los contadores en su valor inicial.",
             sangria="     ",
         )

@@ -347,7 +347,7 @@ async function listar(){
         <div class="ficha-cab">
           <span class="ficha-cod">${texto(p.codigo)}</span>
           ${p.cubierto_fundacion ? '<span class="etiqueta fund">FUNDACIÓN</span>' : ""}
-          ${p.estado !== "ACTIVO" ? `<span class="etiqueta">${texto(p.estado)}</span>` : ""}
+          ${p.estado !== "ACTIVO" ? `<span class="etiqueta">${ESTADO_INTERNO[p.estado] || texto(p.estado)}</span>` : ""}
         </div>
         <h3>${texto(p.nombres)} ${texto(p.apellidos)}</h3>
         <div class="ficha-datos">
@@ -356,7 +356,9 @@ async function listar(){
           <span>Familiar: <b>${texto(p.familiar_nombre)}</b>${p.familiar_parentesco ? " (" + texto(p.familiar_parentesco) + ")" : ""} · ${texto(p.familiar_telefono)}</span>
           ${p.padecimientos ? `<span>Padecimientos: ${texto(p.padecimientos)}</span>` : ""}
           ${p.alergias ? `<span>Alergias: ${texto(p.alergias)}</span>` : ""}
+          ${p.estado !== "ACTIVO" ? `<span><b>${p.estado === "FALLECIDO" ? "Falleció" : "Egresó"} el ${texto(p.fecha_egreso) || "—"}</b>${p.motivo_egreso ? " · " + texto(p.motivo_egreso) : ""}</span>` : ""}
         </div>
+        ${puedeModificar ? bloqueEgreso(p) : ""}
         <button class="mini peligro"
                 onclick="eliminar('${texto(p.codigo)}','${texto(p.nombres + " " + p.apellidos).replace(/'/g, "\\'")}')">
           Eliminar ficha
@@ -366,6 +368,60 @@ async function listar(){
     contenedor.innerHTML = `<p class="vacio">${e.message}</p>`;
     porId("conteo").textContent = "";
   }
+}
+
+// RF-13: el interno que sale del asilo o fallece no se borra. Cambia de
+// estado, se anota cuando y por que, y su historial queda intacto.
+const ESTADO_INTERNO = { EGRESADO: "Egresado", FALLECIDO: "Fallecido" };
+let puedeModificar = false;
+
+function bloqueEgreso(p){
+  const c = texto(p.codigo);
+  if(p.estado !== "ACTIVO"){
+    return `<button class="mini secundario" onclick="cambiarEstado('${c}', 'ACTIVO')">Registrar reingreso</button>`;
+  }
+  return `
+    <details class="plegable">
+      <summary>Registrar egreso o fallecimiento</summary>
+      <div class="rejilla">
+        <div class="campo">
+          <label for="eg-estado-${c}">Qué ocurrió</label>
+          <select id="eg-estado-${c}">
+            <option value="EGRESADO">Egreso del asilo</option>
+            <option value="FALLECIDO">Fallecimiento</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="eg-fecha-${c}">Fecha</label>
+          <input id="eg-fecha-${c}" type="date" max="${new Date().toISOString().slice(0, 10)}">
+          <div class="pista">Si se deja vacía, es hoy.</div>
+        </div>
+        <div class="campo">
+          <label for="eg-motivo-${c}">Motivo</label>
+          <input id="eg-motivo-${c}" placeholder="Traslado con su familia" autocomplete="off">
+        </div>
+      </div>
+      <div class="acciones">
+        <button class="mini" onclick="cambiarEstado('${c}', null)">Registrar</button>
+      </div>
+    </details>`;
+}
+
+async function cambiarEstado(codigo, estado){
+  const cuerpo = estado === "ACTIVO" ? { estado } : {
+    estado: porId(`eg-estado-${codigo}`).value,
+    fecha_egreso: porId(`eg-fecha-${codigo}`).value || null,
+    motivo_egreso: porId(`eg-motivo-${codigo}`).value.trim() || null
+  };
+  try{
+    const p = await api("/api/pacientes/" + encodeURIComponent(codigo), { method: "PUT", body: JSON.stringify(cuerpo) });
+    avisar("aviso-lista", p.estado === "ACTIVO"
+      ? `${p.nombres} ${p.apellidos} vuelve a estar en el asilo.`
+      : `Quedó registrado: ${p.nombres} ${p.apellidos} ${p.estado === "FALLECIDO" ? "falleció" : "egresó"} el ${p.fecha_egreso}. Su historial se conserva.`);
+  }catch(e){
+    avisar("aviso-lista", typeof e.detalle === "string" ? e.detalle : e.message, false);
+  }
+  listar();
 }
 
 async function eliminar(codigo, nombre){
@@ -388,6 +444,7 @@ async function eliminar(codigo, nombre){
   });
   if(!yo) return;
 
+  puedeModificar = (yo.gestiona || []).includes("pacientes");
   listar();
 })();
 </script>

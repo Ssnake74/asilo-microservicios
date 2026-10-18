@@ -5,7 +5,8 @@ Al convertir una solicitud en visita, le pide a ms-cobros el cargo de la
 consulta con el descuento de la fundacion ya aplicado.
 
 Si cobros no responde, la visita se registra igual y el cargo queda
-pendiente (RNF-12): un microservicio no debe tumbar al otro.
+pendiente (RNF-12): un microservicio no debe tumbar al otro. El
+reintento de esos cargos (RNF-13) vive en main.py.
 """
 
 import os
@@ -37,6 +38,14 @@ def _buscar_tarifa_de_especialista(cliente: httpx.Client) -> int | None:
         if "especialista" in tarifa["concepto"].lower():
             return tarifa["id"]
     return tarifas[0]["id"]
+
+
+def cobros_responde() -> bool:
+    """Pregunta rapida antes de reintentar, para no esperar el limite por cada visita."""
+    try:
+        return httpx.get(f"{MS_COBROS_URL}/health", timeout=TIMEOUT).status_code == 200
+    except httpx.RequestError:
+        return False
 
 
 def generar_cargo_consulta(
@@ -88,5 +97,5 @@ def generar_cargo_consulta(
     except httpx.RequestError:
         return None, (
             "El servicio de cobros no respondió. La visita quedó registrada y el "
-            "cargo deberá generarse cuando el servicio vuelva a estar disponible."
+            "cargo se generará solo cuando el servicio vuelva a estar disponible."
         )

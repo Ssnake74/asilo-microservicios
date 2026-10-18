@@ -10,6 +10,8 @@ HTTP y aplica las reglas; el SQL vive en db.py.
 Puerto: 8081
 """
 
+import asyncio
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
@@ -21,7 +23,7 @@ from .cliente_catalogo import (
     obtener_especialidad,
     obtener_medico,
 )
-from .cliente_cobros import generar_cargo_consulta
+from .cliente_cobros import cobros_responde, generar_cargo_consulta
 from .notificaciones import avisar_al_familiar
 from .reglas import (
     especialidades_coinciden,
@@ -37,11 +39,62 @@ from .schemas import (
 )
 
 
+# ---------------------------------------------------------------------
+# Reintento de los cargos pendientes (RNF-13)
+#
+# Cada tantos segundos se buscan las visitas que quedaron sin cargo
+# porque cobros no respondia, y si cobros ya responde se les genera.
+#
+# Una visita se reintenta solo si ya estaba pendiente en la vuelta
+# anterior: la que se esta convirtiendo en este momento todavia espera la
+# respuesta de cobros, y reintentarla daria un cargo doble.
+# ---------------------------------------------------------------------
+
+SEGUNDOS_ENTRE_REINTENTOS = float(os.getenv("REINTENTO_SEGUNDOS", "15"))
+
+
+def reintentar_cargos(vistas_antes: set[int]) -> set[int]:
+    """Una vuelta del reintento. Devuelve las visitas pendientes que vio."""
+    pendientes = db.visitas_sin_cargo()
+    vistas_ahora = {v["id"] for v in pendientes}
+    if not pendientes or not cobros_responde():
+        return vistas_ahora
+    for visita in pendientes:
+        if visita["id"] not in vistas_antes:
+            continue
+        cargo_id, _ = generar_cargo_consulta(
+            paciente_id=visita["paciente_id"],
+            paciente_nombre=visita["paciente_nombre"],
+            familiar_email=visita["familiar_email"],
+            cubierto_fundacion=visita["cubierto_fundacion"],
+            referencia=f"VISITA-{visita['id']}",
+        )
+        if cargo_id is not None:
+            db.registrar_cargo_en_visita(visita["id"], cargo_id)
+            vistas_ahora.discard(visita["id"])
+            print(f"[ms-solicitudes] Cargo {cargo_id} generado al reintentar la visita {visita['id']}.",
+                  flush=True)
+    return vistas_ahora
+
+
+async def bucle_de_reintentos() -> None:
+    vistas: set[int] = set()
+    while True:
+        await asyncio.sleep(SEGUNDOS_ENTRE_REINTENTOS)
+        try:
+            vistas = await asyncio.to_thread(reintentar_cargos, vistas)
+        except Exception as error:
+            # Un tropiezo con la base no debe matar el reintento para siempre.
+            print(f"[ms-solicitudes] Reintento de cargos fallido: {error}", flush=True)
+
+
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
-    """Prepara la base al arrancar el servicio."""
+    """Prepara la base al arrancar y deja corriendo el reintento de cargos."""
     db.init_db()
+    tarea = asyncio.create_task(bucle_de_reintentos())
     yield
+    tarea.cancel()
 
 
 app = FastAPI(

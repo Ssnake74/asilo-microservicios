@@ -277,7 +277,7 @@ async function anular(id, nombre){
       false);
   }
 
-  internos = await llenarInternos("s-interno");
+  internos = await llenarInternos("s-interno", { soloActivos: true });
   if(!internos.length){
     avisar("aviso-solicitud",
       "Todavía no hay internos registrados. Pida a la secretaría que abra la ficha del interno antes de remitirlo.",

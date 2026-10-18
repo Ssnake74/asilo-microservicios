@@ -73,6 +73,9 @@
    con las visitas y con las remisiones, y el especialista ve las visitas
    pero no las remisiones.
 
+   «alguno» sirve para una pantalla con varias secciones: aparece si la
+   persona puede ver al menos una.
+
    «rol» marca las pantallas que no salen de un recurso del sistema sino
    de un puesto: la de usuarios es solo del administrador.
 
@@ -197,6 +200,18 @@ const MODULOS = [
     }
   },
   {
+    alguno:  ["cuotas", "donaciones", "gastos", "fundacion"],
+    titulo:  "Entradas, salidas y fundación",
+    texto:   "Cuotas de los familiares, donaciones, gastos del asilo y la cuenta con la fundación.",
+    enlace:  "/finanzas.html",
+    cifra:   async () => {
+      const d = await apiSilenciosa("/api/fundacion/deuda");
+      if(d) return { valor: q(d.saldo), pie: "se le debe a la fundación" };
+      const cuotas = await apiSilenciosa("/api/cuotas?estado=PENDIENTE");
+      return cuotas && { valor: cuotas.length, pie: cuotas.length === 1 ? "cuota por cobrar" : "cuotas por cobrar" };
+    }
+  },
+  {
     rol:     "ADMIN",
     titulo:  "Usuarios del sistema",
     texto:   "Cuentas del personal: altas, contraseñas olvidadas, cambios de puesto y bajas.",
@@ -234,6 +249,8 @@ function dibujarModulo(m, cifra){
 
   const visibles = MODULOS.filter(m => (m.rol
     ? yo.rol === m.rol
+    : m.alguno
+      ? m.alguno.some(r => yo.recursos.includes(r))
     : m.gestiona
       ? (yo.gestiona || []).includes(m.recurso)
       : yo.recursos.includes(m.recurso))

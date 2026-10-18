@@ -460,11 +460,15 @@ function insignia(estado, diccionario) {
  * Llena un <select> con los internos registrados.
  *
  * Devuelve las fichas, para poder consultar despues el nombre del
- * interno o si le cubre la fundacion.
+ * interno o si le cubre la fundacion. Con soloActivos deja fuera a los
+ * que egresaron o fallecieron.
  */
-async function llenarInternos(idSelect, { vacio = "— Seleccione al interno —" } = {}) {
+async function llenarInternos(idSelect, { vacio = "— Seleccione al interno —", soloActivos = false } = {}) {
   const selector = porId(idSelect);
-  const internos = await apiSilenciosa("/api/pacientes", []);
+  // Para remitir o cobrar la cuota solo cuentan los que siguen en el
+  // asilo; las cuentas y el historial muestran tambien a los que salieron.
+  const todos = await apiSilenciosa("/api/pacientes", []);
+  const internos = soloActivos ? todos.filter(p => p.estado === "ACTIVO") : todos;
 
   selector.innerHTML = `<option value="">${vacio}</option>` + internos.map(p =>
     `<option value="${texto(p.codigo)}">${texto(p.codigo)} · ${texto(p.nombres)} ${texto(p.apellidos)}</option>`

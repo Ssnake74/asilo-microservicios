@@ -270,7 +270,7 @@ tr:last-child td{border-bottom:none;}
   padding:2px 8px; border-radius:4px; white-space:nowrap; display:inline-block;
 }
 .estado.pendiente{background:var(--advertencia-fondo);color:var(--advertencia-texto);}
-.estado.convertida,.estado.pagado,.estado.programada,.estado.completada,.estado.despachada{background:var(--exito-fondo);color:var(--exito);}
+.estado.convertida,.estado.pagado,.estado.pagada,.estado.programada,.estado.completada,.estado.despachada{background:var(--exito-fondo);color:var(--exito);}
 .estado.anulada,.estado.anulado{background:var(--error-fondo);color:var(--error);}
 
 .vacio{color:var(--texto-suave);font-size:15px;font-style:italic;padding:16px 0;}

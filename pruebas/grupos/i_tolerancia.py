@@ -154,20 +154,24 @@ def ejecutar(ctx) -> None:
     with rep.caso(
         "El cargo pendiente se genera solo cuando cobros vuelve",
         "RNF-13",
-        "La visita programada durante la caída recibe su cargo automáticamente",
+        "La visita programada durante la caída recibe su cargo automáticamente, en "
+        "menos de un minuto, y un solo cargo",
     ) as c:
-        c.pendiente = True
-        c.motivo_pendiente = (
-            "el ERS declara que la regeneración automática del cargo aún no está "
-            "implementada (CU-08, flujo alterno); mientras tanto el cargo se genera "
-            "desde la pantalla de cuentas."
-        )
         if visita_sin_cargo is None:
             raise RuntimeError("no se llegó a crear la visita durante la caída")
-        time.sleep(5)  # margen razonable para un reintento automático
-        v = gw.get("FUNDACION", f"/api/visitas/{visita_sin_cargo['id']}").json()
+        # El reintento corre cada 15 s y espera ver la visita pendiente dos
+        # vueltas seguidas: en el peor caso tarda unos 30 s.
+        inicio = time.time()
+        while True:
+            v = gw.get("FUNDACION", f"/api/visitas/{visita_sin_cargo['id']}").json()
+            if v["cargo_generado"] or time.time() - inicio > 60:
+                break
+            time.sleep(3)
+        referencia = f"VISITA-{visita_sin_cargo['id']}"
+        cargos = [x for x in gw.get("CAJA", "/api/cargos", params={"paciente_id": paciente["codigo"]}).json()
+                  if x["referencia"] == referencia]
         c.obtenido = (
-            f"visita {v['id']} tras la recuperación: cargo_generado={v['cargo_generado']}, "
-            f"cargo_id={v['cargo_id']}"
+            f"visita {v['id']} a los {time.time() - inicio:.0f} s: cargo_generado={v['cargo_generado']}, "
+            f"cargo_id={v['cargo_id']} · cargos con la referencia {referencia}: {len(cargos)}"
         )
-        c.pasa = v["cargo_generado"] is True
+        c.pasa = v["cargo_generado"] is True and len(cargos) == 1

@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS pacientes (
     alergias            VARCHAR(200) NULL,
     cubierto_fundacion  BOOLEAN      NOT NULL DEFAULT TRUE,
     estado              VARCHAR(12)  NOT NULL DEFAULT 'ACTIVO',
+    fecha_egreso        DATE         NULL,
+    motivo_egreso       VARCHAR(300) NULL,
     fecha_registro      DATETIME     NOT NULL,
     INDEX idx_estado (estado),
     INDEX idx_apellidos (apellidos)
@@ -79,7 +81,15 @@ CREATE TABLE IF NOT EXISTS pacientes (
 CAMPOS_ACTUALIZABLES = {
     "habitacion", "familiar_nombre", "familiar_parentesco", "familiar_telefono",
     "familiar_email", "padecimientos", "alergias", "cubierto_fundacion", "estado",
+    "fecha_egreso", "motivo_egreso",
 }
+
+# Columnas del egreso (RF-13). CREATE TABLE IF NOT EXISTS no toca una
+# tabla que ya existe, asi que a las bases anteriores se les agregan aqui.
+COLUMNAS_DEL_EGRESO = [
+    ("fecha_egreso", "ALTER TABLE pacientes ADD COLUMN fecha_egreso DATE NULL AFTER estado"),
+    ("motivo_egreso", "ALTER TABLE pacientes ADD COLUMN motivo_egreso VARCHAR(300) NULL AFTER fecha_egreso"),
+]
 
 
 def init_db(intentos: int = 15, espera: float = 3.0) -> None:
@@ -96,6 +106,16 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
             with conn:
                 with conn.cursor() as cur:
                     cur.execute(SCHEMA)
+                    for columna, alter in COLUMNAS_DEL_EGRESO:
+                        cur.execute(
+                            """SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+                               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pacientes'
+                                 AND COLUMN_NAME = %s""",
+                            (columna,),
+                        )
+                        if cur.fetchone()["n"] == 0:
+                            cur.execute(alter)
+                            print(f"[ms-pacientes] Columna {columna} agregada.", flush=True)
                 conn.commit()
             print(f"[ms-pacientes] Conectado a MySQL en el intento {intento}.")
             return

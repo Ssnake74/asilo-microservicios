@@ -481,3 +481,41 @@ def contar_pendientes() -> dict:
             cur.execute("SELECT COUNT(*) AS n FROM recetas WHERE estado = %s", (PENDIENTE,))
             recetas = cur.fetchone()["n"]
     return {"examenes_pendientes": examenes, "recetas_pendientes": recetas}
+
+
+# =====================================================================
+# Cobros que quedaron pendientes (RNF-13)
+#
+# Solo los que tienen precio: un examen o medicamento sin concepto del
+# tarifario no tiene nada que reintentar.
+# =====================================================================
+
+FICHA_PARA_COBRAR = "f.paciente_id, f.paciente_nombre, f.familiar_email, f.cubierto_fundacion"
+
+
+def ordenes_sin_cargo() -> list[dict]:
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""SELECT o.id, o.examen, o.tarifa_id, {FICHA_PARA_COBRAR}
+                    FROM ordenes_examen o JOIN fichas_medicas f ON f.id = o.ficha_id
+                    WHERE o.estado = %s AND o.tarifa_id IS NOT NULL AND o.cargo_generado = FALSE""",
+                (COMPLETADA,),
+            )
+            return [_normalizar(f) for f in cur.fetchall()]
+
+
+def despachos_sin_cargo() -> list[dict]:
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""SELECT d.id, d.receta_id, d.cantidad_despachada, re.medicamento, re.tarifa_id,
+                           {FICHA_PARA_COBRAR}
+                    FROM despachos d
+                    JOIN recetas re ON re.id = d.receta_id
+                    JOIN fichas_medicas f ON f.id = re.ficha_id
+                    WHERE re.tarifa_id IS NOT NULL AND d.cargo_generado = FALSE"""
+            )
+            return [_normalizar(f) for f in cur.fetchall()]

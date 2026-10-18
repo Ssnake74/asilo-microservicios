@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 
 from . import db
-from .reglas import calcular_edad, ingreso_es_coherente
+from .reglas import calcular_edad, fecha_de_egreso, ingreso_es_coherente
 from .schemas import Paciente, PacienteActualizar, PacienteCrear
 
 
@@ -37,6 +37,22 @@ def con_edad(paciente: dict) -> dict:
     """Agrega la edad calculada, que no se guarda en la base."""
     paciente["edad"] = calcular_edad(paciente["fecha_nacimiento"])
     return paciente
+
+
+def datos_de_egreso(actual: dict, cambios: dict) -> dict:
+    """
+    Al pasar a EGRESADO o FALLECIDO se anota cuando y por que; al volver a
+    ACTIVO (un reingreso) se borran. La ficha y su historial no se tocan
+    en ningun caso (RF-13).
+    """
+    if cambios["estado"] == "ACTIVO":
+        return {"fecha_egreso": None, "motivo_egreso": None}
+    try:
+        fecha = fecha_de_egreso(cambios.get("fecha_egreso"), actual["fecha_ingreso"])
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    motivo = " ".join((cambios.get("motivo_egreso") or "").split()) or None
+    return {"fecha_egreso": fecha, "motivo_egreso": motivo}
 
 
 # ---------------------------------------------------------------- salud
@@ -100,6 +116,20 @@ def actualizar_paciente(codigo: str, datos: PacienteActualizar):
     cambios = datos.model_dump(exclude_unset=True)
     if not cambios:
         raise HTTPException(status_code=400, detail="No se enviaron campos por actualizar.")
+
+    if cambios.get("estado") is None:
+        cambios.pop("estado", None)
+    if "estado" not in cambios:
+        # Fecha y motivo de egreso solo viajan con el cambio de estado.
+        cambios.pop("fecha_egreso", None)
+        cambios.pop("motivo_egreso", None)
+        if not cambios:
+            raise HTTPException(status_code=400, detail="No se enviaron campos por actualizar.")
+    else:
+        actual = db.obtener_por_codigo(codigo)
+        if actual is None:
+            raise HTTPException(status_code=404, detail="No existe un interno con ese código.")
+        cambios.update(datos_de_egreso(actual, cambios))
 
     paciente = db.actualizar(codigo, cambios)
     if paciente is None:

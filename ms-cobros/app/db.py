@@ -72,6 +72,65 @@ CREATE TABLE IF NOT EXISTS cargos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
 
+# ---------------------------------------------------------------------
+# Entradas y salidas del asilo (seccion 17.3 del ERS, mas los pagos a la
+# fundacion). Ninguna tiene llave foranea: la cuota apunta al interno de
+# otro esquema, y donaciones, gastos y pagos no dependen de nada.
+#
+# Una cuota por interno y por mes: el UNIQUE lo impone el motor, aunque
+# dos personas de caja generen las cuotas del mes al mismo tiempo.
+# ---------------------------------------------------------------------
+
+SCHEMA_FINANZAS = [
+    """
+    CREATE TABLE IF NOT EXISTS cuotas_mensuales (
+        id               INT AUTO_INCREMENT PRIMARY KEY,
+        paciente_id      VARCHAR(40)   NOT NULL,
+        paciente_nombre  VARCHAR(120)  NOT NULL,
+        familiar_email   VARCHAR(120)  NULL,
+        periodo          CHAR(7)       NOT NULL,
+        monto            DECIMAL(10,2) NOT NULL,
+        estado           VARCHAR(12)   NOT NULL DEFAULT 'PENDIENTE',
+        fecha_registro   DATETIME      NOT NULL,
+        fecha_pago       DATETIME      NULL,
+        UNIQUE KEY uq_cuota_mes (paciente_id, periodo),
+        INDEX idx_periodo (periodo)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS donaciones (
+        id            INT AUTO_INCREMENT PRIMARY KEY,
+        origen        VARCHAR(120)  NOT NULL,
+        tipo_donante  VARCHAR(30)   NOT NULL,
+        monto         DECIMAL(10,2) NOT NULL,
+        fecha         DATE          NOT NULL,
+        descripcion   VARCHAR(300)  NULL,
+        INDEX idx_fecha (fecha)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS gastos (
+        id           INT AUTO_INCREMENT PRIMARY KEY,
+        categoria    VARCHAR(30)   NOT NULL,
+        monto        DECIMAL(10,2) NOT NULL,
+        fecha        DATE          NOT NULL,
+        descripcion  VARCHAR(300)  NOT NULL,
+        comprobante  VARCHAR(60)   NULL,
+        INDEX idx_fecha (fecha)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS pagos_fundacion (
+        id           INT AUTO_INCREMENT PRIMARY KEY,
+        monto        DECIMAL(10,2) NOT NULL,
+        fecha        DATE          NOT NULL,
+        descripcion  VARCHAR(300)  NULL,
+        comprobante  VARCHAR(60)   NULL,
+        INDEX idx_fecha (fecha)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+]
+
 # Tarifas iniciales para poder demostrar el sistema sin cargar datos a mano.
 TARIFAS_SEMILLA = [
     ("Consulta con médico general", "CITA", "75.00", "60.00"),
@@ -116,6 +175,8 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
                     # porque cargos tiene una llave foranea hacia ella.
                     cur.execute(SCHEMA_TARIFAS)
                     cur.execute(SCHEMA_CARGOS)
+                    for tabla in SCHEMA_FINANZAS:
+                        cur.execute(tabla)
                     cur.execute("SELECT COUNT(*) AS n FROM tarifas")
                     if cur.fetchone()["n"] == 0:
                         cur.executemany(
@@ -381,3 +442,159 @@ def totales_paciente(paciente_id: str) -> dict:
     resultado["paciente_nombre"] = identidad["paciente_nombre"] if identidad else None
     resultado["familiar_email"] = identidad["familiar_email"] if identidad else None
     return resultado
+
+
+# =====================================================================
+# Cuotas mensuales (RF-33)
+# =====================================================================
+
+class CuotaRepetida(Exception):
+    """Ese interno ya tiene la cuota de ese mes."""
+
+
+def listar_cuotas(periodo: str | None = None, paciente_id: str | None = None,
+                  estado: str | None = None) -> list[dict]:
+    sql = "SELECT * FROM cuotas_mensuales WHERE 1 = 1"
+    params: list = []
+    for campo, valor in (("periodo", periodo), ("paciente_id", paciente_id), ("estado", estado)):
+        if valor:
+            sql += f" AND {campo} = %s"
+            params.append(valor.upper() if campo == "estado" else valor)
+    sql += " ORDER BY periodo DESC, paciente_nombre"
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [_normalizar(f) for f in cur.fetchall()]
+
+
+def obtener_cuota(cuota_id: int) -> dict | None:
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM cuotas_mensuales WHERE id = %s", (cuota_id,))
+            return _normalizar(cur.fetchone())
+
+
+def crear_cuotas(periodo: str, monto: str, internos: list[dict]) -> tuple[list[int], int]:
+    """
+    Crea la cuota del mes a cada interno que todavia no la tenga. Devuelve
+    los id creados y cuantos ya la tenian; los que ya la tenian no cambian.
+    """
+    creadas, repetidas = [], 0
+    ahora = datetime.now().replace(microsecond=0)
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            for interno in internos:
+                filas = cur.execute(
+                    """INSERT IGNORE INTO cuotas_mensuales
+                       (paciente_id, paciente_nombre, familiar_email, periodo, monto, estado, fecha_registro)
+                       VALUES (%s, %s, %s, %s, %s, 'PENDIENTE', %s)""",
+                    (interno["paciente_id"], interno["paciente_nombre"], interno.get("familiar_email"),
+                     periodo, monto, ahora),
+                )
+                if filas:
+                    creadas.append(cur.lastrowid)
+                else:
+                    repetidas += 1
+        conn.commit()
+    return creadas, repetidas
+
+
+def pagar_cuota(cuota_id: int) -> bool:
+    """False si la cuota ya estaba pagada: nunca se cobra dos veces."""
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cambiadas = cur.execute(
+                """UPDATE cuotas_mensuales SET estado = 'PAGADA', fecha_pago = %s
+                   WHERE id = %s AND estado = 'PENDIENTE'""",
+                (datetime.now().replace(microsecond=0), cuota_id),
+            )
+        conn.commit()
+    return cambiadas > 0
+
+
+def anular_cuota(cuota_id: int) -> bool:
+    """Solo una pendiente: una cuota pagada es dinero que ya entro."""
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            borradas = cur.execute(
+                "DELETE FROM cuotas_mensuales WHERE id = %s AND estado = 'PENDIENTE'", (cuota_id,)
+            )
+        conn.commit()
+    return borradas > 0
+
+
+# =====================================================================
+# Donaciones, gastos y pagos a la fundacion (RF-34 a RF-36)
+#
+# Las tres tablas tienen la misma forma de consulta: por rango de fechas,
+# de la mas reciente a la mas vieja.
+# =====================================================================
+
+COLUMNAS = {
+    "donaciones": ("origen", "tipo_donante", "monto", "fecha", "descripcion"),
+    "gastos": ("categoria", "monto", "fecha", "descripcion", "comprobante"),
+    "pagos_fundacion": ("monto", "fecha", "descripcion", "comprobante"),
+}
+
+
+def registrar(tabla: str, datos: dict) -> dict:
+    columnas = COLUMNAS[tabla]
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"INSERT INTO {tabla} ({', '.join(columnas)}) VALUES ({', '.join(['%s'] * len(columnas))})",
+                tuple(datos.get(c) for c in columnas),
+            )
+            nuevo = cur.lastrowid
+            cur.execute(f"SELECT * FROM {tabla} WHERE id = %s", (nuevo,))
+            fila = cur.fetchone()
+        conn.commit()
+    return _normalizar(fila)
+
+
+def listar(tabla: str, desde: str | None = None, hasta: str | None = None) -> list[dict]:
+    if tabla not in COLUMNAS:
+        raise ValueError(tabla)
+    sql = f"SELECT * FROM {tabla} WHERE 1 = 1"
+    params: list = []
+    if desde:
+        sql += " AND fecha >= %s"
+        params.append(desde)
+    if hasta:
+        sql += " AND fecha <= %s"
+        params.append(hasta)
+    sql += " ORDER BY fecha DESC, id DESC"
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [_normalizar(f) for f in cur.fetchall()]
+
+
+def deuda_con_la_fundacion() -> dict:
+    """
+    Las sumas las hace MySQL en DECIMAL; la resta del saldo la hace
+    reglas.py en Decimal, antes de pasar a float (RNF-15).
+    """
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT
+                       COALESCE(SUM(monto_neto), 0) AS total_servicios,
+                       COALESCE(SUM(CASE WHEN tipo = 'CITA' THEN monto_neto END), 0) AS consultas,
+                       COALESCE(SUM(CASE WHEN tipo = 'EXAMEN' THEN monto_neto END), 0) AS examenes,
+                       COALESCE(SUM(CASE WHEN tipo = 'MEDICAMENTO' THEN monto_neto END), 0) AS medicamentos,
+                       COALESCE(SUM(tipo = 'CITA' AND estado = 'PENDIENTE'), 0) AS citas_por_cobrar
+                   FROM cargos"""
+            )
+            totales = cur.fetchone()
+            cur.execute("SELECT COALESCE(SUM(monto), 0) AS pagado FROM pagos_fundacion")
+            totales["total_pagado"] = cur.fetchone()["pagado"]
+    return totales

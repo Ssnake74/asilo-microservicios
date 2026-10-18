@@ -371,3 +371,21 @@ def obtener_visita(visita_id: int) -> dict | None:
             cur.execute("SELECT * FROM visitas WHERE id = %s", (visita_id,))
             fila = cur.fetchone()
     return _normalizar_visita(fila)
+
+
+def visitas_sin_cargo() -> list[dict]:
+    """
+    Visitas cuyo cargo no se pudo generar, con lo que hace falta para
+    pedirlo otra vez (RNF-13). El JOIN es valido: las dos tablas viven en
+    asilo_solicitudes.
+    """
+    conn = get_conn()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT v.id, s.paciente_id, s.paciente_nombre, s.familiar_email,
+                          s.cubierto_fundacion
+                   FROM visitas v JOIN solicitudes s ON s.id = v.solicitud_id
+                   WHERE v.cargo_generado = FALSE AND v.cargo_id IS NULL"""
+            )
+            return [_normalizar(f, ("cubierto_fundacion",)) for f in cur.fetchall()]

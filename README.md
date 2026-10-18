@@ -30,15 +30,16 @@ MySQL 8: un esquema y un usuario por servicio
 | `gateway` | Sirve las pantallas, abre la sesión, decide qué puede hacer cada rol, reenvía la petición al servicio que corresponde y lleva la bitácora. |
 | `ms-pacientes` | Registro de los internos y de su familiar responsable. |
 | `ms-solicitudes` | Remisiones del médico general y su conversión en visita médica. Avisa por correo al familiar. |
-| `ms-cobros` | Tarifario, cargos con el descuento de la fundación y estado de cuenta. |
+| `ms-cobros` | Tarifario, cargos con el descuento de la fundación y estado de cuenta. También las entradas y salidas del asilo: cuotas mensuales, donaciones, gastos y la cuenta con la fundación. |
 | `ms-catalogo` | Especialidades, médicos, enfermeros, exámenes y medicamentos de la fundación. |
 | `ms-clinico` | Ficha médica de la visita, exámenes y sus resultados, recetas y su despacho, e historial del interno. Cobra lo que el laboratorio hizo y la farmacia entregó. |
 
 - El gateway es la única entrada: los microservicios no publican puerto (RNF-03).
 - Cada servicio entra a MySQL con su propio usuario y solo ve su esquema. Lo impone
   el motor, no el código (RNF-04).
-- Si `ms-cobros` no responde, la visita se registra igual y queda pendiente de cobro
-  (RNF-12).
+- Si `ms-cobros` no responde, la visita, el resultado o el despacho se registran
+  igual y quedan pendientes de cobro (RNF-12). Cuando cobros vuelve, el cargo se
+  genera solo (RNF-13).
 - La remisión y la visita eligen especialidad, médico y enfermero del catálogo, y la
   regla RN-05 compara identificadores. Sin el catálogo no se puede comprobar esa
   regla, así que una remisión o visita que lo usa espera a que responda.
@@ -79,6 +80,7 @@ declaran en cada Container App, y las claves como secretos (RNF-21).
 | `MS_SOLICITUDES_URL`, `MS_CATALOGO_URL`, `MS_COBROS_URL` | `ms-clinico` | Visita que se atiende, examen o medicamento del catálogo, y cobro de lo hecho |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_REMITENTE` | `ms-solicitudes` | Servidor de correo y remitente |
 | `SMTP_USUARIO`, `SMTP_CLAVE` | `ms-solicitudes` | Activan STARTTLS y el inicio de sesión en el servidor de correo |
+| `REINTENTO_SEGUNDOS` | `ms-solicitudes`, `ms-clinico` | Cada cuánto se reintentan los cargos pendientes; por omisión 15 |
 
 ### Publicación de imágenes
 
@@ -170,6 +172,7 @@ Todas entran por el gateway.
 | `/api/pacientes` | `ms-pacientes` |
 | `/api/solicitudes`, `/api/visitas` | `ms-solicitudes` |
 | `/api/tarifas`, `/api/cargos`, `/api/estado-cuenta` | `ms-cobros` |
+| `/api/cuotas`, `/api/donaciones`, `/api/gastos`, `/api/fundacion/deuda`, `/api/fundacion/pagos` | `ms-cobros` |
 | `/api/catalogo/especialidades`, `/medicos`, `/enfermeros`, `/examenes`, `/medicamentos` | `ms-catalogo` |
 | `/api/fichas`, `/api/examenes`, `/api/resultados`, `/api/recetas`, `/api/despachos` | `ms-clinico` |
 
@@ -186,7 +189,7 @@ Con el sistema levantado, desde la raíz del repositorio:
 powershell -ExecutionPolicy Bypass -File .\pruebas\ejecutar.ps1
 ```
 
-Son 210 casos en 17 grupos, cada uno ligado al requisito que verifica. El reporte
+Son 218 casos en 18 grupos, cada uno ligado al requisito que verifica. El reporte
 queda en `pruebas/resultado.txt` y lista los casos que fallan y los pendientes
 conocidos.
 
@@ -200,4 +203,8 @@ médico · tarifario · cuentas y cobros · aviso por correo al familiar ·
 administración de usuarios con contraseña temporal · ficha médica, laboratorio,
 farmacia e historial médico con su cobro.
 
-**Pendiente:** donaciones, gastos y cuota mensual · reportes.
+**Construido también:** cuotas mensuales, donaciones, gastos y cuenta con la
+fundación · egreso o fallecimiento del interno conservando su historial ·
+reintento automático de los cargos pendientes.
+
+**Pendiente:** reportes.
