@@ -98,6 +98,7 @@ MS_PACIENTES = os.getenv("MS_PACIENTES_URL", "http://ms-pacientes:8083")
 MS_SOLICITUDES = os.getenv("MS_SOLICITUDES_URL", "http://ms-solicitudes:8081")
 MS_COBROS = os.getenv("MS_COBROS_URL", "http://ms-cobros:8082")
 MS_CATALOGO = os.getenv("MS_CATALOGO_URL", "http://ms-catalogo:8084")
+MS_CLINICO = os.getenv("MS_CLINICO_URL", "http://ms-clinico:8085")
 
 RUTAS: dict[str, tuple[str, str]] = {
     "pacientes":     (MS_PACIENTES,   "/pacientes"),
@@ -108,6 +109,15 @@ RUTAS: dict[str, tuple[str, str]] = {
     "estado-cuenta": (MS_COBROS,      "/estado-cuenta"),
     # El catalogo tiene cinco listas; todas viajan bajo /catalogo.
     "catalogo":      (MS_CATALOGO,    "/catalogo"),
+    # Atencion medica. Ordenar un examen y registrar su resultado son
+    # recursos distintos porque los hacen roles distintos: el permiso se
+    # decide por recurso y metodo, y con un solo recurso el laboratorio
+    # podria ordenar examenes. Igual con recetas y despachos.
+    "fichas":        (MS_CLINICO,     "/fichas"),
+    "examenes":      (MS_CLINICO,     "/examenes"),
+    "resultados":    (MS_CLINICO,     "/resultados"),
+    "recetas":       (MS_CLINICO,     "/recetas"),
+    "despachos":     (MS_CLINICO,     "/despachos"),
 }
 
 # Para el tablero de estado: nombre visible -> URL de su /health
@@ -116,6 +126,7 @@ SERVICIOS = {
     "ms-solicitudes": MS_SOLICITUDES,
     "ms-cobros":      MS_COBROS,
     "ms-catalogo":    MS_CATALOGO,
+    "ms-clinico":     MS_CLINICO,
 }
 
 
@@ -179,7 +190,8 @@ PERMISOS: dict[str, dict[str, set[str]]] = {
         "DELETE": {ADMIN, MEDICO_GENERAL},
     },
     "visitas": {
-        "GET":    {ADMIN, SECRETARIA, MEDICO_GENERAL, FUNDACION},
+        # El especialista ve las visitas para saber a quien atiende.
+        "GET":    {ADMIN, SECRETARIA, MEDICO_GENERAL, FUNDACION, ESPECIALISTA},
     },
     "tarifas": {
         # Todos ven los precios; solo caja los cambia.
@@ -202,6 +214,25 @@ PERMISOS: dict[str, dict[str, set[str]]] = {
         "GET":    TODOS,
         "POST":   {ADMIN, FUNDACION},
         "PUT":    {ADMIN, FUNDACION},
+    },
+    # El historial medico lo leen los medicos; la secretaria y caja no.
+    "fichas": {
+        "GET":    {ADMIN, MEDICO_GENERAL, ESPECIALISTA},
+        "POST":   {ADMIN, ESPECIALISTA},
+    },
+    "examenes": {
+        "GET":    {ADMIN, MEDICO_GENERAL, ESPECIALISTA, LABORATORIO},
+        "POST":   {ADMIN, ESPECIALISTA},
+    },
+    "resultados": {
+        "POST":   {ADMIN, LABORATORIO},
+    },
+    "recetas": {
+        "GET":    {ADMIN, MEDICO_GENERAL, ESPECIALISTA, FARMACIA},
+        "POST":   {ADMIN, ESPECIALISTA},
+    },
+    "despachos": {
+        "POST":   {ADMIN, FARMACIA},
     },
 }
 

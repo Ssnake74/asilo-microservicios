@@ -69,6 +69,10 @@
    catalogo lo leen todos para llenar sus listas, pero lo mantiene la
    fundacion.
 
+   «tambien» es un segundo recurso que hace falta: la asignacion trabaja
+   con las visitas y con las remisiones, y el especialista ve las visitas
+   pero no las remisiones.
+
    «rol» marca las pantallas que no salen de un recurso del sistema sino
    de un puesto: la de usuarios es solo del administrador.
 
@@ -102,6 +106,7 @@ const MODULOS = [
   },
   {
     recurso: "visitas",
+    tambien: "solicitudes",
     titulo:  "Asignación de visitas",
     texto:   "Asignar médico y fecha a los internos que esperan una cita.",
     enlace:  "/asignaciones.html",
@@ -146,6 +151,52 @@ const MODULOS = [
     }
   },
   {
+    recurso: "fichas",
+    gestiona: true,
+    titulo:  "Atención de visitas",
+    texto:   "Diagnóstico de la visita, exámenes que se ordenan y medicamentos que se recetan.",
+    enlace:  "/atencion.html",
+    cifra:   async () => {
+      const [visitas, fichas] = await Promise.all([apiSilenciosa("/api/visitas"), apiSilenciosa("/api/fichas")]);
+      if(!visitas || !fichas) return null;
+      const conFicha = new Set(fichas.map(f => f.visita_id));
+      const faltan = visitas.filter(v => !conFicha.has(v.id)).length;
+      return { valor: faltan, pie: faltan === 1 ? "visita por atender" : "visitas por atender" };
+    }
+  },
+  {
+    recurso: "resultados",
+    gestiona: true,
+    titulo:  "Laboratorio",
+    texto:   "Exámenes ordenados por el especialista y registro de sus resultados.",
+    enlace:  "/laboratorio.html",
+    cifra:   async () => {
+      const ordenes = await apiSilenciosa("/api/examenes?estado=PENDIENTE");
+      return ordenes && { valor: ordenes.length, pie: ordenes.length === 1 ? "examen por hacer" : "exámenes por hacer" };
+    }
+  },
+  {
+    recurso: "despachos",
+    gestiona: true,
+    titulo:  "Farmacia",
+    texto:   "Medicamentos recetados y registro de lo que se entrega.",
+    enlace:  "/farmacia.html",
+    cifra:   async () => {
+      const recetas = await apiSilenciosa("/api/recetas?estado=PENDIENTE");
+      return recetas && { valor: recetas.length, pie: recetas.length === 1 ? "receta por despachar" : "recetas por despachar" };
+    }
+  },
+  {
+    recurso: "fichas",
+    titulo:  "Historial médico",
+    texto:   "Todas las visitas de un interno con su diagnóstico, exámenes y medicamentos.",
+    enlace:  "/historial.html",
+    cifra:   async () => {
+      const fichas = await apiSilenciosa("/api/fichas");
+      return fichas && { valor: fichas.length, pie: fichas.length === 1 ? "ficha médica" : "fichas médicas" };
+    }
+  },
+  {
     rol:     "ADMIN",
     titulo:  "Usuarios del sistema",
     texto:   "Cuentas del personal: altas, contraseñas olvidadas, cambios de puesto y bajas.",
@@ -162,7 +213,6 @@ const MODULOS = [
 // Todavia no existen. Se muestran apagados para que se vea el alcance
 // completo del sistema y lo que falta por hacer.
 const FUTUROS = [
-  { titulo:"Laboratorio y farmacia", texto:"Resultados de exámenes y despacho de medicamentos." },
   { titulo:"Reportes",             texto:"Los siete informes estadísticos que pide el asilo." }
 ];
 
@@ -182,11 +232,12 @@ function dibujarModulo(m, cifra){
   const yo = await iniciarPantalla({ subtitulo: "Sistema de administración" });
   if(!yo) return;
 
-  const visibles = MODULOS.filter(m => m.rol
+  const visibles = MODULOS.filter(m => (m.rol
     ? yo.rol === m.rol
     : m.gestiona
       ? (yo.gestiona || []).includes(m.recurso)
-      : yo.recursos.includes(m.recurso));
+      : yo.recursos.includes(m.recurso))
+    && (!m.tambien || yo.recursos.includes(m.tambien)));
 
   // Se dibujan primero sin numero, para que el menu aparezca de una vez,
   // y las cifras se van poniendo conforme llegan.

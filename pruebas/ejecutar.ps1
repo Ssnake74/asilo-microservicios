@@ -7,7 +7,7 @@
 #
 # Que hace este archivo, y por que esta escrito en PowerShell:
 #
-#   1. Prueba los puertos 8080 a 8084 DESDE WINDOWS. RNF-03 dice que los
+#   1. Prueba los puertos 8080 a 8085 DESDE WINDOWS. RNF-03 dice que los
 #      microservicios no deben ser alcanzables "desde fuera"; probarlo
 #      desde dentro de un contenedor no seria lo mismo.
 #   2. Construye la imagen de pruebas (solo la primera vez tarda).
@@ -68,7 +68,7 @@ function Probar-Puerto([int]$puerto) {
 }
 
 $puertos = @()
-foreach ($p in 8080, 8081, 8082, 8083, 8084) {
+foreach ($p in 8080, 8081, 8082, 8083, 8084, 8085) {
     $estado = if (Probar-Puerto $p) { 'abierto' } else { 'cerrado' }
     if ($p -eq 8080 -and $estado -eq 'abierto') {
         try {

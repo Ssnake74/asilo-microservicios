@@ -6,9 +6,8 @@ solo tiene permiso sobre su esquema. Aqui se comprueba que esa regla la
 impone el MOTOR: se conecta como cada usuario de servicio y se intenta
 entrar a los esquemas ajenos. MySQL debe responder "Access denied".
 
-Las credenciales de los cuatro usuarios en uso se leen de las variables
-de entorno de cada contenedor. Las de u_catalogo y u_clinico, que estan
-reservados para modulos futuros, salen del script de creacion de MySQL.
+Las credenciales de cada usuario se leen de las variables de entorno de
+su contenedor; si no se pueden leer, salen del script de creacion de MySQL.
 """
 
 import re
@@ -27,8 +26,8 @@ USUARIOS = [
     ("u_pacientes", "asilo_pacientes", "asilo-ms-pacientes"),
     ("u_solicitudes", "asilo_solicitudes", "asilo-ms-solicitudes"),
     ("u_gateway", "asilo_gateway", "asilo-gateway"),
-    ("u_catalogo", "asilo_catalogo", None),
-    ("u_clinico", "asilo_clinico", None),
+    ("u_catalogo", "asilo_catalogo", "asilo-ms-catalogo"),
+    ("u_clinico", "asilo_clinico", "asilo-ms-clinico"),
 ]
 
 ESQUEMAS = [esquema for _, esquema, _ in USUARIOS]
@@ -39,6 +38,8 @@ TABLA = {
     "asilo_pacientes": "pacientes",
     "asilo_solicitudes": "solicitudes",
     "asilo_gateway": "usuarios",
+    "asilo_catalogo": "especialidades",
+    "asilo_clinico": "fichas_medicas",
 }
 
 INVISIBLES = {"information_schema", "performance_schema"}

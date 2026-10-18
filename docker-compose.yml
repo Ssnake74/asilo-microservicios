@@ -121,6 +121,37 @@ services:
     restart: unless-stopped
 
   # -------------------------------------------------------------------
+  # Atencion medica: ficha de la visita, examenes y resultados, recetas y
+  # despachos (esquema asilo_clinico). Lee la visita en ms-solicitudes y
+  # el examen o medicamento en ms-catalogo; el cargo lo pide a ms-cobros,
+  # y si cobros no responde lo registrado se guarda igual (RNF-12).
+  # -------------------------------------------------------------------
+  ms-clinico:
+    build: ./ms-clinico
+    container_name: asilo-ms-clinico
+    # Sin "ports" a proposito (RNF-03).
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=u_clinico
+      - DB_PASSWORD=clinico_2026
+      - DB_NAME=asilo_clinico
+      - MS_SOLICITUDES_URL=http://ms-solicitudes:8081
+      - MS_CATALOGO_URL=http://ms-catalogo:8084
+      - MS_COBROS_URL=http://ms-cobros:8082
+      - TZ=America/Guatemala
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ms-solicitudes:
+        condition: service_started
+      ms-catalogo:
+        condition: service_started
+      ms-cobros:
+        condition: service_started
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------
   # Remisiones y visitas medicas (esquema asilo_solicitudes). Al
   # convertir una remision le pide el cargo a ms-cobros; si cobros no
   # responde, la visita se guarda igual (RNF-12, cliente_cobros.py).
@@ -201,6 +232,7 @@ services:
       - MS_SOLICITUDES_URL=http://ms-solicitudes:8081
       - MS_COBROS_URL=http://ms-cobros:8082
       - MS_CATALOGO_URL=http://ms-catalogo:8084
+      - MS_CLINICO_URL=http://ms-clinico:8085
       - TZ=America/Guatemala
     volumes:
       - ./app-base:/code/publico:ro

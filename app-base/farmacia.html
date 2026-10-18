@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farmacia · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: cada receta pendiente es una tarjeta con la
+     cantidad que se entrega, porque se despachan de una en una. */
+  section + section{margin-top:24px;}
+  .espera{border:1px solid var(--borde);border-radius:var(--radio);padding:14px;margin-bottom:14px;background:var(--superficie);}
+  .espera-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;}
+  .espera-cab strong{font-size:17px;}
+  .detalle{font-size:15px;color:var(--texto-suave);margin:5px 0 10px;}
+  .detalle b{color:var(--texto);font-weight:600;}
+  .entrega{display:flex;gap:10px;align-items:end;flex-wrap:wrap;}
+  .entrega .campo{width:150px;}
+  .pie{font-size:13.5px;color:var(--texto-suave);}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="plana">
+    <h2>Recetas por despachar <span class="conteo" id="conteo-pendientes"></span></h2>
+    <div class="cuerpo">
+      <p class="ayuda">Los medicamentos que recetó el especialista. Si no hay existencia
+         suficiente se puede entregar menos de lo recetado, nunca más. Lo entregado se carga a
+         la cuenta del interno con el descuento de la fundación.</p>
+      <div id="pendientes"><p class="vacio">Cargando…</p></div>
+      <div class="aviso" id="aviso"></div>
+    </div>
+  </section>
+
+  <section class="plana">
+    <h2>Despachos registrados <span class="conteo" id="conteo-hechos"></span></h2>
+    <div class="cuerpo">
+      <div class="tabla-scroll" id="hechos"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+function tarjeta(r){
+  return `
+    <div class="espera">
+      <div class="espera-cab">
+        <strong>${texto(r.medicamento)}</strong>
+        <span>${texto(r.paciente_nombre)} · <span class="mono">${texto(r.paciente_id)}</span></span>
+      </div>
+      <div class="detalle">
+        Recetado el ${texto(fechaLegible(r.fecha))} por <b>${texto(r.medico)}</b>:
+        <b>${r.cantidad}</b> · ${texto(r.indicaciones)}
+      </div>
+      <div class="entrega">
+        <div class="campo">
+          <label for="c-${r.id}">Cantidad que entrega</label>
+          <input id="c-${r.id}" type="number" min="1" max="${r.cantidad}" value="${r.cantidad}">
+        </div>
+        <button class="mini" onclick="despachar(${r.id}, ${r.cantidad})">Registrar despacho</button>
+      </div>
+      <div class="error-campo" id="e-c-${r.id}"></div>
+    </div>`;
+}
+
+async function cargar(){
+  try{
+    const recetas = await api("/api/recetas");
+    const pendientes = recetas.filter(r => r.estado === "PENDIENTE");
+    const hechas = recetas.filter(r => r.estado !== "PENDIENTE").reverse();
+    porId("conteo-pendientes").textContent = pendientes.length || "";
+    porId("conteo-hechos").textContent = hechas.length || "";
+    porId("pendientes").innerHTML = pendientes.length
+      ? pendientes.map(tarjeta).join("")
+      : '<p class="vacio">No hay recetas por despachar.</p>';
+    porId("hechos").innerHTML = hechas.length ? `
+      <table>
+        <thead><tr><th>Medicamento</th><th>Interno</th><th class="num">Recetado</th><th class="num">Entregado</th><th>Despachó</th></tr></thead>
+        <tbody>${hechas.map(r => `
+          <tr>
+            <td><strong>${texto(r.medicamento)}</strong><div class="pie">${texto(r.indicaciones)}</div></td>
+            <td>${texto(r.paciente_nombre)}</td>
+            <td class="num">${r.cantidad}</td>
+            <td class="num">${r.despacho ? r.despacho.cantidad_despachada : "—"}</td>
+            <td>${texto(r.despacho && r.despacho.responsable) || "—"}
+                <div class="pie">${texto(fechaLegible(r.despacho && r.despacho.fecha))}</div></td>
+          </tr>`).join("")}
+        </tbody>
+      </table>` : '<p class="vacio">Todavía no hay despachos registrados.</p>';
+  }catch(e){
+    porId("pendientes").innerHTML = `<p class="vacio">${texto(e.message)}</p>`;
+    porId("hechos").innerHTML = "";
+  }
+}
+
+async function despachar(recetaId, recetada){
+  const campo = porId(`c-${recetaId}`);
+  const error = porId(`e-c-${recetaId}`);
+  campo.classList.remove("malo"); error.classList.remove("visible");
+  const cantidad = Number(campo.value);
+  if(!Number.isInteger(cantidad) || cantidad < 1 || cantidad > recetada){
+    campo.classList.add("malo");
+    error.textContent = `Escriba una cantidad entre 1 y ${recetada}.`;
+    error.classList.add("visible");
+    return;
+  }
+  try{
+    const r = await api("/api/despachos", { method: "POST", body: JSON.stringify({ receta_id: recetaId, cantidad }) });
+    avisar("aviso", `Despacho de «${r.receta.medicamento}» registrado para ${r.receta.paciente_nombre}. ${r.mensaje_cobro}`);
+  }catch(e){
+    avisar("aviso", typeof e.detalle === "string" ? e.detalle : e.message, false);
+  }
+  await cargar();
+}
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({ subtitulo: "Farmacia", requiere: "recetas" });
+  if(!yo) return;
+  await cargar();
+})();
+</script>
+
+</body>
+</html>

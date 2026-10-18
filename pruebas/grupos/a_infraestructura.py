@@ -26,6 +26,7 @@ MICROSERVICIOS = {
     "8082": ("ms-cobros", "asilo-ms-cobros"),
     "8083": ("ms-pacientes", "asilo-ms-pacientes"),
     "8084": ("ms-catalogo", "asilo-ms-catalogo"),
+    "8085": ("ms-clinico", "asilo-ms-clinico"),
 }
 
 
@@ -89,10 +90,10 @@ def ejecutar(ctx) -> None:
         c.pasa = abierto == "abierto" and (http in ("", "200"))
 
     with rep.caso(
-        "Los microservicios no responden en 8081 a 8084 desde fuera",
+        "Los microservicios no responden en 8081 a 8085 desde fuera",
         "RNF-03",
-        "Los cuatro puertos cerrados desde la máquina, ningún microservicio publica "
-        "puertos, y aun así los cuatro responden dentro de la red interna",
+        "Los cinco puertos cerrados desde la máquina, ningún microservicio publica "
+        "puertos, y aun así los cinco responden dentro de la red interna",
     ) as c:
         lineas, todo_bien = [], True
         for puerto, (servicio, contenedor) in MICROSERVICIOS.items():

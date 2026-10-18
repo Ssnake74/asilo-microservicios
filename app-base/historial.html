@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Historial médico · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: una tarjeta por visita, de la mas reciente a
+     la mas vieja, con lo que se encontro, se ordeno y se receto. */
+  .elegir{display:flex;gap:10px;align-items:end;flex-wrap:wrap;}
+  .elegir .campo{flex:1;min-width:260px;}
+  .visita{border:1px solid var(--borde);border-left:4px solid var(--violeta-medio);
+          border-radius:var(--radio);padding:14px 16px;margin-bottom:14px;background:var(--superficie);}
+  .visita.sin-ficha{border-left-color:var(--borde);background:var(--fondo);}
+  .visita-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px;}
+  .visita-cab strong{font-size:17px;font-family:var(--letra-titulos);}
+  .visita-quien{font-size:14.5px;color:var(--texto-suave);}
+  .bloque{margin-top:10px;}
+  .bloque h3{font-size:15px;margin-bottom:6px;color:var(--violeta-profundo);font-family:var(--letra-texto);}
+  .texto-largo{white-space:pre-wrap;margin:0;}
+  .renglon{padding:6px 0;border-top:1px solid var(--borde);font-size:15px;}
+  .renglon:first-of-type{border-top:none;}
+  .pie{font-size:13.5px;color:var(--texto-suave);}
+  .datos-interno{margin-top:12px;font-size:15px;}
+  .datos-interno b{font-weight:600;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="tarjeta">
+    <h2>Historial médico</h2>
+    <p class="ayuda">Todas las visitas de un interno con su diagnóstico, los exámenes con sus
+       resultados y los medicamentos que se le entregaron.</p>
+    <div class="elegir">
+      <div class="campo">
+        <label for="interno">Interno</label>
+        <select id="interno"></select>
+      </div>
+    </div>
+    <div class="datos-interno" id="datos-interno"></div>
+  </section>
+
+  <div id="historial"></div>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+let internos = [];
+
+function examenes(lista){
+  if(!lista.length) return "";
+  return `<div class="bloque"><h3>Exámenes</h3>${lista.map(o => `
+    <div class="renglon">
+      <strong>${texto(o.examen)}</strong> ${insignia(o.estado, ESTADO_ORDEN)}
+      ${o.resultado
+        ? `<p class="texto-largo">${texto(o.resultado.resultado)}</p>
+           <div class="pie">${texto(fechaLegible(o.resultado.fecha_resultado))}${o.resultado.responsable ? ` · ${texto(o.resultado.responsable)}` : ""}</div>`
+        : ""}
+    </div>`).join("")}</div>`;
+}
+
+function recetas(lista){
+  if(!lista.length) return "";
+  return `<div class="bloque"><h3>Medicamentos</h3>${lista.map(r => `
+    <div class="renglon">
+      <strong>${texto(r.medicamento)}</strong> · ${r.cantidad} ${insignia(r.estado, ESTADO_RECETA)}
+      <div>${texto(r.indicaciones)}</div>
+      ${r.despacho ? `<div class="pie">Entregados ${r.despacho.cantidad_despachada} el ${texto(fechaLegible(r.despacho.fecha))}${r.despacho.responsable ? ` · ${texto(r.despacho.responsable)}` : ""}</div>` : ""}
+    </div>`).join("")}</div>`;
+}
+
+function tarjetaVisita(v, f){
+  if(!f){
+    return `
+      <div class="visita sin-ficha">
+        <div class="visita-cab"><strong>${texto(v.especialidad)}</strong>
+          <span class="visita-quien">${texto(fechaLegible(v.fecha_visita))} · ${texto(v.medico_tratante)}</span></div>
+        <div class="pie">Visita programada, todavía sin ficha médica.</div>
+      </div>`;
+  }
+  return `
+    <div class="visita">
+      <div class="visita-cab"><strong>${texto(f.especialidad)}</strong>
+        <span class="visita-quien">${texto(fechaLegible(f.fecha_visita))} · ${texto(f.medico)}</span></div>
+      <div class="bloque"><h3>Diagnóstico</h3><p class="texto-largo">${texto(f.diagnostico)}</p>
+        ${f.observaciones ? `<p class="texto-largo pie">${texto(f.observaciones)}</p>` : ""}</div>
+      ${examenes(f.examenes)}
+      ${recetas(f.recetas)}
+    </div>`;
+}
+
+async function mostrar(){
+  const codigo = porId("interno").value;
+  const caja = porId("historial");
+  porId("datos-interno").innerHTML = "";
+  if(!codigo){ caja.innerHTML = ""; return; }
+  const p = internos.find(x => x.codigo === codigo);
+  if(p){
+    porId("datos-interno").innerHTML = `
+      <b>Edad:</b> ${p.edad} años · <b>Padecimientos:</b> ${texto(p.padecimientos) || "ninguno anotado"} ·
+      <b>Alergias:</b> ${texto(p.alergias) || "ninguna anotada"}`;
+  }
+  caja.innerHTML = '<p class="vacio">Cargando…</p>';
+  try{
+    const [visitas, fichas] = await Promise.all([
+      api(`/api/visitas?paciente_id=${encodeURIComponent(codigo)}`),
+      api(`/api/fichas?paciente_id=${encodeURIComponent(codigo)}`)
+    ]);
+    visitas.sort((a, b) => b.fecha_visita.localeCompare(a.fecha_visita));
+    caja.innerHTML = visitas.length
+      ? visitas.map(v => tarjetaVisita(v, fichas.find(f => f.visita_id === v.id))).join("")
+      : '<section class="tarjeta"><p class="vacio">Este interno todavía no tiene visitas médicas.</p></section>';
+  }catch(e){
+    caja.innerHTML = `<section class="tarjeta"><p class="vacio">${texto(e.message)}</p></section>`;
+  }
+}
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({ subtitulo: "Historial médico de los internos", requiere: "fichas" });
+  if(!yo) return;
+  internos = await llenarInternos("interno");
+  porId("interno").addEventListener("change", mostrar);
+  const pedido = new URLSearchParams(location.search).get("interno");
+  if(pedido){ porId("interno").value = pedido; mostrar(); }
+})();
+</script>
+
+</body>
+</html>

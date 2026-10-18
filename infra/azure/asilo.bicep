@@ -103,6 +103,7 @@ var servicios = [
       { name: 'MS_SOLICITUDES_URL', value: 'http://ms-solicitudes' }
       { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
       { name: 'MS_CATALOGO_URL', value: 'http://ms-catalogo' }
+      { name: 'MS_CLINICO_URL', value: 'http://ms-clinico' }
       { name: 'COOKIE_SEGURA', value: '1' }
     ]
   }
@@ -145,6 +146,18 @@ var servicios = [
     puerto: 8084
     externo: false
     extra: [
+      { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
+    ]
+  }
+  {
+    nombre: 'ms-clinico'
+    imagen: 'ms-clinico'
+    esquema: 'clinico'
+    puerto: 8085
+    externo: false
+    extra: [
+      { name: 'MS_SOLICITUDES_URL', value: 'http://ms-solicitudes' }
+      { name: 'MS_CATALOGO_URL', value: 'http://ms-catalogo' }
       { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
     ]
   }

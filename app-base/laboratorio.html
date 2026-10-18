@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratorio · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: cada examen pendiente es una tarjeta con su
+     casilla de resultado, porque se registran de uno en uno. */
+  section + section{margin-top:24px;}
+  .espera{border:1px solid var(--borde);border-radius:var(--radio);padding:14px;margin-bottom:14px;background:var(--superficie);}
+  .espera-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;}
+  .espera-cab strong{font-size:17px;}
+  .detalle{font-size:15px;color:var(--texto-suave);margin:5px 0 10px;}
+  .detalle b{color:var(--texto);font-weight:600;}
+  .resultado{white-space:pre-wrap;font-size:14.5px;}
+  .pie{font-size:13.5px;color:var(--texto-suave);}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="plana">
+    <h2>Exámenes por hacer <span class="conteo" id="conteo-pendientes"></span></h2>
+    <div class="cuerpo">
+      <p class="ayuda">Los exámenes que ordenó el especialista, del más antiguo al más reciente.
+         Al registrar el resultado, el especialista lo ve en la ficha y el examen se carga a la
+         cuenta del interno con el descuento de la fundación.</p>
+      <div id="pendientes"><p class="vacio">Cargando…</p></div>
+      <div class="aviso" id="aviso"></div>
+    </div>
+  </section>
+
+  <section class="plana">
+    <h2>Resultados registrados <span class="conteo" id="conteo-hechos"></span></h2>
+    <div class="cuerpo">
+      <div class="tabla-scroll" id="hechos"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+function tarjeta(o){
+  return `
+    <div class="espera">
+      <div class="espera-cab">
+        <strong>${texto(o.examen)}</strong>
+        <span>${texto(o.paciente_nombre)} · <span class="mono">${texto(o.paciente_id)}</span></span>
+      </div>
+      <div class="detalle">
+        Ordenado el ${texto(fechaLegible(o.fecha_orden))} por <b>${texto(o.medico)}</b> (${texto(o.especialidad)})${
+          o.indicaciones ? `. Indicaciones: <b>${texto(o.indicaciones)}</b>` : ""}
+      </div>
+      <label for="r-${o.id}">Resultado <span class="obligatorio">*</span></label>
+      <textarea id="r-${o.id}" rows="3" placeholder="Valores obtenidos y su interpretación"></textarea>
+      <div class="error-campo" id="e-r-${o.id}"></div>
+      <div class="acciones"><button class="mini" onclick="registrar(${o.id})">Registrar resultado</button></div>
+    </div>`;
+}
+
+async function cargar(){
+  try{
+    const ordenes = await api("/api/examenes");
+    const pendientes = ordenes.filter(o => o.estado === "PENDIENTE");
+    const hechos = ordenes.filter(o => o.estado !== "PENDIENTE").reverse();
+    porId("conteo-pendientes").textContent = pendientes.length || "";
+    porId("conteo-hechos").textContent = hechos.length || "";
+    porId("pendientes").innerHTML = pendientes.length
+      ? pendientes.map(tarjeta).join("")
+      : '<p class="vacio">No hay exámenes esperando resultado.</p>';
+    porId("hechos").innerHTML = hechos.length ? `
+      <table>
+        <thead><tr><th>Examen</th><th>Interno</th><th>Resultado</th><th>Registró</th></tr></thead>
+        <tbody>${hechos.map(o => `
+          <tr>
+            <td><strong>${texto(o.examen)}</strong><div class="pie">${texto(o.medico)}</div></td>
+            <td>${texto(o.paciente_nombre)}</td>
+            <td class="resultado">${texto(o.resultado && o.resultado.resultado)}</td>
+            <td>${texto(o.resultado && o.resultado.responsable) || "—"}
+                <div class="pie">${texto(fechaLegible(o.resultado && o.resultado.fecha_resultado))}</div></td>
+          </tr>`).join("")}
+        </tbody>
+      </table>` : '<p class="vacio">Todavía no hay resultados registrados.</p>';
+  }catch(e){
+    porId("pendientes").innerHTML = `<p class="vacio">${texto(e.message)}</p>`;
+    porId("hechos").innerHTML = "";
+  }
+}
+
+async function registrar(ordenId){
+  const campo = porId(`r-${ordenId}`);
+  const error = porId(`e-r-${ordenId}`);
+  campo.classList.remove("malo"); error.classList.remove("visible");
+  const resultado = campo.value.trim();
+  if(resultado.length < 3){
+    campo.classList.add("malo");
+    error.textContent = "Escriba el resultado del examen.";
+    error.classList.add("visible");
+    return;
+  }
+  try{
+    const r = await api("/api/resultados", { method: "POST", body: JSON.stringify({ orden_id: ordenId, resultado }) });
+    avisar("aviso", `Resultado de «${r.orden.examen}» registrado para ${r.orden.paciente_nombre}. ${r.mensaje_cobro}`);
+  }catch(e){
+    avisar("aviso", typeof e.detalle === "string" ? e.detalle : e.message, false);
+  }
+  await cargar();
+}
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({ subtitulo: "Laboratorio clínico", requiere: "examenes" });
+  if(!yo) return;
+  await cargar();
+})();
+</script>
+
+</body>
+</html>

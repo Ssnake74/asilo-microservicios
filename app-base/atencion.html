@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atención de visitas · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla. */
+  section + section{margin-top:24px;}
+  .filtro{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px;}
+  .filtro .campo{min-width:260px;}
+  .datos-visita{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px;}
+  .datos-visita div{background:var(--violeta-suave);border-radius:var(--radio);padding:9px 12px;}
+  .datos-visita span{display:block;font-size:13px;font-weight:600;color:var(--violeta-profundo);}
+  .diagnostico{white-space:pre-wrap;background:var(--fondo);border:1px solid var(--borde);
+               border-radius:var(--radio);padding:12px 14px;margin:0 0 6px;}
+  .pie-ficha{font-size:14px;color:var(--texto-suave);margin-bottom:6px;}
+  h3{font-size:17px;margin:22px 0 10px;color:var(--violeta-profundo);}
+  .resultado{white-space:pre-wrap;font-size:14.5px;}
+  #ficha[hidden]{display:none;}
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="plana">
+    <h2>Visitas por atender <span class="conteo" id="conteo-pendientes"></span></h2>
+    <div class="cuerpo">
+      <p class="ayuda">Visitas programadas por la fundación que todavía no tienen ficha médica.
+         Al atender al interno se registra el diagnóstico y, si hace falta, se ordenan exámenes
+         y se recetan medicamentos.</p>
+      <div class="filtro">
+        <div class="campo">
+          <label for="f-medico">Médico</label>
+          <select id="f-medico"><option value="">Todos</option></select>
+        </div>
+      </div>
+      <div class="tabla-scroll" id="pendientes"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+
+  <section class="tarjeta" id="ficha" hidden>
+    <h2 id="ficha-titulo">Ficha médica</h2>
+    <div class="datos-visita" id="ficha-datos"></div>
+    <div id="ficha-cuerpo"></div>
+  </section>
+
+  <section class="plana">
+    <h2>Visitas atendidas <span class="conteo" id="conteo-atendidas"></span></h2>
+    <div class="cuerpo">
+      <div class="tabla-scroll" id="atendidas"><p class="vacio">Cargando…</p></div>
+    </div>
+  </section>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+let yo = null;
+let visitas = [];
+let fichas = [];
+let examenesCatalogo = [];
+let medicamentosCatalogo = [];
+let abierta = null;   // id de la visita que se esta atendiendo
+
+const FORM_FICHA = {
+  aviso: "aviso-ficha",
+  ids: { diagnostico: "n-diagnostico", observaciones: "n-observaciones" },
+  ETIQUETAS: { diagnostico: "Diagnóstico", observaciones: "Observaciones" },
+  OBLIGATORIOS: ["diagnostico"],
+  MINIMOS: { diagnostico: 5 }
+};
+const FORM_EXAMEN = {
+  aviso: "aviso-examen",
+  ids: { tipo_examen_id: "n-examen", indicaciones: "n-ex-indicaciones" },
+  ETIQUETAS: { tipo_examen_id: "Examen", indicaciones: "Indicaciones" },
+  OBLIGATORIOS: ["tipo_examen_id"]
+};
+const FORM_RECETA = {
+  aviso: "aviso-receta",
+  ids: { medicamento_id: "n-medicamento", cantidad: "n-cantidad", indicaciones: "n-re-indicaciones" },
+  ETIQUETAS: { medicamento_id: "Medicamento", cantidad: "Cantidad", indicaciones: "Cómo y por cuánto tiempo" },
+  OBLIGATORIOS: ["medicamento_id", "cantidad", "indicaciones"],
+  MINIMOS: { indicaciones: 5 }
+};
+
+const fichaDe = (visitaId) => fichas.find(f => f.visita_id === visitaId);
+
+// --------------------------------------------------------- listas
+
+function filaVisita(v, accion){
+  return `
+    <tr>
+      <td>${texto(fechaLegible(v.fecha_visita))}</td>
+      <td><strong>${texto(v.paciente_nombre)}</strong><div class="mono">${texto(v.paciente_id)}</div></td>
+      <td>${texto(v.especialidad)}</td>
+      <td>${texto(v.medico_tratante)}${v.enfermero ? `<div class="pie-ficha">Acompaña: ${texto(v.enfermero)}</div>` : ""}</td>
+      <td><button class="mini ${accion === "Atender" ? "" : "secundario"}" onclick="abrir(${v.id})">${accion}</button></td>
+    </tr>`;
+}
+
+function tablaVisitas(lista, accion, vacio){
+  if(!lista.length) return `<p class="vacio">${vacio}</p>`;
+  return `
+    <table>
+      <thead><tr><th>Fecha</th><th>Interno</th><th>Especialidad</th><th>Médico</th><th></th></tr></thead>
+      <tbody>${lista.map(v => filaVisita(v, accion)).join("")}</tbody>
+    </table>`;
+}
+
+function dibujarListas(){
+  const medico = porId("f-medico").value;
+  const delMedico = visitas.filter(v => !medico || v.medico_tratante === medico);
+  const pendientes = delMedico.filter(v => !fichaDe(v.id)).sort((a, b) => a.fecha_visita.localeCompare(b.fecha_visita));
+  const atendidas = delMedico.filter(v => fichaDe(v.id)).sort((a, b) => b.fecha_visita.localeCompare(a.fecha_visita));
+  porId("conteo-pendientes").textContent = pendientes.length || "";
+  porId("conteo-atendidas").textContent = atendidas.length || "";
+  porId("pendientes").innerHTML = tablaVisitas(pendientes, "Atender", "No hay visitas esperando atención.");
+  porId("atendidas").innerHTML = tablaVisitas(atendidas, "Abrir ficha", "Todavía no hay visitas atendidas.");
+}
+
+async function cargar(){
+  try{
+    [visitas, fichas] = await Promise.all([api("/api/visitas"), api("/api/fichas")]);
+  }catch(e){
+    porId("pendientes").innerHTML = `<p class="vacio">${texto(e.message)}</p>`;
+    porId("atendidas").innerHTML = "";
+    return;
+  }
+  const medicos = [...new Set(visitas.map(v => v.medico_tratante))].sort();
+  const elegido = porId("f-medico").value || (medicos.includes(yo.nombre) ? yo.nombre : "");
+  porId("f-medico").innerHTML = '<option value="">Todos</option>' + medicos.map(m =>
+    `<option ${m === elegido ? "selected" : ""}>${texto(m)}</option>`).join("");
+  dibujarListas();
+  if(abierta) abrir(abierta, false);
+}
+
+// --------------------------------------------------------- ficha
+
+function datosVisita(v){
+  return `
+    <div><span>Interno</span>${texto(v.paciente_nombre)} · ${texto(v.paciente_id)}</div>
+    <div><span>Fecha de la visita</span>${texto(fechaLegible(v.fecha_visita))}</div>
+    <div><span>Especialidad</span>${texto(v.especialidad)}</div>
+    <div><span>Médico</span>${texto(v.medico_tratante)}</div>`;
+}
+
+function formularioFicha(){
+  return `
+    <div class="campo">
+      <label for="n-diagnostico">Diagnóstico <span class="obligatorio">*</span></label>
+      <textarea id="n-diagnostico" rows="3" placeholder="Hipertensión arterial grado 1"></textarea>
+      <div class="error-campo" id="e-n-diagnostico"></div>
+    </div>
+    <div class="campo" style="margin-top:14px">
+      <label for="n-observaciones">Observaciones</label>
+      <textarea id="n-observaciones" rows="3" placeholder="Indicaciones generales, próximo control…"></textarea>
+      <div class="error-campo" id="e-n-observaciones"></div>
+    </div>
+    <div class="acciones"><button onclick="guardarFicha()">Guardar ficha</button></div>
+    <div class="aviso" id="aviso-ficha"></div>`;
+}
+
+function tablaExamenes(lista){
+  if(!lista.length) return '<p class="vacio">Sin exámenes ordenados.</p>';
+  return `
+    <table>
+      <thead><tr><th>Examen</th><th>Indicaciones</th><th>Estado</th><th>Resultado</th></tr></thead>
+      <tbody>${lista.map(o => `
+        <tr>
+          <td><strong>${texto(o.examen)}</strong></td>
+          <td>${texto(o.indicaciones) || "—"}</td>
+          <td>${insignia(o.estado, ESTADO_ORDEN)}</td>
+          <td class="resultado">${o.resultado ? texto(o.resultado.resultado) : "—"}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+function tablaRecetas(lista){
+  if(!lista.length) return '<p class="vacio">Sin medicamentos recetados.</p>';
+  return `
+    <table>
+      <thead><tr><th>Medicamento</th><th class="num">Cantidad</th><th>Indicaciones</th><th>Estado</th></tr></thead>
+      <tbody>${lista.map(r => `
+        <tr>
+          <td><strong>${texto(r.medicamento)}</strong></td>
+          <td class="num">${r.cantidad}</td>
+          <td>${texto(r.indicaciones)}</td>
+          <td>${insignia(r.estado, ESTADO_RECETA)}${r.despacho && r.despacho.cantidad_despachada < r.cantidad
+              ? `<div class="pie-ficha">Se entregaron ${r.despacho.cantidad_despachada}</div>` : ""}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+function fichaRegistrada(f){
+  const examenes = examenesCatalogo.filter(e => e.activo);
+  const medicamentos = medicamentosCatalogo.filter(m => m.activo);
+  return `
+    <h3>Diagnóstico</h3>
+    <p class="diagnostico">${texto(f.diagnostico)}</p>
+    ${f.observaciones ? `<p class="diagnostico">${texto(f.observaciones)}</p>` : ""}
+    <div class="pie-ficha">Registrada el ${texto(fechaLegible(f.fecha))}${f.responsable ? ` por ${texto(f.responsable)}` : ""}.</div>
+
+    <h3>Exámenes de laboratorio</h3>
+    <div class="tabla-scroll">${tablaExamenes(f.examenes)}</div>
+    <details class="plegable">
+      <summary>Ordenar un examen</summary>
+      <div class="rejilla">
+        <div class="campo">
+          <label for="n-examen">Examen <span class="obligatorio">*</span></label>
+          <select id="n-examen"><option value="">— Seleccione —</option>${
+            examenes.map(e => `<option value="${e.id}">${texto(e.nombre)}</option>`).join("")}</select>
+          <div class="error-campo" id="e-n-examen"></div>
+        </div>
+        <div class="campo">
+          <label for="n-ex-indicaciones">Indicaciones</label>
+          <input id="n-ex-indicaciones" placeholder="En ayunas" autocomplete="off">
+          <div class="error-campo" id="e-n-ex-indicaciones"></div>
+        </div>
+      </div>
+      <div class="acciones"><button class="mini" onclick="ordenar(${f.id})">Ordenar examen</button></div>
+    </details>
+    <div class="aviso" id="aviso-examen"></div>
+
+    <h3>Medicamentos</h3>
+    <div class="tabla-scroll">${tablaRecetas(f.recetas)}</div>
+    <details class="plegable">
+      <summary>Recetar un medicamento</summary>
+      <div class="rejilla">
+        <div class="campo">
+          <label for="n-medicamento">Medicamento <span class="obligatorio">*</span></label>
+          <select id="n-medicamento"><option value="">— Seleccione —</option>${
+            medicamentos.map(m => `<option value="${m.id}">${texto(m.nombre)}${m.presentacion ? ` (${texto(m.presentacion)})` : ""}</option>`).join("")}</select>
+          <div class="error-campo" id="e-n-medicamento"></div>
+        </div>
+        <div class="campo">
+          <label for="n-cantidad">Cantidad <span class="obligatorio">*</span></label>
+          <input id="n-cantidad" type="number" min="1" max="100" value="1">
+          <div class="error-campo" id="e-n-cantidad"></div>
+        </div>
+        <div class="campo">
+          <label for="n-re-indicaciones">Cómo y por cuánto tiempo <span class="obligatorio">*</span></label>
+          <input id="n-re-indicaciones" placeholder="Una tableta cada 8 horas por 5 días" autocomplete="off">
+          <div class="error-campo" id="e-n-re-indicaciones"></div>
+        </div>
+      </div>
+      <div class="acciones"><button class="mini" onclick="recetar(${f.id})">Recetar</button></div>
+    </details>
+    <div class="aviso" id="aviso-receta"></div>`;
+}
+
+function abrir(visitaId, desplazar = true){
+  const v = visitas.find(x => x.id === visitaId);
+  if(!v) return;
+  abierta = visitaId;
+  const f = fichaDe(visitaId);
+  porId("ficha").hidden = false;
+  porId("ficha-titulo").textContent = f ? "Ficha médica" : "Atender visita";
+  porId("ficha-datos").innerHTML = datosVisita(v);
+  porId("ficha-cuerpo").innerHTML = f ? fichaRegistrada(f) : formularioFicha();
+  if(desplazar) porId("ficha").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function guardarFicha(){
+  limpiarErrores(FORM_FICHA);
+  const faltantes = validarLocalmente(FORM_FICHA);
+  if(faltantes.length){
+    avisoResumen(FORM_FICHA, "No se guardó. Falta corregir:", faltantes, false);
+    return;
+  }
+  try{
+    await api("/api/fichas", { method: "POST", body: JSON.stringify({
+      visita_id: abierta,
+      diagnostico: porId("n-diagnostico").value.trim(),
+      observaciones: porId("n-observaciones").value.trim() || null
+    })});
+    await cargar();
+    avisar("aviso-examen", "Ficha guardada. Ahora puede ordenar exámenes o recetar medicamentos.");
+  }catch(e){
+    mostrarFallo(FORM_FICHA, "No se guardó:", e);
+  }
+}
+
+async function ordenar(fichaId){
+  limpiarErrores(FORM_EXAMEN);
+  const faltantes = validarLocalmente(FORM_EXAMEN);
+  if(faltantes.length){
+    avisoResumen(FORM_EXAMEN, "No se ordenó. Falta elegir el examen.", null, false);
+    return;
+  }
+  try{
+    const o = await api("/api/examenes", { method: "POST", body: JSON.stringify({
+      ficha_id: fichaId,
+      tipo_examen_id: Number(porId("n-examen").value),
+      indicaciones: porId("n-ex-indicaciones").value.trim() || null
+    })});
+    await cargar();
+    avisar("aviso-examen", `«${o.examen}» quedó ordenado. El laboratorio lo ve en su lista.`);
+  }catch(e){
+    mostrarFallo(FORM_EXAMEN, "No se ordenó:", e);
+  }
+}
+
+async function recetar(fichaId){
+  limpiarErrores(FORM_RECETA);
+  const faltantes = validarLocalmente(FORM_RECETA);
+  if(faltantes.length){
+    avisoResumen(FORM_RECETA, "No se recetó. Falta corregir:", faltantes, false);
+    return;
+  }
+  try{
+    const r = await api("/api/recetas", { method: "POST", body: JSON.stringify({
+      ficha_id: fichaId,
+      medicamento_id: Number(porId("n-medicamento").value),
+      cantidad: Number(porId("n-cantidad").value),
+      indicaciones: porId("n-re-indicaciones").value.trim()
+    })});
+    await cargar();
+    avisar("aviso-receta", `«${r.medicamento}» quedó recetado. La farmacia lo ve en su lista.`);
+  }catch(e){
+    mostrarFallo(FORM_RECETA, "No se recetó:", e);
+  }
+}
+
+// --------------------------------------------------------- arranque
+
+(async function arrancar(){
+  yo = await iniciarPantalla({ subtitulo: "Atención de visitas médicas", requiere: "fichas" });
+  if(!yo) return;
+  porId("f-medico").addEventListener("change", dibujarListas);
+  [examenesCatalogo, medicamentosCatalogo] = await Promise.all([
+    apiSilenciosa("/api/catalogo/examenes", []),
+    apiSilenciosa("/api/catalogo/medicamentos", [])
+  ]);
+  const pedida = Number(new URLSearchParams(location.search).get("visita"));
+  if(pedida) abierta = pedida;
+  await cargar();
+})();
+</script>
+
+</body>
+</html>

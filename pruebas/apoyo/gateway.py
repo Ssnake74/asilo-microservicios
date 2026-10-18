@@ -13,13 +13,16 @@ import httpx
 
 BASE = "http://gateway:8080"
 
-# Los cinco usuarios de demostracion que siembra el gateway (gateway/app/db.py).
+# Los usuarios de demostracion que siembra el gateway (gateway/app/db.py).
 USUARIO_DE_ROL = {
     "ADMIN": "admin",
     "SECRETARIA": "secretaria",
     "MEDICO_GENERAL": "medico",
     "FUNDACION": "fundacion",
     "CAJA": "caja",
+    "ESPECIALISTA": "especialista",
+    "LABORATORIO": "laboratorio",
+    "FARMACIA": "farmacia",
 }
 
 # Como se llama cada rol en el ERS, para que el reporte use ese vocabulario.
@@ -29,9 +32,15 @@ NOMBRE_ROL = {
     "MEDICO_GENERAL": "Médico general",
     "FUNDACION": "Fundación",
     "CAJA": "Caja",
+    "ESPECIALISTA": "Especialista",
+    "LABORATORIO": "Laboratorio",
+    "FARMACIA": "Farmacia",
 }
 
-ROLES = tuple(USUARIO_DE_ROL)
+# Los cinco roles de la matriz de la seccion 8 del ERS (grupo D). Los
+# tres de la atencion medica se prueban con sus modulos (grupo Q).
+ROLES = ("ADMIN", "SECRETARIA", "MEDICO_GENERAL", "FUNDACION", "CAJA")
+TODOS_LOS_ROLES = tuple(USUARIO_DE_ROL)
 
 
 def detalle(respuesta) -> str | None:

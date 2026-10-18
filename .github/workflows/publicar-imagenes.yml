@@ -36,6 +36,9 @@ jobs:
           - servicio: ms-catalogo
             contexto: ms-catalogo
             dockerfile: ms-catalogo/Dockerfile
+          - servicio: ms-clinico
+            contexto: ms-clinico
+            dockerfile: ms-clinico/Dockerfile
     steps:
       - uses: actions/checkout@v4
 

@@ -4,7 +4,7 @@ Pruebas automatizadas del Sistema del Asilo "Cabeza de Algodon".
 No se corre directamente: lo lanza ejecutar.ps1 dentro de un contenedor
 de un solo uso, conectado a la red del docker-compose.
 
-Recorre los grupos A a P en orden, numerando los casos CP-01 en adelante
+Recorre los grupos A a Q en orden, numerando los casos CP-01 en adelante
 sin reiniciar entre grupos, y al final SIEMPRE limpia los datos de prueba
 y deja el sistema como estaba, aunque un caso haya fallado o la corrida
 se haya cortado con Ctrl+C.
@@ -39,6 +39,7 @@ from grupos import (
     n_sesion,
     o_catalogo,
     p_usuarios,
+    q_clinico,
 )
 
 GRUPOS = (
@@ -58,6 +59,7 @@ GRUPOS = (
     n_sesion,
     o_catalogo,
     p_usuarios,
+    q_clinico,
 )
 
 RESULTADO = "/pruebas/resultado.txt"

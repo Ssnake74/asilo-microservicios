@@ -115,7 +115,12 @@ def datos_de_prueba(ctx) -> dict[str, list[dict]]:
     usuarios = root.consulta(
         "SELECT id FROM asilo_gateway.usuarios WHERE nombre LIKE %s", (MARCA_LIKE,)
     )
+    # Las fichas copian el nombre del interno, que lleva la marca.
+    fichas = root.consulta(
+        "SELECT id FROM asilo_clinico.fichas_medicas WHERE paciente_nombre LIKE %s", (MARCA_LIKE,)
+    )
     return {
+        "fichas": fichas,
         "usuarios": usuarios,
         "solicitudes": solicitudes,
         "visitas": visitas,
@@ -247,6 +252,24 @@ def limpiar(ctx) -> bool:
         ),
         ("usuarios", "asilo_gateway.usuarios", "Usuarios (el sistema no los borra: los desactiva)"),
     ]
+    # La atencion medica no tiene operacion de borrado. Sus tablas van de
+    # las hojas a la raiz por las llaves foraneas.
+    clinico = {}
+    sql_f, p_f = _en_lista(_ids(datos["fichas"]))
+    if p_f:
+        de_fichas = sql_f.replace("id IN", "ficha_id IN")
+        clinico["despachos"] = root.ejecutar(
+            f"DELETE FROM asilo_clinico.despachos WHERE receta_id IN "
+            f"(SELECT id FROM asilo_clinico.recetas WHERE {de_fichas})", p_f)
+        clinico["resultados"] = root.ejecutar(
+            f"DELETE FROM asilo_clinico.resultados WHERE orden_id IN "
+            f"(SELECT id FROM asilo_clinico.ordenes_examen WHERE {de_fichas})", p_f)
+        clinico["recetas"] = root.ejecutar(f"DELETE FROM asilo_clinico.recetas WHERE {de_fichas}", p_f)
+        clinico["órdenes de examen"] = root.ejecutar(
+            f"DELETE FROM asilo_clinico.ordenes_examen WHERE {de_fichas}", p_f)
+    pasos.insert(0, ("fichas", "asilo_clinico.fichas_medicas",
+                     "Fichas médicas (la atención médica no tiene operación de borrado)"))
+
     for clave, tabla, _ in pasos:
         ids = _ids(datos[clave])
         if ids:
@@ -258,6 +281,8 @@ def limpiar(ctx) -> bool:
     for clave, _, descripcion in pasos:
         ids = directo[clave]
         rep.parrafo(f"{descripcion}: {len(ids)}" + (f" (id {_lista(ids)})" if ids else ""), sangria="     ")
+        if clave == "fichas" and clinico:
+            rep.parrafo("con sus " + ", ".join(f"{k}: {v}" for k, v in clinico.items()), sangria="       ")
     rep.escribir("")
 
     # 5. Correos
@@ -373,7 +398,7 @@ def limpiar(ctx) -> bool:
             f"El sistema quedó como estaba: los {len(contenedores)} contenedores en su estado inicial "
             f"({', '.join(sorted(set(contenedores.values())))}), sin cuentas bloqueadas "
             f"({intentos_final} intentos fallidos guardados, igual que al empezar), sin "
-            "internos, remisiones, visitas, tarifas, cargos, usuarios ni correos de prueba, la "
+            "internos, remisiones, visitas, fichas, tarifas, cargos, usuarios ni correos de prueba, la "
             f"bitácora con sus {bitacora} filas originales y los contadores en su valor inicial.",
             sangria="     ",
         )

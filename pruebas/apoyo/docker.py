@@ -21,6 +21,7 @@ CONTENEDORES = (
     "asilo-adminer",
     "asilo-ms-cobros",
     "asilo-ms-catalogo",
+    "asilo-ms-clinico",
     "asilo-ms-solicitudes",
     "asilo-ms-pacientes",
     "asilo-gateway",

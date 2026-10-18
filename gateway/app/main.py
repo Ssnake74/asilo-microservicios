@@ -9,6 +9,7 @@ no conocen los usuarios ni los roles.
 
 import os
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
 import httpx
 from fastapi import Cookie, FastAPI, HTTPException, Query, Request, Response
@@ -526,7 +527,14 @@ async def reenviar(recurso: str, resto: str, request: Request,
             url=destino,
             params=request.query_params,
             content=await request.body(),
-            headers={"content-type": request.headers.get("content-type", "application/json")},
+            headers={
+                "content-type": request.headers.get("content-type", "application/json"),
+                # Quien hace la operacion, para el servicio que anota un
+                # responsable. Lo pone el gateway desde la sesion; cualquier
+                # X-Usuario que mande el navegador se descarta. Va codificado
+                # porque un encabezado no admite tildes.
+                "x-usuario": quote(usuario["nombre"]),
+            },
         )
     except httpx.RequestError:
         # 503: el servicio de atras no responde. Se anota igual, como

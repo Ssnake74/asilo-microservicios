@@ -32,6 +32,12 @@
        /api/estado-cuenta  cuenta completa de un interno
        /api/catalogo/...   especialidades, medicos, enfermeros, examenes
                            y medicamentos
+       /api/fichas         ficha medica de cada visita; con ?paciente_id,
+                           el historial del interno
+       /api/examenes       examenes ordenados por el especialista
+       /api/resultados     resultado que registra el laboratorio
+       /api/recetas        medicamentos recetados
+       /api/despachos      entrega que registra la farmacia
        /api/usuarios       cuentas de las personas que usan el sistema
        /api/mi-contrasena  cambio de la contrasena propia
    ===================================================================== */
@@ -47,7 +53,12 @@ const MODULO_DE = {
   "tarifas":       "cobros",
   "cargos":        "cobros",
   "estado-cuenta": "cobros",
-  "catalogo":      "catálogo médico"
+  "catalogo":      "catálogo médico",
+  "fichas":        "atención médica",
+  "examenes":      "laboratorio",
+  "resultados":    "laboratorio",
+  "recetas":       "farmacia",
+  "despachos":     "farmacia"
 };
 
 function mensajeNoDisponible(ruta) {
@@ -427,6 +438,16 @@ const ESTADO_CARGO = {
   PENDIENTE: "Por cobrar",
   PAGADO:    "Pagado",
   ANULADO:   "Anulado"
+};
+
+const ESTADO_ORDEN = {
+  PENDIENTE:  "Esperando resultado",
+  COMPLETADA: "Con resultado"
+};
+
+const ESTADO_RECETA = {
+  PENDIENTE:  "Por despachar",
+  DESPACHADA: "Despachada"
 };
 
 /** Devuelve la etiqueta de color con el estado ya traducido. */

@@ -74,13 +74,26 @@ CREATE TABLE IF NOT EXISTS cargos (
 
 # Tarifas iniciales para poder demostrar el sistema sin cargar datos a mano.
 TARIFAS_SEMILLA = [
-    ("Consulta con medico general", "CITA", "75.00", "60.00"),
-    ("Consulta con medico especialista", "CITA", "250.00", "40.00"),
-    ("Hematologia completa", "EXAMEN", "120.00", "50.00"),
+    ("Consulta con médico general", "CITA", "75.00", "60.00"),
+    ("Consulta con médico especialista", "CITA", "250.00", "40.00"),
+    ("Hematología completa", "EXAMEN", "120.00", "50.00"),
     ("Glucosa en ayunas", "EXAMEN", "60.00", "50.00"),
-    ("Radiografia de torax", "EXAMEN", "300.00", "30.00"),
-    ("Losartan 50 mg (caja)", "MEDICAMENTO", "85.00", "25.00"),
-    ("Acetaminofen 500 mg (caja)", "MEDICAMENTO", "40.00", "25.00"),
+    ("Radiografía de tórax", "EXAMEN", "300.00", "30.00"),
+    ("Losartán 50 mg (caja)", "MEDICAMENTO", "85.00", "25.00"),
+    ("Acetaminofén 500 mg (caja)", "MEDICAMENTO", "40.00", "25.00"),
+]
+
+# Las bases sembradas antes guardaron estos conceptos sin tildes. Se
+# corrigen al arrancar, en el tarifario y en los cargos que los copiaron.
+# utf8mb4_bin compara letra por letra: con la intercalacion de la tabla,
+# «medico» y «médico» serian iguales y no se sabria cuales faltan.
+CONCEPTOS_SIN_TILDE = [
+    ("Consulta con medico general", "Consulta con médico general"),
+    ("Consulta con medico especialista", "Consulta con médico especialista"),
+    ("Hematologia completa", "Hematología completa"),
+    ("Radiografia de torax", "Radiografía de tórax"),
+    ("Losartan 50 mg (caja)", "Losartán 50 mg (caja)"),
+    ("Acetaminofen 500 mg (caja)", "Acetaminofén 500 mg (caja)"),
 ]
 
 CAMPOS_TARIFA_ACTUALIZABLES = {
@@ -110,6 +123,16 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
                                VALUES (%s, %s, %s, %s)""",
                             TARIFAS_SEMILLA,
                         )
+                    corregidos = 0
+                    for viejo, nuevo in CONCEPTOS_SIN_TILDE:
+                        for tabla in ("tarifas", "cargos"):
+                            corregidos += cur.execute(
+                                f"UPDATE {tabla} SET concepto = %s "
+                                "WHERE concepto COLLATE utf8mb4_bin = %s",
+                                (nuevo, viejo),
+                            )
+                    if corregidos:
+                        print(f"[ms-cobros] Conceptos con tilde corregidos: {corregidos}.", flush=True)
                 conn.commit()
             print(f"[ms-cobros] Conectado a MySQL en el intento {intento}.", flush=True)
             return
