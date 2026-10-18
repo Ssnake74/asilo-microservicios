@@ -29,6 +29,10 @@ from .reporte import Reporte
 # depende de que la imagen traiga la base de zonas horarias.
 GUATEMALA = timezone(timedelta(hours=-6))
 
+# Las visitas no se programan en fechas pasadas: las pruebas usan un dia
+# que siempre esta por venir, a un mes de hoy.
+DIA_FUTURO = (datetime.now(GUATEMALA).date() + timedelta(days=30)).isoformat()
+
 PREFIJO_MARCA = "PRUEBA-AUTO"
 
 MESES = (
@@ -208,16 +212,16 @@ class Contexto:
             raise RuntimeError(f"no se pudo crear la remisión de apoyo: {resumen(r)}")
         return r.json()
 
-    def convertir(self, solicitud_id: int, especialidad: str, fecha: str = "2026-12-01 09:30",
+    def convertir(self, solicitud_id: int, especialidad: str, fecha: str | None = None,
                   medico: str = "Dra. Prueba Automática", rol: str = "FUNDACION"):
         return self.programar(
             solicitud_id, rol=rol,
-            medico_tratante=medico, especialidad=especialidad, fecha_visita=fecha,
+            medico_tratante=medico, especialidad=especialidad, fecha_visita=fecha or f"{DIA_FUTURO} 09:30",
         )
 
     def programar(self, solicitud_id: int, rol: str = "FUNDACION", **campos):
         """Programa la visita con los campos que se indiquen (por ejemplo medico_id y enfermero_id)."""
-        cuerpo = {"fecha_visita": "2026-12-01 09:30", **campos}
+        cuerpo = {"fecha_visita": f"{DIA_FUTURO} 09:30", **campos}
         r = self.gw.post(rol, f"/api/solicitudes/{solicitud_id}/convertir", json=cuerpo)
         if r.status_code == 201:
             visita = r.json()["visita"]

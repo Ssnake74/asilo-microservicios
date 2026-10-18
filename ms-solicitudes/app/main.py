@@ -13,6 +13,7 @@ Puerto: 8081
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
@@ -28,6 +29,7 @@ from .notificaciones import avisar_al_familiar
 from .reglas import (
     especialidades_coinciden,
     normalizar_especialidad,
+    fecha_ya_paso,
     normalizar_fecha_visita,
 )
 from .schemas import (
@@ -286,6 +288,12 @@ def convertir_en_visita(solicitud_id: int, datos: ConversionSolicitud):
         fecha_visita = normalizar_fecha_visita(datos.fecha_visita)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
+    if fecha_ya_paso(fecha_visita, date.today()):
+        raise HTTPException(
+            status_code=422,
+            detail="La visita no puede programarse en una fecha que ya pasó: "
+                   f"{fecha_visita:%d/%m/%Y}. Elija hoy o un día posterior.",
+        )
 
     visita = db.convertir_en_visita(
         solicitud,

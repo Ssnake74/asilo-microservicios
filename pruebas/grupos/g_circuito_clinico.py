@@ -12,7 +12,9 @@ El aviso por correo se prueba en el grupo L; aqui solo meteria mensajes
 de prueba en la bandeja.
 """
 
-from apoyo.contexto import montos_esperados, q
+from datetime import datetime, timedelta
+
+from apoyo.contexto import DIA_FUTURO, GUATEMALA, montos_esperados, q
 from apoyo.gateway import detalle, resumen
 
 LETRA = "G"
@@ -180,11 +182,12 @@ def ejecutar(ctx) -> None:
         "CU-08 (validación de la fecha)",
         "201 con los formatos que acepta el sistema, guardando la fecha y hora correctas",
     ) as c:
+        d = DIA_FUTURO
         casos = [
-            ("2026-12-01 09:30", "2026-12-01 09:30:00"),
-            ("2026-12-01T09:30", "2026-12-01 09:30:00"),
-            ("2026-12-01 09:30:15", "2026-12-01 09:30:15"),
-            ("2026-12-01", "2026-12-01 00:00:00"),
+            (f"{d} 09:30", f"{d} 09:30:00"),
+            (f"{d}T09:30", f"{d} 09:30:00"),
+            (f"{d} 09:30:15", f"{d} 09:30:15"),
+            (d, f"{d} 00:00:00"),
         ]
         lineas, todos = [], True
         for escrito, guardado in casos:
@@ -199,3 +202,20 @@ def ejecutar(ctx) -> None:
                 todos = False
         c.obtenido = "\n".join(lineas)
         c.pasa = todos
+
+    with rep.caso(
+        "Una visita no se programa en una fecha que ya pasó",
+        "CU-08 · E7",
+        "Ayer: 422 «ya pasó» y la remisión sigue PENDIENTE. Hoy, aunque la hora ya "
+        "haya pasado: 201",
+    ) as c:
+        hoy = datetime.now(GUATEMALA).date()
+        ayer = (hoy - timedelta(days=1)).isoformat()
+        vieja = ctx.remision(paciente, "Geriatria", etiqueta="G fecha pasada")
+        r = ctx.convertir(vieja["id"], "Geriatria", fecha=f"{ayer} 09:30")
+        estado = gw.get("FUNDACION", f"/api/solicitudes/{vieja['id']}").json()["estado"]
+        de_hoy = ctx.remision(paciente, "Geriatria", etiqueta="G fecha hoy")
+        r_hoy = ctx.convertir(de_hoy["id"], "Geriatria", fecha=f"{hoy.isoformat()} 00:30")
+        c.obtenido = f"ayer: {resumen(r)} · estado: {estado}\nhoy 00:30: {resumen(r_hoy)}"
+        c.pasa = (r.status_code == 422 and "ya pasó" in (detalle(r) or "") and estado == "PENDIENTE"
+                  and r_hoy.status_code == 201)

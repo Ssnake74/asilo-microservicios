@@ -6,7 +6,7 @@ fecha aqui permite responder 422 con un mensaje entendible, en vez de
 un 500 cuando MySQL la rechaza.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 # Formatos que se aceptan al asignar la visita medica: el de la
 # aplicacion base, el de un <input type="datetime-local">, el mismo con
@@ -52,3 +52,12 @@ def normalizar_fecha_visita(texto: str) -> datetime:
         "La fecha y hora de la visita debe escribirse como AAAA-MM-DD HH:MM, "
         f"por ejemplo 2026-09-15 09:30. Se recibió: {texto}"
     )
+
+
+def fecha_ya_paso(fecha: datetime, hoy: date) -> bool:
+    """
+    Una visita se programa para hoy o para un dia que viene. Se compara
+    el dia y no la hora: la fundacion puede anotar a media manana una
+    cita que el especialista atiende ese mismo dia.
+    """
+    return fecha.date() < hoy

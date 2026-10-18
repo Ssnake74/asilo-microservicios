@@ -77,6 +77,13 @@ function formVisita(solicitudId){
 let medicos = [];
 let enfermeros = [];
 
+// Sexo de cada interno por su codigo, para escribir «acompañada» o
+// «acompañado» en el aviso de la visita.
+let sexoDe = {};
+
+// El dia de hoy en la computadora de la persona, como AAAA-MM-DD.
+const hoyLocal = () => new Date().toLocaleDateString("en-CA");
+
 // Para las remisiones anteriores al catalogo, que solo traen el nombre
 // de la especialidad: se compara sin tildes, mayusculas ni espacios.
 const comparable = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -145,7 +152,7 @@ function dibujarEspera(s){
           </div>
           <div class="campo">
             <label for="fv-${s.id}">Fecha y hora de la cita <span class="obligatorio">*</span></label>
-            <input id="fv-${s.id}" type="datetime-local">
+            <input id="fv-${s.id}" type="datetime-local" min="${hoyLocal()}T00:00">
             <div class="error-campo" id="e-fv-${s.id}"></div>
           </div>
           <div class="campo">
@@ -173,6 +180,11 @@ async function programar(id){
   limpiarErrores(form);
 
   const faltantes = validarLocalmente(form);
+  const fecha = porId(`fv-${id}`).value.trim();
+  if(fecha && fecha.slice(0, 10) < hoyLocal()){
+    marcarError(form, "fecha_visita", "Esa fecha ya pasó. Elija hoy o un día posterior.");
+    faltantes.push("Fecha y hora de la cita (ya pasó)");
+  }
   if(faltantes.length){
     avisoResumen(form, "No se programó la visita. Falta corregir:", faltantes, false);
     irAlPrimerError(form);
@@ -200,7 +212,7 @@ async function programar(id){
     avisoResumen(form,
       `Visita programada: ${r.visita.paciente_nombre} verá a ${r.visita.medico_tratante} `
       + `(${r.visita.especialidad}) el ${fechaLegible(r.visita.fecha_visita)}, `
-      + `acompañado por ${r.visita.enfermero}. ${cobro}`,
+      + `${sexoDe[r.visita.paciente_id] === "F" ? "acompañada" : "acompañado"} por ${r.visita.enfermero}. ${cobro}`,
       null, true);
 
     cargarTodo();
@@ -271,10 +283,13 @@ function cargarTodo(){
       + "todavía no tienen fecha. La fundación les asigna médico y hora.";
   }
 
-  [medicos, enfermeros] = await Promise.all([
+  let internos;
+  [medicos, enfermeros, internos] = await Promise.all([
     apiSilenciosa("/api/catalogo/medicos?solo_activos=true", []),
-    apiSilenciosa("/api/catalogo/enfermeros?solo_activos=true", [])
+    apiSilenciosa("/api/catalogo/enfermeros?solo_activos=true", []),
+    apiSilenciosa("/api/pacientes", [])
   ]);
+  sexoDe = Object.fromEntries(internos.map(p => [p.codigo, p.sexo]));
   if(!medicos.length){
     avisar("aviso-conversion",
       "No se pudo leer el catálogo médico: sin él no se pueden elegir médico ni enfermero. Intente de nuevo en un momento.",
