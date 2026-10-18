@@ -20,9 +20,10 @@ Navegador ──► gateway :8080 ──┬──► ms-pacientes
                               │                     └──► ms-catalogo
                               ├──► ms-cobros
                               ├──► ms-catalogo ──► ms-cobros (precios)
-                              └──► ms-clinico ──► ms-solicitudes, ms-catalogo, ms-cobros
+                              ├──► ms-clinico ──► ms-solicitudes, ms-catalogo, ms-cobros
+                              └──► ms-reportes ──► ms-pacientes, ms-solicitudes, ms-clinico, ms-cobros
 
-MySQL 8: un esquema y un usuario por servicio
+MySQL 8: un esquema y un usuario por servicio (ms-reportes no tiene: solo lee de los demás)
 ```
 
 | Servicio | Responsabilidad |
@@ -32,6 +33,7 @@ MySQL 8: un esquema y un usuario por servicio
 | `ms-solicitudes` | Remisiones del médico general y su conversión en visita médica. Avisa por correo al familiar. |
 | `ms-cobros` | Tarifario, cargos con el descuento de la fundación y estado de cuenta. También las entradas y salidas del asilo: cuotas mensuales, donaciones, gastos y la cuenta con la fundación. |
 | `ms-catalogo` | Especialidades, médicos, enfermeros, exámenes y medicamentos de la fundación. |
+| `ms-reportes` | Los siete informes (RF-37 a RF-43). Lee de los demás servicios; no tiene esquema propio. |
 | `ms-clinico` | Ficha médica de la visita, exámenes y sus resultados, recetas y su despacho, e historial del interno. Cobra lo que el laboratorio hizo y la farmacia entregó. |
 
 - El gateway es la única entrada: los microservicios no publican puerto (RNF-03).
@@ -74,17 +76,18 @@ declaran en cada Container App, y las claves como secretos (RNF-21).
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Todos | Conexión a MySQL |
 | `DB_SSL_CA` | Todos | Certificado raíz con que se verifica a MySQL; activa TLS. En las imágenes: `/etc/ssl/certs/ca-certificates.crt` |
 | `COOKIE_SEGURA` | `gateway` | Con `1`, la cookie de sesión solo viaja por HTTPS |
-| `MS_PACIENTES_URL`, `MS_SOLICITUDES_URL`, `MS_COBROS_URL`, `MS_CATALOGO_URL`, `MS_CLINICO_URL` | `gateway` | Dirección de cada microservicio |
+| `MS_PACIENTES_URL`, `MS_SOLICITUDES_URL`, `MS_COBROS_URL`, `MS_CATALOGO_URL`, `MS_CLINICO_URL`, `MS_REPORTES_URL` | `gateway` | Dirección de cada microservicio |
 | `MS_COBROS_URL`, `MS_CATALOGO_URL` | `ms-solicitudes` | Dirección de cobros y del catálogo |
 | `MS_COBROS_URL` | `ms-catalogo` | Dirección de cobros, para dar precio a los exámenes y medicamentos sembrados |
 | `MS_SOLICITUDES_URL`, `MS_CATALOGO_URL`, `MS_COBROS_URL` | `ms-clinico` | Visita que se atiende, examen o medicamento del catálogo, y cobro de lo hecho |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_REMITENTE` | `ms-solicitudes` | Servidor de correo y remitente |
 | `SMTP_USUARIO`, `SMTP_CLAVE` | `ms-solicitudes` | Activan STARTTLS y el inicio de sesión en el servidor de correo |
+| `MS_PACIENTES_URL`, `MS_SOLICITUDES_URL`, `MS_COBROS_URL`, `MS_CLINICO_URL` | `ms-reportes` | Servicios de los que lee cada informe |
 | `REINTENTO_SEGUNDOS` | `ms-solicitudes`, `ms-clinico` | Cada cuánto se reintentan los cargos pendientes; por omisión 15 |
 
 ### Publicación de imágenes
 
-Cada push a `main` construye las imágenes de los seis servicios y las publica en el registro de
+Cada push a `main` construye las imágenes de los siete servicios y las publica en el registro de
 Azure, etiquetadas con el commit (`.github/workflows/publicar-imagenes.yml`). Los
 cambios que solo tocan documentación o pruebas no disparan la construcción. Las
 credenciales del registro son los secretos `ACR_USUARIO` y `ACR_CLAVE` del
@@ -92,7 +95,7 @@ repositorio.
 
 ### Despliegue en Azure
 
-Las seis aplicaciones y el trabajo que crea los esquemas de MySQL están
+Las siete aplicaciones y el trabajo que crea los esquemas de MySQL están
 descritos en `infra/azure/asilo.bicep`. Se despliegan desde Cloud Shell con un
 solo comando, que usa las imágenes más recientes del registro:
 
@@ -141,6 +144,7 @@ ms-solicitudes/  app/  los mismos, más cliente_cobros.py, cliente_catalogo.py y
 ms-cobros/       app/  main.py · reglas.py · db.py · schemas.py
 ms-catalogo/     app/  main.py · reglas.py · db.py · schemas.py
 ms-clinico/      app/  los mismos, más clientes.py
+ms-reportes/     app/  main.py · reglas.py · clientes.py · schemas.py (sin db.py)
 infra/mysql/init/01-esquemas.sql   Esquemas y usuarios de MySQL
 infra/azure/     Plantilla y script del despliegue en Azure
 pruebas/         Pruebas automatizadas y su reporte
@@ -175,6 +179,7 @@ Todas entran por el gateway.
 | `/api/cuotas`, `/api/donaciones`, `/api/gastos`, `/api/fundacion/deuda`, `/api/fundacion/pagos` | `ms-cobros` |
 | `/api/catalogo/especialidades`, `/medicos`, `/enfermeros`, `/examenes`, `/medicamentos` | `ms-catalogo` |
 | `/api/fichas`, `/api/examenes`, `/api/resultados`, `/api/recetas`, `/api/despachos` | `ms-clinico` |
+| `/api/reportes/costos`, `/analisis`, `/cobros`, `/pagos-fundacion`, `/ingresos`, `/examenes`, `/medicamentos` | `ms-reportes`, solo para el administrador |
 
 Qué rol puede usar cada ruta está en la tabla `PERMISOS` de
 `gateway/app/seguridad.py`. Lo que no aparece ahí se niega.
@@ -189,7 +194,7 @@ Con el sistema levantado, desde la raíz del repositorio:
 powershell -ExecutionPolicy Bypass -File .\pruebas\ejecutar.ps1
 ```
 
-Son 218 casos en 18 grupos, cada uno ligado al requisito que verifica. El reporte
+Son 226 casos en 19 grupos, cada uno ligado al requisito que verifica. El reporte
 queda en `pruebas/resultado.txt` y lista los casos que fallan y los pendientes
 conocidos.
 
@@ -205,6 +210,7 @@ farmacia e historial médico con su cobro.
 
 **Construido también:** cuotas mensuales, donaciones, gastos y cuenta con la
 fundación · egreso o fallecimiento del interno conservando su historial ·
-reintento automático de los cargos pendientes.
+reintento automático de los cargos pendientes · los siete reportes, listos para
+imprimir.
 
-**Pendiente:** reportes.
+Todos los requisitos funcionales del ERS (RF-01 a RF-44) están construidos.

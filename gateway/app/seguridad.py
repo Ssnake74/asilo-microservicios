@@ -99,6 +99,7 @@ MS_SOLICITUDES = os.getenv("MS_SOLICITUDES_URL", "http://ms-solicitudes:8081")
 MS_COBROS = os.getenv("MS_COBROS_URL", "http://ms-cobros:8082")
 MS_CATALOGO = os.getenv("MS_CATALOGO_URL", "http://ms-catalogo:8084")
 MS_CLINICO = os.getenv("MS_CLINICO_URL", "http://ms-clinico:8085")
+MS_REPORTES = os.getenv("MS_REPORTES_URL", "http://ms-reportes:8086")
 
 RUTAS: dict[str, tuple[str, str]] = {
     "pacientes":     (MS_PACIENTES,   "/pacientes"),
@@ -123,6 +124,7 @@ RUTAS: dict[str, tuple[str, str]] = {
     "resultados":    (MS_CLINICO,     "/resultados"),
     "recetas":       (MS_CLINICO,     "/recetas"),
     "despachos":     (MS_CLINICO,     "/despachos"),
+    "reportes":      (MS_REPORTES,    "/reportes"),
 }
 
 # Para el tablero de estado: nombre visible -> URL de su /health
@@ -132,6 +134,7 @@ SERVICIOS = {
     "ms-cobros":      MS_COBROS,
     "ms-catalogo":    MS_CATALOGO,
     "ms-clinico":     MS_CLINICO,
+    "ms-reportes":    MS_REPORTES,
 }
 
 
@@ -259,6 +262,11 @@ PERMISOS: dict[str, dict[str, set[str]]] = {
     },
     "despachos": {
         "POST":   {ADMIN, FARMACIA},
+    },
+    # Los informes son del administrador (ACT-05 en el ERS): juntan datos
+    # medicos y economicos de todos los internos.
+    "reportes": {
+        "GET":    {ADMIN},
     },
 }
 

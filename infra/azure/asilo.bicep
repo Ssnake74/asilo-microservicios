@@ -104,6 +104,7 @@ var servicios = [
       { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
       { name: 'MS_CATALOGO_URL', value: 'http://ms-catalogo' }
       { name: 'MS_CLINICO_URL', value: 'http://ms-clinico' }
+      { name: 'MS_REPORTES_URL', value: 'http://ms-reportes' }
       { name: 'COOKIE_SEGURA', value: '1' }
     ]
   }
@@ -161,6 +162,20 @@ var servicios = [
       { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
     ]
   }
+  {
+    // Sin esquema: solo lee de los demas servicios.
+    nombre: 'ms-reportes'
+    imagen: 'ms-reportes'
+    esquema: ''
+    puerto: 8086
+    externo: false
+    extra: [
+      { name: 'MS_PACIENTES_URL', value: 'http://ms-pacientes' }
+      { name: 'MS_SOLICITUDES_URL', value: 'http://ms-solicitudes' }
+      { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
+      { name: 'MS_CLINICO_URL', value: 'http://ms-clinico' }
+    ]
+  }
 ]
 
 resource aplicaciones 'Microsoft.App/containerApps@2024-03-01' = [for s in servicios: {
@@ -185,8 +200,8 @@ resource aplicaciones 'Microsoft.App/containerApps@2024-03-01' = [for s in servi
       ]
       secrets: concat([
         { name: 'clave-registro', value: credencialesRegistro.passwords[0].value }
-        { name: 'clave-bd', value: claveDe(claveAdmin, s.esquema) }
-      ], s.nombre == 'ms-solicitudes' ? [{ name: 'clave-correo', value: claveCorreo }] : [])
+      ], empty(s.esquema) ? [] : [{ name: 'clave-bd', value: claveDe(claveAdmin, s.esquema) }],
+        s.nombre == 'ms-solicitudes' ? [{ name: 'clave-correo', value: claveCorreo }] : [])
     }
     template: {
       containers: [
@@ -195,6 +210,7 @@ resource aplicaciones 'Microsoft.App/containerApps@2024-03-01' = [for s in servi
           image: '${registro.properties.loginServer}/asilo/${s.imagen}:${etiqueta}'
           env: concat([
             { name: 'TZ', value: 'America/Guatemala' }
+          ], empty(s.esquema) ? [] : [
             { name: 'DB_HOST', value: servidorMysql }
             { name: 'DB_PORT', value: '3306' }
             { name: 'DB_USER', value: 'u_${s.esquema}' }

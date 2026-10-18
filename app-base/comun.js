@@ -38,6 +38,9 @@
        /api/resultados     resultado que registra el laboratorio
        /api/recetas        medicamentos recetados
        /api/despachos      entrega que registra la farmacia
+       /api/cuotas, /api/donaciones, /api/gastos, /api/fundacion/...
+                           entradas y salidas del asilo
+       /api/reportes/...   los siete informes
        /api/usuarios       cuentas de las personas que usan el sistema
        /api/mi-contrasena  cambio de la contrasena propia
    ===================================================================== */
@@ -58,7 +61,12 @@ const MODULO_DE = {
   "examenes":      "laboratorio",
   "resultados":    "laboratorio",
   "recetas":       "farmacia",
-  "despachos":     "farmacia"
+  "despachos":     "farmacia",
+  "cuotas":        "cobros",
+  "donaciones":    "cobros",
+  "gastos":        "cobros",
+  "fundacion":     "cobros",
+  "reportes":      "reportes"
 };
 
 function mensajeNoDisponible(ruta) {

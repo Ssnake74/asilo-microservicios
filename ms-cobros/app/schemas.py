@@ -66,6 +66,7 @@ class Cargo(BaseModel):
     estado: str
     referencia: Optional[str]
     fecha: str
+    fecha_pago: Optional[str] = None
 
 
 class EstadoCuenta(BaseModel):

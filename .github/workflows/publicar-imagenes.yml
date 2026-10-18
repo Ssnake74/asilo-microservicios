@@ -39,6 +39,9 @@ jobs:
           - servicio: ms-clinico
             contexto: ms-clinico
             dockerfile: ms-clinico/Dockerfile
+          - servicio: ms-reportes
+            contexto: ms-reportes
+            dockerfile: ms-reportes/Dockerfile
     steps:
       - uses: actions/checkout@v4
 

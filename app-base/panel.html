@@ -212,6 +212,16 @@ const MODULOS = [
     }
   },
   {
+    recurso: "reportes",
+    titulo:  "Reportes",
+    texto:   "Los siete informes del asilo: costos, atención médica, cobros, ingresos y pagos a la fundación.",
+    enlace:  "/reportes.html",
+    cifra:   async () => {
+      const informes = await apiSilenciosa("/api/reportes");
+      return informes && { valor: informes.length, pie: "informes disponibles" };
+    }
+  },
+  {
     rol:     "ADMIN",
     titulo:  "Usuarios del sistema",
     texto:   "Cuentas del personal: altas, contraseñas olvidadas, cambios de puesto y bajas.",
@@ -225,11 +235,9 @@ const MODULOS = [
   }
 ];
 
-// Todavia no existen. Se muestran apagados para que se vea el alcance
-// completo del sistema y lo que falta por hacer.
-const FUTUROS = [
-  { titulo:"Reportes",             texto:"Los siete informes estadísticos que pide el asilo." }
-];
+// Lo que todavia no existe se muestra apagado, para que se vea el alcance
+// completo. Hoy no queda nada pendiente y la seccion no se dibuja.
+const FUTUROS = [];
 
 function dibujarModulo(m, cifra){
   const numero = cifra
@@ -262,6 +270,7 @@ function dibujarModulo(m, cifra){
     ? visibles.map(m => dibujarModulo(m, null)).join("")
     : '<p class="cargando">Su puesto en el asilo todavía no tiene módulos asignados. Avise al encargado del sistema.</p>';
 
+  porId("futuros").closest("section").hidden = !FUTUROS.length;
   porId("futuros").innerHTML = FUTUROS.map(f => `
     <div class="modulo apagado">
       <span class="etiqueta-pendiente">POR CONSTRUIR</span>

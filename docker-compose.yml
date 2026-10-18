@@ -121,6 +121,27 @@ services:
     restart: unless-stopped
 
   # -------------------------------------------------------------------
+  # Los siete informes. No tiene esquema propio ni usuario de MySQL: lee
+  # de los servicios duenos de cada dato.
+  # -------------------------------------------------------------------
+  ms-reportes:
+    build: ./ms-reportes
+    container_name: asilo-ms-reportes
+    # Sin "ports" a proposito (RNF-03).
+    environment:
+      - MS_PACIENTES_URL=http://ms-pacientes:8083
+      - MS_SOLICITUDES_URL=http://ms-solicitudes:8081
+      - MS_COBROS_URL=http://ms-cobros:8082
+      - MS_CLINICO_URL=http://ms-clinico:8085
+      - TZ=America/Guatemala
+    depends_on:
+      - ms-pacientes
+      - ms-solicitudes
+      - ms-cobros
+      - ms-clinico
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------
   # Atencion medica: ficha de la visita, examenes y resultados, recetas y
   # despachos (esquema asilo_clinico). Lee la visita en ms-solicitudes y
   # el examen o medicamento en ms-catalogo; el cargo lo pide a ms-cobros,
@@ -233,6 +254,7 @@ services:
       - MS_COBROS_URL=http://ms-cobros:8082
       - MS_CATALOGO_URL=http://ms-catalogo:8084
       - MS_CLINICO_URL=http://ms-clinico:8085
+      - MS_REPORTES_URL=http://ms-reportes:8086
       - TZ=America/Guatemala
     volumes:
       - ./app-base:/code/publico:ro

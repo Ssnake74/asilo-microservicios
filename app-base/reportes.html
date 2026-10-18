@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reportes · Asilo Cabeza de Algodón</title>
+<link rel="stylesheet" href="/comun.css">
+<style>
+  /* Propio de esta pantalla: elegir el informe, sus filtros y mostrarlo
+     listo para imprimir. */
+  .informes{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:16px;}
+  .informe-opcion{
+    text-align:left; background:var(--superficie); color:var(--texto); border:1px solid var(--borde);
+    border-radius:var(--radio); padding:12px 14px; font-weight:500; cursor:pointer;
+  }
+  .informe-opcion:hover{background:var(--violeta-suave);border-color:var(--violeta-medio);color:var(--texto);}
+  .informe-opcion[aria-pressed="true"]{border-color:var(--violeta-profundo);box-shadow:inset 4px 0 0 var(--violeta-profundo);background:var(--violeta-suave);}
+  .informe-opcion small{display:block;color:var(--texto-suave);font-size:12.5px;margin-top:3px;font-weight:400;}
+  .filtros{display:flex;gap:12px;align-items:end;flex-wrap:wrap;}
+  .filtros .campo{min-width:200px;}
+  .filtros .campo.ancho{flex:1;min-width:260px;}
+  .cabecera-informe{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;}
+  .cabecera-informe h2{font-size:22px;color:var(--violeta-profundo);}
+  .meta{font-size:14px;color:var(--texto-suave);}
+  .resumen div strong{font-size:18px;}
+  .resumen div strong.texto{font-size:15px;font-weight:600;}
+  h3.seccion{font-size:17px;margin:22px 0 8px;color:var(--violeta-profundo);}
+  td.largo{max-width:320px;white-space:normal;}
+  tfoot td{font-weight:700;border-top:2px solid var(--borde);}
+  .solo-impresion{display:none;}
+
+  /* Al imprimir sale solo el informe, en blanco y negro y con el nombre
+     del asilo arriba. */
+  @media print{
+    header, #elegir, .no-imprimir{display:none !important;}
+    body{background:#fff;}
+    main{padding:0;max-width:none;}
+    .solo-impresion{display:block;font-family:var(--letra-titulos);font-size:18px;margin-bottom:6px;}
+    section.tarjeta{border:none;padding:0;}
+    th{background:#eee !important;color:#000 !important;}
+    .resumen div{background:#f3f3f3 !important;}
+    *{color:#000 !important;}
+  }
+</style>
+</head>
+<body>
+
+<header></header>
+
+<main>
+  <section class="tarjeta" id="elegir">
+    <h2>Reportes</h2>
+    <p class="ayuda">Elija el informe, ajuste los filtros y genérelo. Las cifras salen de los
+       mismos módulos que se usan a diario: lo que aquí se ve es lo que hay registrado.</p>
+    <div class="informes" id="informes"></div>
+    <div class="filtros">
+      <div class="campo ancho" id="caja-interno">
+        <label for="f-interno" id="etiqueta-interno">Interno</label>
+        <select id="f-interno"></select>
+      </div>
+      <div class="campo" id="caja-desde">
+        <label for="f-desde">Desde</label>
+        <input id="f-desde" type="date">
+      </div>
+      <div class="campo" id="caja-hasta">
+        <label for="f-hasta">Hasta</label>
+        <input id="f-hasta" type="date">
+      </div>
+      <button id="generar">Generar informe</button>
+    </div>
+    <div class="aviso" id="aviso"></div>
+  </section>
+
+  <section class="tarjeta" id="resultado" hidden>
+    <div class="solo-impresion">Asilo de Ancianos «Cabeza de Algodón»</div>
+    <div class="cabecera-informe">
+      <h2 id="r-titulo"></h2>
+      <button class="secundario no-imprimir" onclick="window.print()">Imprimir</button>
+    </div>
+    <div class="meta" id="r-meta"></div>
+    <div class="resumen" id="r-resumen"></div>
+    <div id="r-secciones"></div>
+  </section>
+</main>
+
+<script src="/comun.js"></script>
+<script>
+let catalogo = [];
+let elegido = null;
+
+function valor(v, tipo){
+  if(v === null || v === undefined || v === "") return "—";
+  if(tipo === "dinero") return q(v);
+  if(tipo === "fecha") return texto(String(v).length > 10 ? fechaLegible(v) : new Date(v + "T00:00").toLocaleDateString("es-GT", { day: "numeric", month: "long", year: "numeric" }));
+  if(tipo === "numero") return Number(v).toLocaleString("es-GT");
+  return texto(v);
+}
+
+function claseCelda(tipo){
+  return tipo === "dinero" || tipo === "numero" ? ' class="num"' : ' class="largo"';
+}
+
+function dibujar(informe){
+  porId("resultado").hidden = false;
+  porId("r-titulo").textContent = informe.titulo;
+  porId("r-meta").textContent = `${informe.requisito} · ${informe.filtros} · Generado el ${fechaLegible(informe.generado)}`;
+  porId("r-resumen").innerHTML = informe.resumen.map(c => `
+    <div><span>${texto(c.etiqueta)}</span><strong class="${c.tipo === "texto" ? "texto" : ""}">${valor(c.valor, c.tipo)}</strong></div>`).join("");
+  porId("r-secciones").innerHTML = informe.secciones.map(s => `
+    <h3 class="seccion">${texto(s.titulo)}</h3>
+    ${s.filas.length ? `
+      <div class="tabla-scroll"><table>
+        <thead><tr>${s.columnas.map(c => `<th${c.tipo === "dinero" || c.tipo === "numero" ? ' class="num"' : ""}>${texto(c.titulo)}</th>`).join("")}</tr></thead>
+        <tbody>${s.filas.map(f => `<tr>${s.columnas.map(c => `<td${claseCelda(c.tipo)}>${valor(f[c.clave], c.tipo)}</td>`).join("")}</tr>`).join("")}</tbody>
+        ${s.totales ? `<tfoot><tr>${s.columnas.map((c, i) => `<td${claseCelda(c.tipo)}>${
+          c.clave in s.totales ? valor(s.totales[c.clave], c.tipo) : (i === 0 ? "Total" : "")}</td>`).join("")}</tr></tfoot>` : ""}
+      </table></div>` : `<p class="vacio">${texto(s.vacio)}</p>`}`).join("");
+  porId("resultado").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function elegir(clave){
+  elegido = catalogo.find(i => i.clave === clave);
+  document.querySelectorAll(".informe-opcion").forEach(b => b.setAttribute("aria-pressed", b.dataset.clave === clave));
+  porId("caja-interno").hidden = elegido.interno === "no";
+  porId("etiqueta-interno").textContent = elegido.interno === "obligatorio" ? "Interno *" : "Interno";
+  porId("f-interno").options[0].textContent = elegido.interno === "obligatorio" ? "— Seleccione al interno —" : "Todos los internos";
+  porId("caja-desde").hidden = porId("caja-hasta").hidden = !elegido.fechas;
+  porId("aviso").className = "aviso";
+}
+
+async function generar(){
+  if(!elegido){ avisar("aviso", "Elija primero qué informe quiere.", false); return; }
+  const parametros = new URLSearchParams();
+  const interno = porId("f-interno").value;
+  if(elegido.interno === "obligatorio" && !interno){
+    porId("f-interno").classList.add("malo");
+    avisar("aviso", "Este informe es de un interno: elíjalo de la lista.", false);
+    return;
+  }
+  porId("f-interno").classList.remove("malo");
+  if(elegido.interno !== "no" && interno) parametros.set("paciente_id", interno);
+  if(elegido.fechas){
+    if(porId("f-desde").value) parametros.set("desde", porId("f-desde").value);
+    if(porId("f-hasta").value) parametros.set("hasta", porId("f-hasta").value);
+  }
+  porId("generar").disabled = true;
+  try{
+    const informe = await api(`/api/reportes/${elegido.clave}?${parametros}`);
+    porId("aviso").className = "aviso";
+    dibujar(informe);
+  }catch(e){
+    avisar("aviso", typeof e.detalle === "string" ? e.detalle : e.message, false);
+  }finally{
+    porId("generar").disabled = false;
+  }
+}
+
+(async function arrancar(){
+  const yo = await iniciarPantalla({ subtitulo: "Reportes del asilo", requiere: "reportes" });
+  if(!yo) return;
+  catalogo = await apiSilenciosa("/api/reportes", []);
+  porId("informes").innerHTML = catalogo.map(i => `
+    <button class="informe-opcion" data-clave="${i.clave}" aria-pressed="false" onclick="elegir('${i.clave}')">
+      ${texto(i.titulo)}<small>${i.requisito}</small>
+    </button>`).join("");
+  await llenarInternos("f-interno", { vacio: "Todos los internos" });
+  const hoy = new Date().toLocaleDateString("en-CA");
+  porId("f-desde").value = hoy.slice(0, 8) + "01";
+  porId("f-hasta").value = hoy;
+  porId("generar").addEventListener("click", generar);
+  if(catalogo.length) elegir(catalogo[0].clave);
+})();
+</script>
+
+</body>
+</html>

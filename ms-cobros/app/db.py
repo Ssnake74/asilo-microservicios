@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS cargos (
     estado              VARCHAR(12)   NOT NULL DEFAULT 'PENDIENTE',
     referencia          VARCHAR(60)   NULL,
     fecha               DATETIME      NOT NULL,
+    fecha_pago          DATETIME      NULL,
     INDEX idx_paciente (paciente_id),
     INDEX idx_estado (estado),
     INDEX idx_fecha (fecha),
@@ -177,6 +178,17 @@ def init_db(intentos: int = 15, espera: float = 3.0) -> None:
                     cur.execute(SCHEMA_CARGOS)
                     for tabla in SCHEMA_FINANZAS:
                         cur.execute(tabla)
+                    # El dia del pago lo pide el informe de ingresos (RF-41).
+                    # Los cargos pagados antes de que existiera la columna
+                    # quedan con NULL y el informe usa la fecha del cargo.
+                    cur.execute(
+                        """SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+                           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cargos'
+                             AND COLUMN_NAME = 'fecha_pago'"""
+                    )
+                    if cur.fetchone()["n"] == 0:
+                        cur.execute("ALTER TABLE cargos ADD COLUMN fecha_pago DATETIME NULL AFTER fecha")
+                        print("[ms-cobros] Columna fecha_pago agregada a cargos.", flush=True)
                     cur.execute("SELECT COUNT(*) AS n FROM tarifas")
                     if cur.fetchone()["n"] == 0:
                         cur.executemany(
@@ -393,7 +405,10 @@ def marcar_pagado(cargo_id: int) -> dict | None:
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
-            cur.execute("UPDATE cargos SET estado = 'PAGADO' WHERE id = %s", (cargo_id,))
+            cur.execute(
+                "UPDATE cargos SET estado = 'PAGADO', fecha_pago = %s WHERE id = %s",
+                (datetime.now().replace(microsecond=0), cargo_id),
+            )
             cur.execute("SELECT * FROM cargos WHERE id = %s", (cargo_id,))
             fila = cur.fetchone()
         conn.commit()
