@@ -2,21 +2,22 @@
  SISTEMA PARA ADMINISTRACIÓN DEL ASILO DE ANCIANOS «CABEZA DE ALGODÓN»
  Reporte de pruebas automatizadas del sistema
 ==============================================================================
- Fecha y hora de ejecución: 17 de octubre de 2026, 21:09:25 (hora de Guatemala)
- Marca de los datos:        PRUEBA-AUTO 20261017-210925
+ Fecha y hora de ejecución: 17 de octubre de 2026, 21:49:15 (hora de Guatemala)
+ Marca de los datos:        PRUEBA-AUTO 20261017-214915
 
  Entorno
    Máquina:            Microsoft Windows 11 Home Single Language 10.0.26200
    Docker:             Docker Desktop 4.87.0 (236836) · motor 29.7.2 (linux/amd64)
-   Código probado:     commit cb54888, sin cambios pendientes
+   Código probado:     commit 132604c, sin cambios pendientes
    Base de datos:      MySQL 8.0.46
    Punto de entrada:   gateway, http://localhost:8080 (desde la red interna, gateway:8080)
    Contenedores:       asilo-mysql (mysql:8.0), asilo-mailpit
    (axllent/mailpit:latest), asilo-adminer (adminer:latest), asilo-ms-cobros
    (asilo-microservicios-ms-cobros), asilo-ms-catalogo (asilo-microservicios-
-   ms-catalogo), asilo-ms-solicitudes (asilo-microservicios-ms-solicitudes),
-   asilo-ms-pacientes (asilo-microservicios-ms-pacientes), asilo-gateway
-   (asilo-microservicios-gateway)
+   ms-catalogo), asilo-ms-clinico (asilo-microservicios-ms-clinico), asilo-ms-
+   solicitudes (asilo-microservicios-ms-solicitudes), asilo-ms-pacientes
+   (asilo-microservicios-ms-pacientes), asilo-gateway (asilo-microservicios-
+   gateway)
 
  Veredictos
    PASA                el sistema cumple lo que pide el requisito
@@ -29,12 +30,13 @@
  Contenedores, salud de MySQL y puertos visibles desde la máquina.
 ------------------------------------------------------------------------------
 
-CP-01  Los 8 contenedores del sistema están en ejecución              [ PASA ]
+CP-01  Los 9 contenedores del sistema están en ejecución              [ PASA ]
        Verifica: RNF-22 (despliegue completo con un solo comando)
-       Esperado: Los 8 contenedores del docker-compose en estado «running»
+       Esperado: Los 9 contenedores del docker-compose en estado «running»
        Obtenido: mysql: running, mailpit: running, adminer: running, ms-
-                 cobros: running, ms-catalogo: running, ms-solicitudes:
-                 running, ms-pacientes: running, gateway: running
+                 cobros: running, ms-catalogo: running, ms-clinico: running,
+                 ms-solicitudes: running, ms-pacientes: running, gateway:
+                 running
 
 CP-02  MySQL reporta estado saludable                                 [ PASA ]
        Verifica: Infraestructura (healthcheck de MySQL en el compose)
@@ -47,10 +49,10 @@ CP-03  El gateway responde en el puerto 8080                          [ PASA ]
                  responde 200
        Obtenido: 8080 abierto (probado desde Windows) · GET / → 200
 
-CP-04  Los microservicios no responden en 8081 a 8084 desde fuera     [ PASA ]
+CP-04  Los microservicios no responden en 8081 a 8085 desde fuera     [ PASA ]
        Verifica: RNF-03
-       Esperado: Los cuatro puertos cerrados desde la máquina, ningún
-                 microservicio publica puertos, y aun así los cuatro responden
+       Esperado: Los cinco puertos cerrados desde la máquina, ningún
+                 microservicio publica puertos, y aun así los cinco responden
                  dentro de la red interna
        Obtenido: 8081 (ms-solicitudes): cerrado desde fuera · puertos
                  publicados: ninguno · /health interno: 200
@@ -59,6 +61,8 @@ CP-04  Los microservicios no responden en 8081 a 8084 desde fuera     [ PASA ]
                  8083 (ms-pacientes): cerrado desde fuera · puertos
                  publicados: ninguno · /health interno: 200
                  8084 (ms-catalogo): cerrado desde fuera · puertos publicados:
+                 ninguno · /health interno: 200
+                 8085 (ms-clinico): cerrado desde fuera · puertos publicados:
                  ninguno · /health interno: 200
                  (probado desde Windows)
 
@@ -74,7 +78,7 @@ CP-05  Ingreso válido como «admin» (Administrador)                    [ PASA 
        Esperado: 200, sesión abierta con rol ADMIN
        Obtenido: 200 · rol ADMIN · «Julio César Sagastume» · recursos
                  visibles: pacientes, solicitudes, visitas, tarifas, cargos,
-                 estado-cuenta, catalogo
+                 estado-cuenta, catalogo, fichas, examenes, recetas
 
 CP-06  Ingreso válido como «secretaria» (Secretaria)                  [ PASA ]
        Verifica: CU-01
@@ -87,7 +91,8 @@ CP-07  Ingreso válido como «medico» (Médico general)                  [ PASA
        Verifica: CU-01
        Esperado: 200, sesión abierta con rol MEDICO_GENERAL
        Obtenido: 200 · rol MEDICO_GENERAL · «Dr. Luis Marroquín» · recursos
-                 visibles: pacientes, solicitudes, visitas, tarifas, catalogo
+                 visibles: pacientes, solicitudes, visitas, tarifas, catalogo,
+                 fichas, examenes, recetas
 
 CP-08  Ingreso válido como «fundacion» (Fundación)                    [ PASA ]
        Verifica: CU-01
@@ -166,7 +171,7 @@ CP-19  Un usuario inexistente se bloquea igual                        [ PASA ]
        Verifica: CU-01 (no revelar qué usuarios existen)
        Esperado: Cinco 401 y luego 429, con el mismo mensaje de bloqueo que un
                  usuario real
-       Obtenido: «fantasma20261017210925»: 401, 401, 401, 401, 401, 429 ·
+       Obtenido: «fantasma20261017214915»: 401, 401, 401, 401, 401, 429 ·
                  mensaje idéntico al de «caja»: «Por seguridad, el ingreso
                  quedó bloqueado tras varios intentos fallidos. Vuelva a
                  intentar en 15 minutos.»
@@ -815,12 +820,12 @@ CP-129  El microservicio nunca recibe una petición no autorizada      [ PASA ]
        Esperado: Las peticiones negadas no aparecen en el registro de acceso
                  del microservicio; una petición permitida de control sí
                  aparece
-       Obtenido: Caja DELETE /api/pacientes/PACX20261017210925: 403 · en el
+       Obtenido: Caja DELETE /api/pacientes/PACX20261017214915: 403 · en el
                  registro de ms-pacientes: no
-                 Médico general DELETE /api/tarifas/917210925: 403 · en el
+                 Médico general DELETE /api/tarifas/917214915: 403 · en el
                  registro de ms-cobros: no
                  Control, Administrador GET
-                 /api/pacientes/PACCTRL20261017210925: 404 · en el registro:
+                 /api/pacientes/PACCTRL20261017214915: 404 · en el registro:
                  sí
 
 
@@ -853,7 +858,7 @@ CP-133  DPI repetido                                                  [ PASA ]
        Verifica: RN-03
        Esperado: El primero 201; el segundo con el mismo DPI 409, indicando el
                  código del interno que ya lo tiene
-       Obtenido: DPI 9261017210925 · primero: 201 · PAC-008 · segundo: 409 ·
+       Obtenido: DPI 9261017214915 · primero: 201 · PAC-008 · segundo: 409 ·
                  «Ese DPI ya está registrado con el código PAC-008.»
 
 CP-134  Alta sin DPI                                                  [ PASA ]
@@ -903,7 +908,7 @@ CP-139  Flujo completo: interno → remisión → visita → cargo           [ P
        Obtenido: interno PAC-016 → remisión 15 (PENDIENTE) → visita 8
                  (remisión CONVERTIDA, cargo_generado=True) → cargo 15
                  «VISITA-8»: Q250.00 − Q115.00 = Q135.00 (tarifa «Consulta con
-                 medico especialista», 46 %)
+                 médico especialista», 46 %)
 
 CP-140  Programar visita de una remisión anulada                      [ PASA ]
        Verifica: RN-04
@@ -1083,7 +1088,7 @@ CP-161  Los demás módulos siguen funcionando                          [ PASA ]
                  cobros como caído
        Obtenido: internos: 200 · remisiones: 200 · alta de interno: 201 ·
                  tablero: ms-pacientes arriba, ms-solicitudes arriba, ms-
-                 cobros caído, ms-catalogo arriba
+                 cobros caído, ms-catalogo arriba, ms-clinico arriba
 
        Nota: Se volvió a encender asilo-ms-cobros (estado: running; responde).
 
@@ -1124,8 +1129,10 @@ CP-164  u_cobros solo ve su esquema y no entra a los ajenos           [ PASA ]
                  solicitudes → 1142 SELECT command denied
                  asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
                  1142 SELECT command denied
-                 asilo_catalogo: USE → 1044 Access denied
-                 asilo_clinico: USE → 1044 Access denied
+                 asilo_catalogo: USE → 1044 Access denied · SELECT
+                 especialidades → 1142 SELECT command denied
+                 asilo_clinico: USE → 1044 Access denied · SELECT
+                 fichas_medicas → 1142 SELECT command denied
 
 CP-165  u_pacientes solo ve su esquema y no entra a los ajenos        [ PASA ]
        Verifica: RNF-04
@@ -1139,8 +1146,10 @@ CP-165  u_pacientes solo ve su esquema y no entra a los ajenos        [ PASA ]
                  solicitudes → 1142 SELECT command denied
                  asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
                  1142 SELECT command denied
-                 asilo_catalogo: USE → 1044 Access denied
-                 asilo_clinico: USE → 1044 Access denied
+                 asilo_catalogo: USE → 1044 Access denied · SELECT
+                 especialidades → 1142 SELECT command denied
+                 asilo_clinico: USE → 1044 Access denied · SELECT
+                 fichas_medicas → 1142 SELECT command denied
 
 CP-166  u_solicitudes solo ve su esquema y no entra a los ajenos      [ PASA ]
        Verifica: RNF-04
@@ -1154,8 +1163,10 @@ CP-166  u_solicitudes solo ve su esquema y no entra a los ajenos      [ PASA ]
                  → 1142 SELECT command denied
                  asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
                  1142 SELECT command denied
-                 asilo_catalogo: USE → 1044 Access denied
-                 asilo_clinico: USE → 1044 Access denied
+                 asilo_catalogo: USE → 1044 Access denied · SELECT
+                 especialidades → 1142 SELECT command denied
+                 asilo_clinico: USE → 1044 Access denied · SELECT
+                 fichas_medicas → 1142 SELECT command denied
 
 CP-167  u_gateway solo ve su esquema y no entra a los ajenos          [ PASA ]
        Verifica: RNF-04
@@ -1169,8 +1180,10 @@ CP-167  u_gateway solo ve su esquema y no entra a los ajenos          [ PASA ]
                  → 1142 SELECT command denied
                  asilo_solicitudes: USE → 1044 Access denied · SELECT
                  solicitudes → 1142 SELECT command denied
-                 asilo_catalogo: USE → 1044 Access denied
-                 asilo_clinico: USE → 1044 Access denied
+                 asilo_catalogo: USE → 1044 Access denied · SELECT
+                 especialidades → 1142 SELECT command denied
+                 asilo_clinico: USE → 1044 Access denied · SELECT
+                 fichas_medicas → 1142 SELECT command denied
 
 CP-168  u_catalogo solo ve su esquema y no entra a los ajenos         [ PASA ]
        Verifica: RNF-04
@@ -1186,7 +1199,8 @@ CP-168  u_catalogo solo ve su esquema y no entra a los ajenos         [ PASA ]
                  solicitudes → 1142 SELECT command denied
                  asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
                  1142 SELECT command denied
-                 asilo_clinico: USE → 1044 Access denied
+                 asilo_clinico: USE → 1044 Access denied · SELECT
+                 fichas_medicas → 1142 SELECT command denied
 
 CP-169  u_clinico solo ve su esquema y no entra a los ajenos          [ PASA ]
        Verifica: RNF-04
@@ -1202,7 +1216,8 @@ CP-169  u_clinico solo ve su esquema y no entra a los ajenos          [ PASA ]
                  solicitudes → 1142 SELECT command denied
                  asilo_gateway: USE → 1044 Access denied · SELECT usuarios →
                  1142 SELECT command denied
-                 asilo_catalogo: USE → 1044 Access denied
+                 asilo_catalogo: USE → 1044 Access denied · SELECT
+                 especialidades → 1142 SELECT command denied
 
 
 ------------------------------------------------------------------------------
@@ -1258,9 +1273,9 @@ CP-174  Remisión con correo del familiar                              [ PASA ]
                  el nombre del interno en el asunto y la especialidad en el
                  texto
        Obtenido: remisión: 201 · mensajes para
-                 prueba.auto.20261017210925.l1@example.com: 1 · asunto
+                 prueba.auto.20261017214915.l1@example.com: 1 · asunto
                  «Solicitud de consulta médica para Prueba PRUEBA-AUTO
-                 20261017-210925 L correo» · especialidad en el texto: sí
+                 20261017-214915 L correo» · especialidad en el texto: sí
 
 CP-175  Remisión sin correo del familiar                              [ PASA ]
        Verifica: RF-44 (flujo alterno)
@@ -1294,7 +1309,7 @@ CP-178  Las operaciones que modifican quedan registradas              [ PASA ]
        Verifica: Bitácora de auditoría (gateway)
        Esperado: Una fila con usuario caja, rol CAJA, POST /api/tarifas y
                  código 201
-       Obtenido: fila 302: 2026-10-17 21:10:16 · caja · CAJA · POST
+       Obtenido: fila 302: 2026-10-17 21:50:07 · caja · CAJA · POST
                  /api/tarifas · 201
 
 CP-179  Las lecturas exitosas no quedan registradas                   [ PASA ]
@@ -1371,15 +1386,15 @@ CP-187  La remisión guarda la especialidad del catálogo               [ PASA ]
        Verifica: CU-06 · RF-14
        Esperado: 201 con el identificador de la especialidad y su nombre como
                  está en el catálogo, aunque el texto enviado sea otro
-       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261017-210925 O»
+       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261017-214915 O»
 
 CP-188  Médico de otra especialidad                                   [ PASA ]
        Verifica: RN-05 (por identificador)
        Esperado: 422 que nombra la especialidad remitida y la del médico, y la
                  remisión sigue PENDIENTE
        Obtenido: 422 · «El médico general remitió a PRUEBA-AUTO
-                 20261017-210925 O, pero PRUEBA-AUTO 20261017-210925 Dr. O
-                 ajeno es de PRUEBA-AUTO 20261017-210925 O otra.» · estado:
+                 20261017-214915 O, pero PRUEBA-AUTO 20261017-214915 Dr. O
+                 ajeno es de PRUEBA-AUTO 20261017-214915 O otra.» · estado:
                  PENDIENTE
 
 CP-189  Médico retirado del catálogo                                  [ PASA ]
@@ -1399,9 +1414,9 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
        Esperado: 201: la visita guarda los identificadores y los nombres del
                  médico, su especialidad y el enfermero, y el cargo de la
                  consulta queda generado
-       Obtenido: 201 · visita 17: médico 13 «PRUEBA-AUTO 20261017-210925 Dr.
-                 O» (PRUEBA-AUTO 20261017-210925 O) · enfermero 5 «PRUEBA-AUTO
-                 20261017-210925 Enf. O» · cargo_generado=True
+       Obtenido: 201 · visita 17: médico 13 «PRUEBA-AUTO 20261017-214915 Dr.
+                 O» (PRUEBA-AUTO 20261017-214915 O) · enfermero 5 «PRUEBA-AUTO
+                 20261017-214915 Enf. O» · cargo_generado=True
 
 
 ------------------------------------------------------------------------------
@@ -1415,8 +1430,8 @@ CP-192  El administrador crea un usuario con contraseña temporal      [ PASA ]
        Esperado: 201 con el usuario en minúsculas, el nombre sin espacios de
                  más, una contraseña temporal y la marca de que debe
                  cambiarla; en la base no queda la temporal legible
-       Obtenido: 201 · usuario «prueba.20261017210925.p1» · nombre «PRUEBA-
-                 AUTO 20261017-210925 p1» · temporal de 14 caracteres ·
+       Obtenido: 201 · usuario «prueba.20261017214915.p1» · nombre «PRUEBA-
+                 AUTO 20261017-214915 p1» · temporal de 14 caracteres ·
                  debe_cambiar=True · en la base: sal$resumen
 
 CP-193  Datos rechazados al crear un usuario                          [ PASA ]
@@ -1425,7 +1440,7 @@ CP-193  Datos rechazados al crear un usuario                          [ PASA ]
                  espacios, para un rol que no existe y para un nombre en
                  blanco
        Obtenido: repetido: 409 · «Ya existe un usuario
-                 «prueba.20261017210925.p1».»
+                 «prueba.20261017214915.p1».»
                  con espacio: 422 · «usuario: Value error, Use solo letras sin
                  tildes, números, punto, guion o guion bajo, sin espacios.»
                  rol inventado: 422 · «rol: Input should be 'ADMIN',
@@ -1516,20 +1531,116 @@ CP-201  La bitácora anota quién manejó qué cuenta, sin la contraseña  [ PAS
                  contraseña: 0
 
 
+------------------------------------------------------------------------------
+ Q · ATENCIÓN MÉDICA
+ Ficha de la visita, exámenes y resultados, recetas y despachos, su cobro
+ automático, el historial del interno y quién puede hacer cada cosa.
+------------------------------------------------------------------------------
+
+CP-202  El especialista registra la ficha de la visita                [ PASA ]
+       Verifica: RF-21
+       Esperado: 201 con el diagnóstico, el interno y el médico de la visita,
+                 y como responsable el especialista de la sesión; una segunda
+                 ficha para la misma visita 409 y una visita inexistente 422
+       Obtenido: 201 · ficha 1 · «Hipertensión arterial grado 1» · PAC-024 ·
+                 Dra. Prueba Q · responsable Dra. Ana Sical
+                 segunda ficha: 409 · «Esa visita ya tiene su ficha médica.»
+                 visita inexistente: 422 · «La visita indicada no existe.»
+
+CP-203  El especialista ordena un examen del catálogo                 [ PASA ]
+       Verifica: RF-22
+       Esperado: 201 con la orden pendiente; 422 para un examen que no está en
+                 el catálogo y 404 para una ficha que no existe
+       Obtenido: 201 · «Glucosa en ayunas» · PENDIENTE
+                 examen inexistente: 422 · «El examen elegido no existe en el
+                 catálogo o ya no se hace.»
+                 ficha inexistente: 404 · «La ficha médica no existe.»
+
+CP-204  El laboratorio registra el resultado y el examen se cobra     [ PASA ]
+       Verifica: RF-23 · RF-29 · RN-09
+       Esperado: 201 con la orden completada y el laboratorio como
+                 responsable; se genera el cargo del examen con el descuento
+                 de la fundación; un segundo resultado 409
+       Obtenido: 201 · COMPLETADA · responsable Lic. Carlos Pérez
+                 cargo 35 «EXAMEN-1»: Q60.00 − Q30.00 = Q30.00 (esperado neto
+                 Q30.00)
+                 segundo resultado: 409 · «Ese examen ya tiene su resultado.»
+
+CP-205  El especialista receta con cantidad y tiempo de aplicación    [ PASA ]
+       Verifica: RF-24
+       Esperado: 201 con la receta pendiente; 422 para cantidad 0, cantidad
+                 101, indicaciones de menos de 5 letras y un medicamento que
+                 no está en el catálogo
+       Obtenido: 201 · «Acetaminofén 500 mg (caja)» × 3 · PENDIENTE
+                 cantidad 0: 422 · cantidad 101: 422 · indicaciones cortas:
+                 422 · medicamento inexistente: 422
+
+CP-206  La farmacia despacha y se cobra lo entregado                  [ PASA ]
+       Verifica: RF-25 · RF-29
+       Esperado: 422 al intentar entregar más de lo recetado; 201 al entregar
+                 2 de 3, con el cargo de 2 unidades y el descuento de la
+                 fundación; un segundo despacho 409
+       Obtenido: más de lo recetado: 422 · «Se recetaron 3: no se puede
+                 entregar más de eso.»
+                 201 · DESPACHADA · entregadas 2 · responsable Lic. Sofía
+                 Méndez
+                 cargo 36 «RECETA-1» × 2: neto Q60.00 (esperado Q60.00)
+                 segundo despacho: 409 · «Esa receta ya fue despachada.»
+
+CP-207  Un examen sin precio en el catálogo se registra sin cobro     [ PASA ]
+       Verifica: RF-29 (examen sin concepto del tarifario)
+       Esperado: 201 con el resultado guardado, cargo_generado falso y un
+                 aviso de que el examen no tiene precio
+       Obtenido: 201 · cargo_generado=False · «El examen «PRUEBA-AUTO
+                 20261017-214915 Q sin precio» no tiene precio en el catálogo
+                 médico: no se generó cobro. La fundación puede asignarle uno
+                 en el catálogo.»
+
+CP-208  El responsable lo pone el gateway, no el navegador            [ PASA ]
+       Verifica: RNF-02 (la identidad sale solo de la sesión)
+       Esperado: Un resultado enviado con el encabezado «X-Usuario: Otra
+                 persona» queda a nombre del usuario de la sesión
+       Obtenido: 201 · responsable: Lic. Carlos Pérez
+
+CP-209  El historial médico junta la ficha con sus exámenes y         [ PASA ]
+       medicamentos
+       Verifica: RF-26
+       Esperado: El médico general recibe la ficha del interno con sus tres
+                 exámenes, todos con resultado, y la receta con su despacho;
+                 secretaria, fundación y caja 403
+       Obtenido: 200 · fichas: 1 · exámenes: 3 (con resultado: 3) · recetas: 1
+                 (despachadas: 1)
+                 Secretaria: 403 · Fundación: 403 · Caja: 403
+
+CP-210  Quién puede cada operación de la atención médica              [ PASA ]
+       Verifica: RNF-02 · RF-03
+       Esperado: Cada operación responde el servicio para los roles con
+                 permiso y 403 del gateway para los demás, en los ocho roles
+       Obtenido: Fichas · consultar: bien
+                 Fichas · registrar: bien
+                 Exámenes · consultar: bien
+                 Exámenes · ordenar: bien
+                 Resultados · registrar: bien
+                 Recetas · consultar: bien
+                 Recetas · recetar: bien
+                 Despachos · registrar: bien
+                 Visitas · consultar: bien
+
+
 ==============================================================================
  LIMPIEZA Y RESTAURACIÓN DEL SISTEMA
 ==============================================================================
 
- Marca de los datos de prueba: «PRUEBA-AUTO 20261017-210925».
+ Marca de los datos de prueba: «PRUEBA-AUTO 20261017-214915».
 
  1. Contenedores: ninguno quedó detenido, pausado ni desconectado.
 
  2. Borrado por la aplicación (como Administrador, por el gateway):
-     Cargos pendientes: 17 (id 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 26, 27
-     y 5 más)
+     Cargos pendientes: 21 (id 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 26, 27
+     y 9 más)
      Tarifas: 5 (id 13, 14, 15, 16, 18)
-     Internos: 17 (PAC-007, PAC-008, PAC-009, PAC-010, PAC-011, PAC-012,
-     PAC-013, PAC-014, PAC-015, PAC-016, PAC-017, PAC-018 y 5 más)
+     Internos: 18 (PAC-007, PAC-008, PAC-009, PAC-010, PAC-011, PAC-012,
+     PAC-013, PAC-014, PAC-015, PAC-016, PAC-017, PAC-018 y 6 más)
      La aplicación no permitió borrar (se borran en el paso 3):
        - cargo 14 (PAGADO): la aplicación respondió 409
        - cargo 22 (PAGADO): la aplicación respondió 409
@@ -1539,10 +1650,13 @@ CP-201  La bitácora anota quién manejó qué cuenta, sin la contraseña  [ PAS
        - tarifa 12: la aplicación respondió 409
 
  3. Borrado directo en MySQL (como root, filtrando por la marca):
-     Visitas (el sistema no tiene operación de borrado): 10 (id 8, 9, 10, 11,
-     12, 13, 14, 15, 16, 17)
-     Remisiones (el sistema solo permite anularlas): 23 (id 15, 16, 17, 18,
-     19, 20, 21, 22, 23, 24, 25, 26 y 11 más)
+     Fichas médicas (la atención médica no tiene operación de borrado): 1 (id
+     1)
+       con sus despachos: 1, resultados: 3, recetas: 1, órdenes de examen: 3
+     Visitas (el sistema no tiene operación de borrado): 11 (id 8, 9, 10, 11,
+     12, 13, 14, 15, 16, 17, 18)
+     Remisiones (el sistema solo permite anularlas): 24 (id 15, 16, 17, 18,
+     19, 20, 21, 22, 23, 24, 25, 26 y 12 más)
      Cargos que la aplicación no deja borrar (pagados, RN-12): 3 (id 14, 22,
      29)
      Tarifas que tenían cargos pagados (RN-11): 3 (id 10, 11, 12)
@@ -1551,7 +1665,7 @@ CP-201  La bitácora anota quién manejó qué cuenta, sin la contraseña  [ PAS
      14, 15)
      Catálogo, enfermeros (el catálogo no tiene operación de borrado): 1 (id
      5)
-     Catálogo, examenes (el catálogo no tiene operación de borrado): 0
+     Catálogo, examenes (el catálogo no tiene operación de borrado): 1 (id 4)
      Catálogo, medicamentos (el catálogo no tiene operación de borrado): 0
      Catálogo, especialidades (el catálogo no tiene operación de borrado): 2
      (id 13, 14)
@@ -1560,9 +1674,9 @@ CP-201  La bitácora anota quién manejó qué cuenta, sin la contraseña  [ PAS
  4. Correo: 2 mensaje(s) de prueba borrados de Mailpit; los demás no se
  tocaron.
 
- 5. Sesiones: 18 abiertas por la corrida, cerradas con «cerrar sesión».
+ 5. Sesiones: 21 abiertas por la corrida, cerradas con «cerrar sesión».
 
- 6. Bitácora: se BORRARON 369 filas generadas por esta corrida (id 79 a 447).
+ 6. Bitácora: se BORRARON 463 filas generadas por esta corrida (id 79 a 541).
  La tabla vuelve a sus 78 filas anteriores a la corrida. Si alguien usó el
  sistema mientras corrían las pruebas, sus filas de ese intervalo también se
  borraron: no hay forma de distinguirlas.
@@ -1570,18 +1684,18 @@ CP-201  La bitácora anota quién manejó qué cuenta, sin la contraseña  [ PAS
 
  7. Contadores AUTO_INCREMENT devueltos a su valor inicial:
  asilo_catalogo.enfermeros: 6 → 5; asilo_catalogo.especialidades: 16 → 13;
- asilo_catalogo.medicos: 16 → 13; asilo_cobros.cargos: 34 → 14;
- asilo_cobros.tarifas: 19 → 10; asilo_gateway.bitacora: 448 → 79;
- asilo_gateway.intentos_fallidos: 27 → 3; asilo_gateway.usuarios: 12 → 9;
- asilo_pacientes.pacientes: 24 → 7; asilo_solicitudes.solicitudes: 38 → 15;
- asilo_solicitudes.visitas: 18 → 8
+ asilo_catalogo.medicos: 16 → 13; asilo_catalogo.tipos_examen: 5 → 4;
+ asilo_cobros.cargos: 38 → 14; asilo_cobros.tarifas: 19 → 10;
+ asilo_gateway.bitacora: 542 → 79; asilo_gateway.intentos_fallidos: 27 → 3;
+ asilo_gateway.usuarios: 12 → 9; asilo_pacientes.pacientes: 25 → 7;
+ asilo_solicitudes.solicitudes: 39 → 15; asilo_solicitudes.visitas: 19 → 8
 
  8. Verificación final:
-     El sistema quedó como estaba: los 8 contenedores en su estado inicial
+     El sistema quedó como estaba: los 9 contenedores en su estado inicial
      (running), sin cuentas bloqueadas (0 intentos fallidos guardados, igual
-     que al empezar), sin internos, remisiones, visitas, tarifas, cargos,
-     usuarios ni correos de prueba, la bitácora con sus 78 filas originales y
-     los contadores en su valor inicial.
+     que al empezar), sin internos, remisiones, visitas, fichas, tarifas,
+     cargos, usuarios ni correos de prueba, la bitácora con sus 78 filas
+     originales y los contadores en su valor inicial.
 
 ==============================================================================
  RESUMEN DE LA CORRIDA
@@ -1605,8 +1719,9 @@ CP-201  La bitácora anota quién manejó qué cuenta, sin la contraseña  [ PAS
  N · Vencimiento de la sesión                  2       2       0       0
  O · Catálogo médico                           7       7       0       0
  P · Administración de usuarios               10      10       0       0
+ Q · Atención médica                           9       9       0       0
  ----------------------------------------------------------------------------
- TOTAL                                       201     200       0       1
+ TOTAL                                       210     209       0       1
 
  Ningún caso falló.
 
