@@ -12,6 +12,10 @@ pendiente (RNF-12), y main.py lo reintenta despues (RNF-13).
 """
 
 import os
+import socket
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as Agotado
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -21,6 +25,35 @@ MS_COBROS_URL = os.getenv("MS_COBROS_URL", "http://ms-cobros:8082")
 
 # Corto, por la misma razon que en ms-solicitudes: el gateway corta a los 8 s.
 TIMEOUT = 2.0
+
+
+# ---------------------------------------------------------------------
+# Antes de llamar a cobros se resuelve su nombre, con tope de tiempo.
+#
+# Con el contenedor de cobros apagado, el DNS de Docker tarda de 4 a 8
+# segundos en contestar que ese nombre no existe, y esa espera no la
+# cubre el TIMEOUT de httpx: solo cuenta desde que hay direccion. Sumada
+# al resto, la respuesta llegaba al gateway despues de sus 8 segundos y el
+# usuario veia un error por algo que si quedo guardado.
+# ---------------------------------------------------------------------
+
+_RESOLVEDOR = ThreadPoolExecutor(max_workers=2)
+
+NO_RESPONDE = (
+    "El servicio de cobros no respondió. Lo registrado quedó guardado y el "
+    "cargo se generará solo cuando el servicio vuelva."
+)
+
+
+def cobros_alcanzable(segundos: float = TIMEOUT) -> bool:
+    """True si el nombre de cobros se resuelve dentro del tope."""
+    partes = urlsplit(MS_COBROS_URL)
+    futuro = _RESOLVEDOR.submit(socket.getaddrinfo, partes.hostname, partes.port or 80)
+    try:
+        futuro.result(timeout=segundos)
+        return True
+    except (Agotado, OSError):
+        return False
 
 
 class NoDisponible(Exception):
@@ -69,6 +102,8 @@ def medicamento(medicamento_id: int) -> dict | None:
 
 def cobros_responde() -> bool:
     """Pregunta rapida antes de reintentar, para no esperar el limite por cada cargo."""
+    if not cobros_alcanzable():
+        return False
     try:
         return httpx.get(f"{MS_COBROS_URL}/health", timeout=TIMEOUT).status_code == 200
     except httpx.RequestError:
@@ -86,6 +121,8 @@ def generar_cargo(ficha: dict, tipo: str, tarifa_id: int | None, cantidad: int,
             f"{que} no tiene precio en el catálogo médico: no se generó cobro. "
             "La fundación puede asignarle uno en el catálogo."
         )
+    if not cobros_alcanzable():
+        return None, NO_RESPONDE
     cuerpo = {
         "paciente_id": ficha["paciente_id"],
         "paciente_nombre": ficha["paciente_nombre"],
@@ -106,10 +143,7 @@ def generar_cargo(ficha: dict, tipo: str, tarifa_id: int | None, cantidad: int,
             "Lo registrado quedó guardado; el cargo se agrega desde Cuentas."
         )
     except httpx.RequestError:
-        return None, (
-            "El servicio de cobros no respondió. Lo registrado quedó guardado y el "
-            "cargo se generará solo cuando el servicio vuelva."
-        )
+        return None, NO_RESPONDE
     return cargo["id"], (
         f"Cargo {cargo['id']} generado por Q{cargo['monto_neto']:.2f} "
         f"(la fundación cubrió Q{cargo['descuento_aplicado']:.2f})."

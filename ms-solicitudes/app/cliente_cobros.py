@@ -10,6 +10,10 @@ reintento de esos cargos (RNF-13) vive en main.py.
 """
 
 import os
+import socket
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as Agotado
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -18,6 +22,35 @@ MS_COBROS_URL = os.getenv("MS_COBROS_URL", "http://ms-cobros:8082")
 # milisegundos. Esperar mas acerca la respuesta al limite de 8 s del
 # gateway, que mostraria un error por una visita que si quedo registrada.
 TIMEOUT = 2.0
+
+
+# ---------------------------------------------------------------------
+# Antes de llamar a cobros se resuelve su nombre, con tope de tiempo.
+#
+# Con el contenedor de cobros apagado, el DNS de Docker tarda de 4 a 8
+# segundos en contestar que ese nombre no existe, y esa espera no la
+# cubre el TIMEOUT de httpx: solo cuenta desde que hay direccion. Sumada
+# al resto, la respuesta llegaba al gateway despues de sus 8 segundos y el
+# usuario veia un error por algo que si quedo guardado.
+# ---------------------------------------------------------------------
+
+_RESOLVEDOR = ThreadPoolExecutor(max_workers=2)
+
+NO_RESPONDE = (
+    "El servicio de cobros no respondió. La visita quedó registrada y el "
+    "cargo se generará solo cuando el servicio vuelva a estar disponible."
+)
+
+
+def cobros_alcanzable(segundos: float = TIMEOUT) -> bool:
+    """True si el nombre de cobros se resuelve dentro del tope."""
+    partes = urlsplit(MS_COBROS_URL)
+    futuro = _RESOLVEDOR.submit(socket.getaddrinfo, partes.hostname, partes.port or 80)
+    try:
+        futuro.result(timeout=segundos)
+        return True
+    except (Agotado, OSError):
+        return False
 
 
 def _buscar_tarifa_de_especialista(cliente: httpx.Client) -> int | None:
@@ -42,6 +75,8 @@ def _buscar_tarifa_de_especialista(cliente: httpx.Client) -> int | None:
 
 def cobros_responde() -> bool:
     """Pregunta rapida antes de reintentar, para no esperar el limite por cada visita."""
+    if not cobros_alcanzable():
+        return False
     try:
         return httpx.get(f"{MS_COBROS_URL}/health", timeout=TIMEOUT).status_code == 200
     except httpx.RequestError:
@@ -61,6 +96,8 @@ def generar_cargo_consulta(
     Devuelve (id_del_cargo, mensaje). Si algo falla, el id es None y el
     mensaje explica por que, para mostrarlo en la aplicacion base.
     """
+    if not cobros_alcanzable():
+        return None, NO_RESPONDE
     try:
         with httpx.Client(timeout=TIMEOUT) as cliente:
             tarifa_id = _buscar_tarifa_de_especialista(cliente)
@@ -95,7 +132,4 @@ def generar_cargo_consulta(
             f"(código {error.response.status_code}). La visita quedó registrada."
         )
     except httpx.RequestError:
-        return None, (
-            "El servicio de cobros no respondió. La visita quedó registrada y el "
-            "cargo se generará solo cuando el servicio vuelva a estar disponible."
-        )
+        return None, NO_RESPONDE
