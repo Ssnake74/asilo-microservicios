@@ -24,7 +24,7 @@
   <!-- ============ A quien se le consulta ============ -->
   <section class="tarjeta">
     <h2>Cuenta del interno</h2>
-    <p class="ayuda">Escoja al interno para ver lo que su familiar responsable debe al asilo,
+    <p class="ayuda" id="ayuda-cuenta">Escoja al interno para ver lo que su familiar responsable debe al asilo,
        agregarle un cobro o anotar un pago recibido.</p>
     <div class="rejilla">
       <div class="campo">
@@ -52,7 +52,7 @@
   </section>
 
   <!-- ============ Agregar un cobro ============ -->
-  <section class="tarjeta">
+  <section class="tarjeta" id="seccion-cobro">
     <h2>Agregar un cobro a la cuenta</h2>
     <p class="ayuda">Para exámenes y medicamentos. El costo de las consultas se carga solo
        cuando la fundación programa la visita.</p>
@@ -87,6 +87,8 @@
 
 <script src="/comun.js"></script>
 <script>
+let puedeCobrar = false;
+
 const FORM_CARGO = {
   aviso: "aviso-cargo",
   ids: {
@@ -182,7 +184,7 @@ async function cargarCuenta(){
             <td class="num">−${q(c.descuento_aplicado)}</td>
             <td class="num"><strong>${q(c.monto_neto)}</strong></td>
             <td>${insignia(c.estado, ESTADO_CARGO)}</td>
-            <td class="num">${c.estado === "PENDIENTE"
+            <td class="num">${c.estado === "PENDIENTE" && puedeCobrar
               ? `<button class="mini secundario" onclick="registrarPago(${c.id}, ${c.monto_neto})">Registrar pago</button>`
               : ""}</td>
           </tr>`).join("")}
@@ -295,6 +297,14 @@ async function agregarCargo(){
     requiere: "estado-cuenta"
   });
   if(!yo) return;
+
+  // Cargar cobros y anotar pagos es de caja; la secretaria consulta.
+  puedeCobrar = permite(yo, "cargos", "POST");
+  if(!puedeCobrar){
+    porId("seccion-cobro").hidden = true;
+    porId("ayuda-cuenta").textContent = "Escoja al interno para ver lo que su familiar responsable "
+      + "debe al asilo y los pagos recibidos.";
+  }
 
   internos = await llenarInternos("c-interno");
   if(!internos.length){

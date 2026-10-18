@@ -131,3 +131,22 @@ def ejecutar(ctx) -> None:
             lineas.append(f"{NOMBRE_ROL[rol]}: {', '.join(map(str, codigos))}")
         c.obtenido = " · ".join(lineas)
         c.pasa = todas
+
+    with rep.caso(
+        "La sesión le dice a cada pantalla qué botones dibujar",
+        "RNF-02 · matriz de permisos del ERS",
+        "En /api/yo, «permite» coincide con la matriz para los cinco roles: cada pantalla "
+        "muestra solo lo que el puesto puede usar",
+    ) as c:
+        lineas, todas = [], True
+        for rol in ROLES:
+            permite = gw.pedir("GET", "/api/yo", gw.como(rol)).json().get("permite", {})
+            malas = []
+            for recurso, operacion, metodo, ruta, _p, _c, _cod, permitidos in MATRIZ:
+                clave = ruta.split("/")[2]
+                if (metodo in permite.get(clave, [])) != (rol in permitidos):
+                    malas.append(f"{recurso} · {operacion}")
+            todas &= not malas
+            lineas.append(f"{NOMBRE_ROL[rol]}: {'coincide' if not malas else 'difiere en ' + ', '.join(malas)}")
+        c.obtenido = "\n".join(lineas)
+        c.pasa = todas

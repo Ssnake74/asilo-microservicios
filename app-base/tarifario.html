@@ -25,7 +25,7 @@
   <section class="plana">
     <h2>Tarifario del asilo <span class="conteo" id="conteo"></span></h2>
     <div class="cuerpo">
-      <p class="ayuda">Estos son los precios que se le cobran al familiar responsable. En cada renglón
+      <p class="ayuda" id="ayuda-tarifas">Estos son los precios que se le cobran al familiar responsable. En cada renglón
          puede corregir el precio o la parte que cubre la fundación, y guardar el cambio.
          Un concepto retirado deja de aparecer al momento de cargar algo a una cuenta.</p>
       <div class="tabla-scroll" id="lista"><p class="vacio">Cargando…</p></div>
@@ -34,7 +34,7 @@
   </section>
 
   <!-- ============ Agregar un concepto ============ -->
-  <section class="tarjeta">
+  <section class="tarjeta" id="seccion-nueva">
     <h2>Agregar un concepto al tarifario</h2>
     <div class="rejilla">
       <div class="campo">
@@ -122,7 +122,9 @@ async function cargarTarifas(){
       : "";
 
     if(!tarifas.length){
-      caja.innerHTML = '<p class="vacio">El tarifario está vacío. Agregue el primer concepto abajo.</p>';
+      caja.innerHTML = puedeEditar
+        ? '<p class="vacio">El tarifario está vacío. Agregue el primer concepto abajo.</p>'
+        : '<p class="vacio">El tarifario está vacío.</p>';
       return;
     }
 
@@ -131,14 +133,31 @@ async function cargarTarifas(){
         <thead>
           <tr><th>Concepto</th><th>Clase</th><th class="num">Precio</th>
               <th class="num">Cubre la fundación</th><th class="num">Paga el familiar</th>
-              <th>En uso</th><th></th></tr>
+              <th>En uso</th>${puedeEditar ? "<th></th>" : ""}</tr>
         </thead>
-        <tbody>${tarifas.map(dibujarRenglon).join("")}</tbody>
+        <tbody>${tarifas.map(puedeEditar ? dibujarRenglon : dibujarConsulta).join("")}</tbody>
       </table>`;
   }catch(e){
     caja.innerHTML = `<p class="vacio">${e.message}</p>`;
     porId("conteo").textContent = "";
   }
+}
+
+// Quien solo consulta ve los mismos datos sin casillas ni botones: el
+// tarifario lo mantienen caja y el administrador.
+let puedeEditar = false;
+
+function dibujarConsulta(t){
+  const paga = t.precio - (t.precio * t.descuento_fundacion / 100);
+  return `
+    <tr class="${t.activo ? "" : "retirada"}">
+      <td><strong>${texto(t.concepto)}</strong></td>
+      <td>${CLASE[t.tipo] || texto(t.tipo)}</td>
+      <td class="num">${q(t.precio)}</td>
+      <td class="num">${Number(t.descuento_fundacion)} %</td>
+      <td class="num">${q(paga)}</td>
+      <td>${t.activo ? "Sí" : "Retirado"}</td>
+    </tr>`;
 }
 
 function dibujarRenglon(t){
@@ -308,6 +327,13 @@ async function crearTarifa(){
     requiere: "tarifas"
   });
   if(!yo) return;
+
+  puedeEditar = permite(yo, "tarifas", "PUT");
+  porId("seccion-nueva").hidden = !permite(yo, "tarifas", "POST");
+  if(!puedeEditar){
+    porId("ayuda-tarifas").textContent = "Estos son los precios que se le cobran al familiar responsable "
+      + "y la parte que cubre la fundación. Los mantiene caja.";
+  }
 
   cargarTarifas();
 })();

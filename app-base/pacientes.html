@@ -49,7 +49,7 @@
 
 <main>
 
-  <section class="plana">
+  <section class="plana" id="seccion-ficha">
     <h2>Ficha de ingreso</h2>
 
     <!-- ============ 1. DATOS PERSONALES ============ -->
@@ -338,7 +338,9 @@ async function listar(){
     if(!datos.length){
       contenedor.innerHTML = buscado
         ? `<p class="vacio">Ningún interno coincide con «${texto(buscado)}».</p>`
-        : '<p class="vacio">Todavía no hay internos registrados. Llene la ficha de arriba para agregar el primero.</p>';
+        : (puedeRegistrar
+            ? '<p class="vacio">Todavía no hay internos registrados. Llene la ficha de arriba para agregar el primero.</p>'
+            : '<p class="vacio">Todavía no hay internos registrados.</p>');
       return;
     }
 
@@ -359,10 +361,10 @@ async function listar(){
           ${p.estado !== "ACTIVO" ? `<span><b>${p.estado === "FALLECIDO" ? "Falleció" : "Egresó"} el ${texto(p.fecha_egreso) || "—"}</b>${p.motivo_egreso ? " · " + texto(p.motivo_egreso) : ""}</span>` : ""}
         </div>
         ${puedeModificar ? bloqueEgreso(p) : ""}
-        <button class="mini peligro"
+        ${puedeEliminar ? `<button class="mini peligro"
                 onclick="eliminar('${texto(p.codigo)}','${texto(p.nombres + " " + p.apellidos).replace(/'/g, "\\'")}')">
           Eliminar ficha
-        </button>
+        </button>` : ""}
       </article>`).join("") + '</div>';
   }catch(e){
     contenedor.innerHTML = `<p class="vacio">${e.message}</p>`;
@@ -373,7 +375,11 @@ async function listar(){
 // RF-13: el interno que sale del asilo o fallece no se borra. Cambia de
 // estado, se anota cuando y por que, y su historial queda intacto.
 const ESTADO_INTERNO = { EGRESADO: "Egresado", FALLECIDO: "Fallecido" };
+// Lo que el puesto de la persona permite: la ficha nueva, el egreso y el
+// borrado se dibujan solo para quien los puede usar.
+let puedeRegistrar = false;
 let puedeModificar = false;
+let puedeEliminar = false;
 
 function bloqueEgreso(p){
   const c = texto(p.codigo);
@@ -444,7 +450,10 @@ async function eliminar(codigo, nombre){
   });
   if(!yo) return;
 
-  puedeModificar = (yo.gestiona || []).includes("pacientes");
+  puedeRegistrar = permite(yo, "pacientes", "POST");
+  puedeModificar = permite(yo, "pacientes", "PUT");
+  puedeEliminar  = permite(yo, "pacientes", "DELETE");
+  porId("seccion-ficha").hidden = !puedeRegistrar;
   listar();
 })();
 </script>

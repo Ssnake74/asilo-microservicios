@@ -79,6 +79,9 @@
    «rol» marca las pantallas que no salen de un recurso del sistema sino
    de un puesto: la de usuarios es solo del administrador.
 
+   «consulta» es el texto para quien entra solo a mirar: la secretaria
+   ve las remisiones, pero remitir es del medico general.
+
    «cifra» saca su numero de los datos del modulo mismo. Si la consulta
    no se puede hacer -porque a ese puesto no le toca- la tarjeta sale
    sin número y nada más: no es un error que la persona deba ver.
@@ -89,6 +92,7 @@ const MODULOS = [
     recurso: "pacientes",
     titulo:  "Registro de internos",
     texto:   "Fichas de los ancianos, su familiar responsable y sus padecimientos.",
+    consulta: { recurso: "pacientes", metodo: "POST", texto: "Consultar las fichas de los ancianos y su familiar responsable." },
     enlace:  "/pacientes.html",
     cifra:   async () => {
       const fichas = await apiSilenciosa("/api/pacientes");
@@ -99,6 +103,7 @@ const MODULOS = [
     recurso: "solicitudes",
     titulo:  "Remisiones médicas",
     texto:   "Remitir a un interno con un especialista y ver las remisiones hechas.",
+    consulta: { recurso: "solicitudes", metodo: "POST", texto: "Ver las remisiones hechas y si ya tienen visita." },
     enlace:  "/solicitudes.html",
     cifra:   async () => {
       const solicitudes = await apiSilenciosa("/api/solicitudes");
@@ -112,6 +117,7 @@ const MODULOS = [
     tambien: "solicitudes",
     titulo:  "Asignación de visitas",
     texto:   "Asignar médico y fecha a los internos que esperan una cita.",
+    consulta: { recurso: "solicitudes", metodo: "POST", texto: "Ver qué internos esperan cita y las visitas programadas." },
     enlace:  "/asignaciones.html",
     cifra:   async () => {
       const visitas = await apiSilenciosa("/api/visitas");
@@ -122,6 +128,7 @@ const MODULOS = [
     recurso: "tarifas",
     titulo:  "Tarifario",
     texto:   "Precios de consultas, exámenes y medicamentos, con lo que cubre la fundación.",
+    consulta: { recurso: "tarifas", metodo: "PUT", texto: "Consultar los precios de consultas, exámenes y medicamentos." },
     enlace:  "/tarifario.html",
     cifra:   async () => {
       const tarifas = await apiSilenciosa("/api/tarifas");
@@ -134,6 +141,7 @@ const MODULOS = [
     recurso: "estado-cuenta",
     titulo:  "Cuentas de internos",
     texto:   "Lo que debe cada familiar responsable, sus cobros y los pagos recibidos.",
+    consulta: { recurso: "cargos", metodo: "POST", texto: "Consultar lo que debe cada familiar responsable y los pagos recibidos." },
     enlace:  "/cuentas.html",
     cifra:   async () => {
       const cargos = await apiSilenciosa("/api/cargos");
@@ -263,6 +271,10 @@ function dibujarModulo(m, cifra){
       ? (yo.gestiona || []).includes(m.recurso)
       : yo.recursos.includes(m.recurso))
     && (!m.tambien || yo.recursos.includes(m.tambien)));
+
+  visibles.forEach(m => {
+    if(m.consulta && !permite(yo, m.consulta.recurso, m.consulta.metodo)) m.texto = m.consulta.texto;
+  });
 
   // Se dibujan primero sin numero, para que el menu aparezca de una vez,
   // y las cifras se van poniendo conforme llegan.

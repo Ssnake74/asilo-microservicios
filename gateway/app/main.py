@@ -30,6 +30,7 @@ from .seguridad import (
     problema_de_contrasena,
     puede,
     recursos_gestionables,
+    permisos_de,
     recursos_visibles,
     ruta_sospechosa,
     verificar_contrasena,
@@ -156,6 +157,7 @@ def datos_de_sesion(usuario: dict) -> dict:
         "rol_nombre": NOMBRE_ROL.get(usuario["rol"], usuario["rol"]),
         "recursos": recursos_visibles(usuario["rol"]),
         "gestiona": recursos_gestionables(usuario["rol"]),
+        "permite": permisos_de(usuario["rol"]),
         "debe_cambiar": bool(usuario.get("debe_cambiar")),
     }
 

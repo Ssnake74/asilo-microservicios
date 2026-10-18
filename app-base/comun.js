@@ -172,6 +172,10 @@ async function apiSilenciosa(ruta, reserva = null) {
 
 const porId = (id) => document.getElementById(id);
 
+// Si el puesto de la persona puede usar ese metodo sobre ese recurso. Las
+// pantallas lo usan para no dibujar botones que el sistema va a negar.
+const permite = (yo, recurso, metodo) => ((yo && yo.permite && yo.permite[recurso]) || []).includes(metodo);
+
 /** Dibuja la barra superior dentro del <header> de la pantalla. */
 function montarEncabezado(subtitulo) {
   document.querySelector("header").innerHTML = `

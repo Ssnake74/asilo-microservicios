@@ -293,6 +293,21 @@ def recursos_gestionables(rol: str) -> list[str]:
     return [r for r in RUTAS if any(puede(rol, r, m) for m in ("POST", "PUT", "DELETE"))]
 
 
+def permisos_de(rol: str) -> dict[str, list[str]]:
+    """
+    Que metodos puede usar ese rol en cada recurso.
+
+    Cada pantalla lo usa para dibujar solo los botones que la persona
+    puede usar: la secretaria consulta las remisiones pero no las crea,
+    y no deberia ver un formulario que siempre le contesta «sin permiso».
+    """
+    return {
+        r: [m for m in ("GET", "POST", "PUT", "DELETE") if puede(rol, r, m)]
+        for r in RUTAS
+        if any(puede(rol, r, m) for m in ("GET", "POST", "PUT", "DELETE"))
+    }
+
+
 # ---------------------------------------------------------------------
 # 4. Rutas que intentan salirse de su recurso
 #

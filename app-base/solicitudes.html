@@ -26,7 +26,7 @@
 <main>
 
   <!-- ============ Registrar una remision ============ -->
-  <section class="tarjeta">
+  <section class="tarjeta" id="seccion-remitir">
     <h2>Remitir a un interno con un especialista</h2>
     <p class="ayuda">Llene esta hoja cuando, después de evaluar al interno, considere que
        debe verlo un especialista. La fundación se encarga después de asignarle médico y fecha.</p>
@@ -210,7 +210,9 @@ function pintarSolicitudes(){
   if(!visibles.length){
     porId("lista").innerHTML = solicitudes.length
       ? '<p class="vacio">Ninguna remisión está en esa situación.</p>'
-      : '<p class="vacio">Todavía no ha remitido a ningún interno.</p>';
+      : (puedeRemitir
+          ? '<p class="vacio">Todavía no ha remitido a ningún interno.</p>'
+          : '<p class="vacio">Todavía no hay remisiones.</p>');
     return;
   }
 
@@ -218,8 +220,13 @@ function pintarSolicitudes(){
   porId("lista").innerHTML = visibles.slice().reverse().map(dibujar).join("");
 }
 
+// Lo que el puesto permite: remitir lo hace el medico general; la
+// secretaria solo consulta.
+let puedeRemitir = false;
+let puedeAnular = false;
+
 function dibujar(s){
-  const anular = s.estado === "PENDIENTE"
+  const anular = s.estado === "PENDIENTE" && puedeAnular
     ? `<div class="acciones">
          <button class="mini peligro" onclick="anular(${s.id}, '${texto(s.paciente_nombre).replace(/'/g, "\\'")}')">
            Anular esta remisión
@@ -261,6 +268,14 @@ async function anular(id, nombre){
     requiere: "solicitudes"
   });
   if(!yo) return;
+
+  puedeRemitir = permite(yo, "solicitudes", "POST");
+  puedeAnular  = permite(yo, "solicitudes", "DELETE");
+  if(!puedeRemitir){
+    porId("seccion-remitir").hidden = true;
+    cargarSolicitudes();
+    return;
+  }
 
   // Quien esta trabajando es casi siempre el medico que remite: se deja
   // escrito y se puede cambiar si firma otro.
