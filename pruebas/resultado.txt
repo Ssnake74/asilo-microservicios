@@ -2,13 +2,13 @@
  SISTEMA PARA ADMINISTRACIÓN DEL ASILO DE ANCIANOS «CABEZA DE ALGODÓN»
  Reporte de pruebas automatizadas del sistema
 ==============================================================================
- Fecha y hora de ejecución: 17 de octubre de 2026, 10:20:35 (hora de Guatemala)
- Marca de los datos:        PRUEBA-AUTO 20261017-102035
+ Fecha y hora de ejecución: 17 de octubre de 2026, 21:09:25 (hora de Guatemala)
+ Marca de los datos:        PRUEBA-AUTO 20261017-210925
 
  Entorno
    Máquina:            Microsoft Windows 11 Home Single Language 10.0.26200
    Docker:             Docker Desktop 4.87.0 (236836) · motor 29.7.2 (linux/amd64)
-   Código probado:     commit f4b8db0, sin cambios pendientes
+   Código probado:     commit cb54888, sin cambios pendientes
    Base de datos:      MySQL 8.0.46
    Punto de entrada:   gateway, http://localhost:8080 (desde la red interna, gateway:8080)
    Contenedores:       asilo-mysql (mysql:8.0), asilo-mailpit
@@ -166,7 +166,7 @@ CP-19  Un usuario inexistente se bloquea igual                        [ PASA ]
        Verifica: CU-01 (no revelar qué usuarios existen)
        Esperado: Cinco 401 y luego 429, con el mismo mensaje de bloqueo que un
                  usuario real
-       Obtenido: «fantasma20261017102035»: 401, 401, 401, 401, 401, 429 ·
+       Obtenido: «fantasma20261017210925»: 401, 401, 401, 401, 401, 429 ·
                  mensaje idéntico al de «caja»: «Por seguridad, el ingreso
                  quedó bloqueado tras varios intentos fallidos. Vuelva a
                  intentar en 15 minutos.»
@@ -247,12 +247,12 @@ CP-31  Caja → Internos · Registrar (POST)                             [ PASA 
 CP-32  Administrador → Internos · Modificar (PUT)                     [ PASA ]
        Verifica: RNF-02 · matriz de permisos del ERS
        Esperado: Permitido: responde el servicio (404, registro inexistente)
-       Obtenido: 404 · «No existe un anciano con ese codigo.»
+       Obtenido: 404 · «No existe un interno con ese código.»
 
 CP-33  Secretaria → Internos · Modificar (PUT)                        [ PASA ]
        Verifica: RNF-02 · matriz de permisos del ERS
        Esperado: Permitido: responde el servicio (404, registro inexistente)
-       Obtenido: 404 · «No existe un anciano con ese codigo.»
+       Obtenido: 404 · «No existe un interno con ese código.»
 
 CP-34  Médico general → Internos · Modificar (PUT)                    [ PASA ]
        Verifica: RNF-02 · matriz de permisos del ERS
@@ -274,7 +274,7 @@ CP-36  Caja → Internos · Modificar (PUT)                              [ PASA 
 CP-37  Administrador → Internos · Eliminar (DELETE)                   [ PASA ]
        Verifica: RNF-02 · matriz de permisos del ERS
        Esperado: Permitido: responde el servicio (404, registro inexistente)
-       Obtenido: 404 · «No existe un anciano con ese codigo.»
+       Obtenido: 404 · «No existe un interno con ese código.»
 
 CP-38  Secretaria → Internos · Eliminar (DELETE)                      [ PASA ]
        Verifica: RNF-02 · matriz de permisos del ERS
@@ -806,21 +806,21 @@ CP-128  Recurso inexistente                                           [ PASA ]
        Verifica: Enrutamiento del gateway (negación por omisión)
        Esperado: 404 del gateway para un recurso que no está en su tabla de
                  rutas, y 404 del servicio para un registro que no existe
-       Obtenido: /api/usuarios: 404 · «Ese recurso no existe en el sistema.»
-                 /api/pacientes/PAC-NOEXISTE: 404 · «No existe un anciano con
-                 ese codigo.»
+       Obtenido: /api/inventario: 404 · «Ese recurso no existe en el sistema.»
+                 /api/pacientes/PAC-NOEXISTE: 404 · «No existe un interno con
+                 ese código.»
 
 CP-129  El microservicio nunca recibe una petición no autorizada      [ PASA ]
        Verifica: RNF-02 · el 403 ocurre antes del reenvío
        Esperado: Las peticiones negadas no aparecen en el registro de acceso
                  del microservicio; una petición permitida de control sí
                  aparece
-       Obtenido: Caja DELETE /api/pacientes/PACX20261017102035: 403 · en el
+       Obtenido: Caja DELETE /api/pacientes/PACX20261017210925: 403 · en el
                  registro de ms-pacientes: no
-                 Médico general DELETE /api/tarifas/917102035: 403 · en el
+                 Médico general DELETE /api/tarifas/917210925: 403 · en el
                  registro de ms-cobros: no
                  Control, Administrador GET
-                 /api/pacientes/PACCTRL20261017102035: 404 · en el registro:
+                 /api/pacientes/PACCTRL20261017210925: 404 · en el registro:
                  sí
 
 
@@ -834,8 +834,8 @@ CP-130  Interno menor de 60 años (cumple 60 mañana)                   [ PASA ]
        Esperado: 422 con un mensaje que indica la edad mínima y la edad
                  calculada
        Obtenido: nacimiento 1966-10-18 → 422 · «fecha_nacimiento: Value error,
-                 El asilo recibe personas de 60 anios o mas. La fecha indicada
-                 da 59 anios.»
+                 El asilo recibe personas de 60 años o más. La fecha indicada
+                 da 59 años.»
 
 CP-131  Interno que cumple 60 años exactamente hoy                    [ PASA ]
        Verifica: RN-01 (valor límite)
@@ -853,20 +853,20 @@ CP-133  DPI repetido                                                  [ PASA ]
        Verifica: RN-03
        Esperado: El primero 201; el segundo con el mismo DPI 409, indicando el
                  código del interno que ya lo tiene
-       Obtenido: DPI 9261017102035 · primero: 201 · PAC-008 · segundo: 409 ·
-                 «Ese DPI ya esta registrado con el codigo PAC-008.»
+       Obtenido: DPI 9261017210925 · primero: 201 · PAC-008 · segundo: 409 ·
+                 «Ese DPI ya está registrado con el código PAC-008.»
 
 CP-134  Alta sin DPI                                                  [ PASA ]
        Verifica: RN-03 (flujo alterno de CU-03: el DPI es opcional)
        Esperado: Dos altas seguidas sin DPI (null), ambas 201
        Obtenido: alta 1: 201 · PAC-009 · alta 2: 201 · PAC-010
 
-CP-135  Alta con el DPI vacío («»), como llegaría sin pasar por la   [ FALLA ]
+CP-135  Alta con el DPI vacío («»), como llegaría sin pasar por la    [ PASA ]
        interfaz
        Verifica: RN-03 (flujo alterno de CU-03: campo vacío, se omite la
                  validación)
        Esperado: Dos altas seguidas con DPI «», ambas 201
-       Obtenido: alta 1: 201 · PAC-011 · alta 2: 500 · «Internal Server Error»
+       Obtenido: alta 1: 201 · PAC-011 · alta 2: 201 · PAC-012
 
 CP-136  Código correlativo                                            [ PASA ]
        Verifica: RNF-17
@@ -908,7 +908,7 @@ CP-139  Flujo completo: interno → remisión → visita → cargo           [ P
 CP-140  Programar visita de una remisión anulada                      [ PASA ]
        Verifica: RN-04
        Esperado: La anulación responde 204 y la conversión posterior 409
-       Obtenido: anular: 204 · programar visita: 409 · «La solicitud esta en
+       Obtenido: anular: 204 · programar visita: 409 · «La solicitud está en
                  estado ANULADA y ya no puede convertirse.»
 
 CP-141  Especialidad distinta a la remitida                           [ PASA ]
@@ -916,8 +916,8 @@ CP-141  Especialidad distinta a la remitida                           [ PASA ]
        Esperado: 422 con un mensaje que nombra ambas especialidades, ya
                  normalizadas, aunque se escriban con mayúsculas y espacios de
                  más
-       Obtenido: 422 · «El medico general remitio a Cardiologia, pero se
-                 intento asignar Dermatologia.»
+       Obtenido: 422 · «El médico general remitió a Cardiologia, pero se
+                 intentó asignar Dermatologia.»
 
 CP-142  Misma especialidad con otras mayúsculas y espacios alrededor  [ PASA ]
        Verifica: RN-05 (normalización)
@@ -936,7 +936,7 @@ CP-144  Visita sin médico tratante                                    [ PASA ]
                  remisión sigue PENDIENTE
        Obtenido: vacío: 422 · «medico_tratante: String should have at least 3
                  characters»
-                 solo espacios: 422 · «La visita medica requiere un medico
+                 solo espacios: 422 · «La visita médica requiere un médico
                  tratante.»
                  estado de la remisión: PENDIENTE
 
@@ -944,21 +944,21 @@ CP-145  Una remisión no genera dos visitas                            [ PASA ]
        Verifica: RN-07
        Esperado: Programar otra vez la remisión ya convertida responde 409 y
                  sigue habiendo una sola visita para ella
-       Obtenido: segunda conversión: 409 · «La solicitud esta en estado
+       Obtenido: segunda conversión: 409 · «La solicitud está en estado
                  CONVERTIDA y ya no puede convertirse.» · visitas de esa
                  remisión: 1
 
 CP-146  Una remisión convertida no se anula                           [ PASA ]
        Verifica: RN-08
        Esperado: 409 y la remisión sigue CONVERTIDA
-       Obtenido: 409 · «La solicitud ya tiene una visita medica asignada y no
+       Obtenido: 409 · «La solicitud ya tiene una visita médica asignada y no
                  puede anularse.» · estado: CONVERTIDA
 
 CP-147  Fecha de la visita con formato inválido                       [ PASA ]
        Verifica: CU-08 (validación de la fecha)
        Esperado: 422 con un mensaje que explica el formato AAAA-MM-DD HH:MM
        Obtenido: 422 · «La fecha y hora de la visita debe escribirse como
-                 AAAA-MM-DD HH:MM, por ejemplo 2026-09-15 09:30. Se recibio:
+                 AAAA-MM-DD HH:MM, por ejemplo 2026-09-15 09:30. Se recibió:
                  15/12/2026 10:00»
 
 CP-148  Formatos de fecha válidos                                     [ PASA ]
@@ -1029,7 +1029,7 @@ CP-155  Eliminar una tarifa que ya tiene cargos                       [ PASA ]
        Verifica: RN-11
        Esperado: 409 para la tarifa con cargos; 204 para una tarifa sin cargos
        Obtenido: con cargos: 409 · «La tarifa ya tiene cobros registrados.
-                 Desactivela en lugar de borrarla.» · sin cargos: 204
+                 Desactívela en lugar de borrarla.» · sin cargos: 204
 
 CP-156  Pagar dos veces el mismo cargo                                [ PASA ]
        Verifica: RN-12
@@ -1065,9 +1065,9 @@ CP-159  Programar una visita con el módulo de cobros apagado          [ PASA ]
        Verifica: RNF-12
        Esperado: 201: la visita se registra igual, con cargo_generado falso,
                  sin cargo, y con un aviso de que el cargo queda pendiente
-       Obtenido: 201 en 7.3 s · visita 15 · cargo_generado=False ·
-                 cargo_id=None · «El servicio de cobros no respondio. La
-                 visita quedo registrada y el cargo debera generarse cuando el
+       Obtenido: 201 en 8.0 s · visita 15 · cargo_generado=False ·
+                 cargo_id=None · «El servicio de cobros no respondió. La
+                 visita quedó registrada y el cargo deberá generarse cuando el
                  servicio vuelva a estar disponible.»
 
 CP-160  Consultar cobros con el módulo apagado                        [ PASA ]
@@ -1225,7 +1225,7 @@ CP-171  Búsquedas con inyección en el filtro                          [ PASA ]
        Verifica: RNF-05
        Esperado: 200 y el filtro se trata como texto: «' OR '1'='1» no
                  devuelve todos los internos ni toda la bitácora
-       Obtenido: /api/pacientes?buscar=…: 200, 0 resultado(s) de 18 internos ·
+       Obtenido: /api/pacientes?buscar=…: 200, 0 resultado(s) de 19 internos ·
                  /api/bitacora?usuario=…: 200, 0 fila(s)
 
 CP-172  Campos fuera de rango                                         [ PASA ]
@@ -1258,9 +1258,9 @@ CP-174  Remisión con correo del familiar                              [ PASA ]
                  el nombre del interno en el asunto y la especialidad en el
                  texto
        Obtenido: remisión: 201 · mensajes para
-                 prueba.auto.20261017102035.l1@example.com: 1 · asunto
+                 prueba.auto.20261017210925.l1@example.com: 1 · asunto
                  «Solicitud de consulta médica para Prueba PRUEBA-AUTO
-                 20261017-102035 L correo» · especialidad en el texto: sí
+                 20261017-210925 L correo» · especialidad en el texto: sí
 
 CP-175  Remisión sin correo del familiar                              [ PASA ]
        Verifica: RF-44 (flujo alterno)
@@ -1294,7 +1294,7 @@ CP-178  Las operaciones que modifican quedan registradas              [ PASA ]
        Verifica: Bitácora de auditoría (gateway)
        Esperado: Una fila con usuario caja, rol CAJA, POST /api/tarifas y
                  código 201
-       Obtenido: fila 302: 2026-10-17 10:21:24 · caja · CAJA · POST
+       Obtenido: fila 302: 2026-10-17 21:10:16 · caja · CAJA · POST
                  /api/tarifas · 201
 
 CP-179  Las lecturas exitosas no quedan registradas                   [ PASA ]
@@ -1371,15 +1371,15 @@ CP-187  La remisión guarda la especialidad del catálogo               [ PASA ]
        Verifica: CU-06 · RF-14
        Esperado: 201 con el identificador de la especialidad y su nombre como
                  está en el catálogo, aunque el texto enviado sea otro
-       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261017-102035 O»
+       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261017-210925 O»
 
 CP-188  Médico de otra especialidad                                   [ PASA ]
        Verifica: RN-05 (por identificador)
        Esperado: 422 que nombra la especialidad remitida y la del médico, y la
                  remisión sigue PENDIENTE
        Obtenido: 422 · «El médico general remitió a PRUEBA-AUTO
-                 20261017-102035 O, pero PRUEBA-AUTO 20261017-102035 Dr. O
-                 ajeno es de PRUEBA-AUTO 20261017-102035 O otra.» · estado:
+                 20261017-210925 O, pero PRUEBA-AUTO 20261017-210925 Dr. O
+                 ajeno es de PRUEBA-AUTO 20261017-210925 O otra.» · estado:
                  PENDIENTE
 
 CP-189  Médico retirado del catálogo                                  [ PASA ]
@@ -1399,16 +1399,128 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
        Esperado: 201: la visita guarda los identificadores y los nombres del
                  médico, su especialidad y el enfermero, y el cargo de la
                  consulta queda generado
-       Obtenido: 201 · visita 17: médico 13 «PRUEBA-AUTO 20261017-102035 Dr.
-                 O» (PRUEBA-AUTO 20261017-102035 O) · enfermero 5 «PRUEBA-AUTO
-                 20261017-102035 Enf. O» · cargo_generado=True
+       Obtenido: 201 · visita 17: médico 13 «PRUEBA-AUTO 20261017-210925 Dr.
+                 O» (PRUEBA-AUTO 20261017-210925 O) · enfermero 5 «PRUEBA-AUTO
+                 20261017-210925 Enf. O» · cargo_generado=True
+
+
+------------------------------------------------------------------------------
+ P · ADMINISTRACIÓN DE USUARIOS
+ Altas con contraseña temporal, cambio obligatorio de contraseña,
+ desactivación, restablecimiento, cambio de puesto y quién puede hacerlo.
+------------------------------------------------------------------------------
+
+CP-192  El administrador crea un usuario con contraseña temporal      [ PASA ]
+       Verifica: RF-06
+       Esperado: 201 con el usuario en minúsculas, el nombre sin espacios de
+                 más, una contraseña temporal y la marca de que debe
+                 cambiarla; en la base no queda la temporal legible
+       Obtenido: 201 · usuario «prueba.20261017210925.p1» · nombre «PRUEBA-
+                 AUTO 20261017-210925 p1» · temporal de 14 caracteres ·
+                 debe_cambiar=True · en la base: sal$resumen
+
+CP-193  Datos rechazados al crear un usuario                          [ PASA ]
+       Verifica: RF-06 (validación)
+       Esperado: 409 para un usuario que ya existe; 422 para un usuario con
+                 espacios, para un rol que no existe y para un nombre en
+                 blanco
+       Obtenido: repetido: 409 · «Ya existe un usuario
+                 «prueba.20261017210925.p1».»
+                 con espacio: 422 · «usuario: Value error, Use solo letras sin
+                 tildes, números, punto, guion o guion bajo, sin espacios.»
+                 rol inventado: 422 · «rol: Input should be 'ADMIN',
+                 'SECRETARIA', 'MEDICO_GENERAL', 'FUNDACION', 'CAJA',
+                 'ESPECIALISTA', 'LABORATORIO' or 'FARMACIA'»
+                 nombre en blanco: 422 · «nombre: Value error, El nombre
+                 completo debe tener al menos 3 letras.»
+
+CP-194  Con la contraseña temporal solo se puede cambiarla            [ PASA ]
+       Verifica: RF-06 · cambio obligatorio
+       Esperado: El ingreso responde 200 con debe_cambiar; /api/yo responde
+                 200; cualquier otro recurso responde 403 «Debe cambiar su
+                 contraseña antes de continuar.»
+       Obtenido: ingreso: 200 · debe_cambiar=True · /api/yo: 200 ·
+                 /api/pacientes: 403 · «Debe cambiar su contraseña antes de
+                 continuar.»
+
+CP-195  Reglas de la contraseña nueva                                 [ PASA ]
+       Verifica: RF-06 · cambio de contraseña
+       Esperado: 422 con la actual equivocada, con menos de 8 caracteres, sin
+                 números y si repite la actual; 200 con una válida, y después
+                 la temporal ya no entra y la nueva sí
+       Obtenido: actual equivocada: 422 · «La contraseña actual no es
+                 correcta.»
+                 menos de 8: 422 · «La contraseña nueva debe tener al menos 8
+                 caracteres.»
+                 sin números: 422 · «La contraseña nueva debe combinar letras
+                 y números.»
+                 repite la actual: 422 · «La contraseña nueva debe ser
+                 distinta de la actual.»
+                 válida: 200 · luego /api/pacientes: 200
+                 ingreso con la temporal: 401 · con la nueva: 200,
+                 debe_cambiar=False
+
+CP-196  Un usuario desactivado sale y ya no entra                     [ PASA ]
+       Verifica: RF-06
+       Esperado: La desactivación responde 200; la sesión que tenía abierta da
+                 401 en su siguiente petición; el ingreso da 401 con el mismo
+                 mensaje que una contraseña mala
+       Obtenido: antes: 200 · desactivar: 200 · su sesión después: 401 ·
+                 ingreso: 401 · «Usuario o contraseña incorrectos.»
+
+CP-197  Reactivar y restablecer la contraseña olvidada                [ PASA ]
+       Verifica: RF-06 · restablecimiento
+       Esperado: Reactivar responde 200; restablecer da otra temporal, cierra
+                 sus sesiones y le quita el bloqueo; la contraseña anterior
+                 deja de entrar y la temporal entra con debe_cambiar
+       Obtenido: reactivar: 200 · bloqueado antes de restablecer: 429 ·
+                 restablecer: 200 · su sesión anterior: 401
+                 contraseña anterior: 401 · temporal: 200, debe_cambiar=True
+
+CP-198  El cambio de puesto surte efecto en la siguiente petición     [ PASA ]
+       Verifica: RF-06 · RF-03
+       Esperado: Una secretaria con sesión abierta recibe 403 al registrar un
+                 cargo; el administrador la pasa a Caja y, con la misma
+                 sesión, la petición ya llega al servicio (422 por el cuerpo
+                 vacío)
+       Obtenido: como Secretaria: 403 · cambio a Caja: 200 · misma sesión: 422
+                 (422: llegó al servicio con el cuerpo vacío)
+
+CP-199  El administrador no puede dejarse fuera a sí mismo            [ PASA ]
+       Verifica: RF-06 (el sistema no se queda sin administrador)
+       Esperado: 409 al desactivarse, al quitarse el rol y al restablecer su
+                 propia contraseña; cambiar su propio nombre sí se permite
+       Obtenido: desactivarse: 409 · «No puede desactivarse ni quitarse el rol
+                 de administrador a usted mismo.»
+                 quitarse el rol: 409 · «No puede desactivarse ni quitarse el
+                 rol de administrador a usted mismo.»
+                 restablecerse: 409 · «Su propia contraseña se cambia en «Mi
+                 contraseña».»
+                 su nombre: 200
+
+CP-200  Solo el administrador maneja usuarios                         [ PASA ]
+       Verifica: RF-06 · RNF-02
+       Esperado: 403 para los otros roles al consultar, crear, modificar y
+                 restablecer; 401 sin sesión; ningún usuario creado por ellos
+       Obtenido: Secretaria: 403, 403, 403, 403 · Médico general: 403, 403,
+                 403, 403 · Fundación: 403, 403, 403, 403 · Caja: 403, 403,
+                 403, 403
+                 sin sesión: 401 · creados por ellos: 0
+
+CP-201  La bitácora anota quién manejó qué cuenta, sin la contraseña  [ PASA ]
+       Verifica: RF-06 · bitácora de auditoría
+       Esperado: Filas del administrador para POST /api/usuarios (201), PUT
+                 /api/usuarios/N y POST /api/usuarios/N/restablecer; ninguna
+                 fila contiene una contraseña temporal
+       Obtenido: alta: sí · cambio: sí · restablecimiento: sí · filas con una
+                 contraseña: 0
 
 
 ==============================================================================
  LIMPIEZA Y RESTAURACIÓN DEL SISTEMA
 ==============================================================================
 
- Marca de los datos de prueba: «PRUEBA-AUTO 20261017-102035».
+ Marca de los datos de prueba: «PRUEBA-AUTO 20261017-210925».
 
  1. Contenedores: ninguno quedó detenido, pausado ni desconectado.
 
@@ -1416,8 +1528,8 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
      Cargos pendientes: 17 (id 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 26, 27
      y 5 más)
      Tarifas: 5 (id 13, 14, 15, 16, 18)
-     Internos: 16 (PAC-007, PAC-008, PAC-009, PAC-010, PAC-011, PAC-013,
-     PAC-014, PAC-015, PAC-016, PAC-017, PAC-018, PAC-019 y 4 más)
+     Internos: 17 (PAC-007, PAC-008, PAC-009, PAC-010, PAC-011, PAC-012,
+     PAC-013, PAC-014, PAC-015, PAC-016, PAC-017, PAC-018 y 5 más)
      La aplicación no permitió borrar (se borran en el paso 3):
        - cargo 14 (PAGADO): la aplicación respondió 409
        - cargo 22 (PAGADO): la aplicación respondió 409
@@ -1443,13 +1555,14 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
      Catálogo, medicamentos (el catálogo no tiene operación de borrado): 0
      Catálogo, especialidades (el catálogo no tiene operación de borrado): 2
      (id 13, 14)
+     Usuarios (el sistema no los borra: los desactiva): 2 (id 9, 11)
 
  4. Correo: 2 mensaje(s) de prueba borrados de Mailpit; los demás no se
  tocaron.
 
- 5. Sesiones: 11 abiertas por la corrida, cerradas con «cerrar sesión».
+ 5. Sesiones: 18 abiertas por la corrida, cerradas con «cerrar sesión».
 
- 6. Bitácora: se BORRARON 307 filas generadas por esta corrida (id 79 a 385).
+ 6. Bitácora: se BORRARON 369 filas generadas por esta corrida (id 79 a 447).
  La tabla vuelve a sus 78 filas anteriores a la corrida. Si alguien usó el
  sistema mientras corrían las pruebas, sus filas de ese intervalo también se
  borraron: no hay forma de distinguirlas.
@@ -1458,16 +1571,17 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
  7. Contadores AUTO_INCREMENT devueltos a su valor inicial:
  asilo_catalogo.enfermeros: 6 → 5; asilo_catalogo.especialidades: 16 → 13;
  asilo_catalogo.medicos: 16 → 13; asilo_cobros.cargos: 34 → 14;
- asilo_cobros.tarifas: 19 → 10; asilo_gateway.bitacora: 386 → 79;
- asilo_gateway.intentos_fallidos: 18 → 3; asilo_pacientes.pacientes: 24 → 7;
- asilo_solicitudes.solicitudes: 38 → 15; asilo_solicitudes.visitas: 18 → 8
+ asilo_cobros.tarifas: 19 → 10; asilo_gateway.bitacora: 448 → 79;
+ asilo_gateway.intentos_fallidos: 27 → 3; asilo_gateway.usuarios: 12 → 9;
+ asilo_pacientes.pacientes: 24 → 7; asilo_solicitudes.solicitudes: 38 → 15;
+ asilo_solicitudes.visitas: 18 → 8
 
  8. Verificación final:
      El sistema quedó como estaba: los 8 contenedores en su estado inicial
      (running), sin cuentas bloqueadas (0 intentos fallidos guardados, igual
-     que al empezar), sin internos, remisiones, visitas, tarifas, cargos ni
-     correos de prueba, la bitácora con sus 78 filas originales y los
-     contadores en su valor inicial.
+     que al empezar), sin internos, remisiones, visitas, tarifas, cargos,
+     usuarios ni correos de prueba, la bitácora con sus 78 filas originales y
+     los contadores en su valor inicial.
 
 ==============================================================================
  RESUMEN DE LA CORRIDA
@@ -1480,7 +1594,7 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
  C · Bloqueo por intentos fallidos             6       6       0       0
  D · Control de acceso por rol                97      97       0       0
  E · Defensa en profundidad                   11      11       0       0
- F · Registro de internos                      9       8       1       0
+ F · Registro de internos                      9       9       0       0
  G · Circuito clínico                         10      10       0       0
  H · Cobros                                   10      10       0       0
  I · Tolerancia a fallos                       5       4       0       1
@@ -1490,15 +1604,11 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
  M · Bitácora                                  5       5       0       0
  N · Vencimiento de la sesión                  2       2       0       0
  O · Catálogo médico                           7       7       0       0
+ P · Administración de usuarios               10      10       0       0
  ----------------------------------------------------------------------------
- TOTAL                                       191     189       1       1
+ TOTAL                                       201     200       0       1
 
- Casos que fallaron (1):
-
-   CP-135  Alta con el DPI vacío («»), como llegaría sin pasar por la interfaz
-   (RN-03 (flujo alterno de CU-03: campo vacío, se omite la validación))
-         Obtenido: alta 1: 201 · PAC-011 · alta 2: 500 · «Internal Server
-                   Error»
+ Ningún caso falló.
 
  Pendientes conocidos (1). No son fallos: el ERS los declara como no implementados.
 
@@ -1507,5 +1617,5 @@ CP-191  Visita con médico y enfermero del catálogo                    [ PASA ]
                    cargo_id=None
 
 
- RESULTADO: 1 caso(s) fallaron.
+ RESULTADO: todos los casos pasaron.
 ==============================================================================
