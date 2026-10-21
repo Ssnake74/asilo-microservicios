@@ -348,13 +348,22 @@ def registrar_cargo_en_visita(visita_id: int, cargo_id: int | None) -> dict | No
     return _normalizar_visita(fila)
 
 
+# La visita lleva consigo quien remitio al interno y por que: el
+# especialista tiene que verlo al recibirlo. Las dos tablas viven en
+# asilo_solicitudes, asi que el JOIN es valido.
+VISITA_CON_REMISION = """
+    SELECT v.*, s.medico_general, s.motivo
+    FROM visitas v JOIN solicitudes s ON s.id = v.solicitud_id
+"""
+
+
 def listar_visitas(paciente_id: str | None = None) -> list[dict]:
-    sql = "SELECT * FROM visitas WHERE 1 = 1"
+    sql = VISITA_CON_REMISION + " WHERE 1 = 1"
     params: list = []
     if paciente_id:
-        sql += " AND paciente_id = %s"
+        sql += " AND v.paciente_id = %s"
         params.append(paciente_id)
-    sql += " ORDER BY id DESC"
+    sql += " ORDER BY v.id DESC"
 
     conn = get_conn()
     with conn:
@@ -368,7 +377,7 @@ def obtener_visita(visita_id: int) -> dict | None:
     conn = get_conn()
     with conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM visitas WHERE id = %s", (visita_id,))
+            cur.execute(VISITA_CON_REMISION + " WHERE v.id = %s", (visita_id,))
             fila = cur.fetchone()
     return _normalizar_visita(fila)
 

@@ -78,6 +78,9 @@ class Visita(BaseModel):
     observaciones: Optional[str]
     cargo_id: Optional[int]
     cargo_generado: bool
+    # De la remision que origino la visita: quien remitio y por que.
+    medico_general: Optional[str] = None
+    motivo: Optional[str] = None
 
 
 class VisitaCreada(BaseModel):

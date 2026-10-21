@@ -12,6 +12,7 @@
   .filtro .campo{min-width:260px;}
   .datos-visita{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px;}
   .datos-visita div{background:var(--violeta-suave);border-radius:var(--radio);padding:9px 12px;}
+  .datos-visita .motivo{grid-column:1/-1;}
   .datos-visita span{display:block;font-size:13px;font-weight:600;color:var(--violeta-profundo);}
   .diagnostico{white-space:pre-wrap;background:var(--fondo);border:1px solid var(--borde);
                border-radius:var(--radio);padding:12px 14px;margin:0 0 6px;}
@@ -144,7 +145,8 @@ function datosVisita(v){
     <div><span>Interno</span>${texto(v.paciente_nombre)} · ${texto(v.paciente_id)}</div>
     <div><span>Fecha de la visita</span>${texto(fechaLegible(v.fecha_visita))}</div>
     <div><span>Especialidad</span>${texto(v.especialidad)}</div>
-    <div><span>Médico</span>${texto(v.medico_tratante)}</div>`;
+    <div><span>Médico</span>${texto(v.medico_tratante)}</div>
+    ${v.motivo ? `<div class="motivo"><span>Motivo de la remisión${v.medico_general ? ` · ${texto(v.medico_general)}` : ""}</span>${texto(v.motivo)}</div>` : ""}`;
 }
 
 function formularioFicha(){

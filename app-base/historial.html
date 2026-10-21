@@ -79,6 +79,7 @@ function tarjetaVisita(v, f){
       <div class="visita sin-ficha">
         <div class="visita-cab"><strong>${texto(v.especialidad)}</strong>
           <span class="visita-quien">${texto(fechaLegible(v.fecha_visita))} · ${texto(v.medico_tratante)}</span></div>
+        ${v.motivo ? `<div class="bloque"><h3>Motivo de la remisión</h3><p class="texto-largo">${texto(v.motivo)}</p></div>` : ""}
         <div class="pie">Visita programada, todavía sin ficha médica.</div>
       </div>`;
   }
@@ -86,6 +87,7 @@ function tarjetaVisita(v, f){
     <div class="visita">
       <div class="visita-cab"><strong>${texto(f.especialidad)}</strong>
         <span class="visita-quien">${texto(fechaLegible(f.fecha_visita))} · ${texto(f.medico)}</span></div>
+      ${v.motivo ? `<div class="bloque"><h3>Motivo de la remisión</h3><p class="texto-largo">${texto(v.motivo)}</p></div>` : ""}
       <div class="bloque"><h3>Diagnóstico</h3><p class="texto-largo">${texto(f.diagnostico)}</p>
         ${f.observaciones ? `<p class="texto-largo pie">${texto(f.observaciones)}</p>` : ""}</div>
       ${examenes(f.examenes)}
