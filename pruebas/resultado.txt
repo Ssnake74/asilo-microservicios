@@ -2,13 +2,13 @@
  SISTEMA PARA ADMINISTRACIÓN DEL ASILO DE ANCIANOS «CABEZA DE ALGODÓN»
  Reporte de pruebas automatizadas del sistema
 ==============================================================================
- Fecha y hora de ejecución: 18 de octubre de 2026, 14:57:54 (hora de Guatemala)
- Marca de los datos:        PRUEBA-AUTO 20261018-145754
+ Fecha y hora de ejecución: 21 de octubre de 2026, 21:00:27 (hora de Guatemala)
+ Marca de los datos:        PRUEBA-AUTO 20261021-210027
 
  Entorno
    Máquina:            Microsoft Windows 11 Home Single Language 10.0.26200
    Docker:             Docker Desktop 4.87.0 (236836) · motor 29.7.2 (linux/amd64)
-   Código probado:     commit 061d2ad, sin cambios pendientes
+   Código probado:     commit d6f6dc8, sin cambios pendientes
    Base de datos:      MySQL 8.0.46
    Punto de entrada:   gateway, http://localhost:8080 (desde la red interna, gateway:8080)
    Contenedores:       asilo-mysql (mysql:8.0), asilo-mailpit
@@ -176,7 +176,7 @@ CP-19  Un usuario inexistente se bloquea igual                        [ PASA ]
        Verifica: CU-01 (no revelar qué usuarios existen)
        Esperado: Cinco 401 y luego 429, con el mismo mensaje de bloqueo que un
                  usuario real
-       Obtenido: «fantasma20261018145754»: 401, 401, 401, 401, 401, 429 ·
+       Obtenido: «fantasma20261021210027»: 401, 401, 401, 401, 401, 429 ·
                  mensaje idéntico al de «caja»: «Por seguridad, el ingreso
                  quedó bloqueado tras varios intentos fallidos. Vuelva a
                  intentar en 15 minutos.»
@@ -835,12 +835,12 @@ CP-130  El microservicio nunca recibe una petición no autorizada      [ PASA ]
        Esperado: Las peticiones negadas no aparecen en el registro de acceso
                  del microservicio; una petición permitida de control sí
                  aparece
-       Obtenido: Caja DELETE /api/pacientes/PACX20261018145754: 403 · en el
+       Obtenido: Caja DELETE /api/pacientes/PACX20261021210027: 403 · en el
                  registro de ms-pacientes: no
-                 Médico general DELETE /api/tarifas/918145754: 403 · en el
+                 Médico general DELETE /api/tarifas/921210027: 403 · en el
                  registro de ms-cobros: no
                  Control, Administrador GET
-                 /api/pacientes/PACCTRL20261018145754: 404 · en el registro:
+                 /api/pacientes/PACCTRL20261021210027: 404 · en el registro:
                  sí
 
 
@@ -853,14 +853,14 @@ CP-131  Interno menor de 60 años (cumple 60 mañana)                   [ PASA ]
        Verifica: RN-01
        Esperado: 422 con un mensaje que indica la edad mínima y la edad
                  calculada
-       Obtenido: nacimiento 1966-10-19 → 422 · «fecha_nacimiento: Value error,
+       Obtenido: nacimiento 1966-10-22 → 422 · «fecha_nacimiento: Value error,
                  El asilo recibe personas de 60 años o más. La fecha indicada
                  da 59 años.»
 
 CP-132  Interno que cumple 60 años exactamente hoy                    [ PASA ]
        Verifica: RN-01 (valor límite)
        Esperado: 201, con edad 60
-       Obtenido: nacimiento 1966-10-18 → 201 · PAC-007 · edad 60
+       Obtenido: nacimiento 1966-10-21 → 201 · PAC-007 · edad 60
 
 CP-133  Fecha de ingreso anterior a la de nacimiento                  [ PASA ]
        Verifica: RN-02
@@ -873,7 +873,7 @@ CP-134  DPI repetido                                                  [ PASA ]
        Verifica: RN-03
        Esperado: El primero 201; el segundo con el mismo DPI 409, indicando el
                  código del interno que ya lo tiene
-       Obtenido: DPI 9261018145754 · primero: 201 · PAC-008 · segundo: 409 ·
+       Obtenido: DPI 9261021210027 · primero: 201 · PAC-008 · segundo: 409 ·
                  «Ese DPI ya está registrado con el código PAC-008.»
 
 CP-135  Alta sin DPI                                                  [ PASA ]
@@ -897,7 +897,7 @@ CP-137  Código correlativo                                            [ PASA ]
 CP-138  Edad calculada por el sistema                                 [ PASA ]
        Verifica: CU-03 (la edad no se escribe, se calcula)
        Esperado: Quien cumple 70 mañana tiene 69; quien cumple 70 hoy tiene 70
-       Obtenido: nacido el 1956-10-19: edad 69 · nacido el 1956-10-18: edad 70
+       Obtenido: nacido el 1956-10-22: edad 69 · nacido el 1956-10-21: edad 70
 
 CP-139  Tildes y eñes guardadas correctamente                         [ PASA ]
        Verifica: RNF-18
@@ -985,17 +985,17 @@ CP-149  Formatos de fecha válidos                                     [ PASA ]
        Verifica: CU-08 (validación de la fecha)
        Esperado: 201 con los formatos que acepta el sistema, guardando la
                  fecha y hora correctas
-       Obtenido: «2026-11-17 09:30» → 201, guardada 2026-11-17 09:30:00
-                 «2026-11-17T09:30» → 201, guardada 2026-11-17 09:30:00
-                 «2026-11-17 09:30:15» → 201, guardada 2026-11-17 09:30:15
-                 «2026-11-17» → 201, guardada 2026-11-17 00:00:00
+       Obtenido: «2026-11-20 09:30» → 201, guardada 2026-11-20 09:30:00
+                 «2026-11-20T09:30» → 201, guardada 2026-11-20 09:30:00
+                 «2026-11-20 09:30:15» → 201, guardada 2026-11-20 09:30:15
+                 «2026-11-20» → 201, guardada 2026-11-20 00:00:00
 
 CP-150  Una visita no se programa en una fecha que ya pasó            [ PASA ]
        Verifica: CU-08 · E7
        Esperado: Ayer: 422 «ya pasó» y la remisión sigue PENDIENTE. Hoy,
                  aunque la hora ya haya pasado: 201
        Obtenido: ayer: 422 · «La visita no puede programarse en una fecha que
-                 ya pasó: 17/10/2026. Elija hoy o un día posterior.» · estado:
+                 ya pasó: 20/10/2026. Elija hoy o un día posterior.» · estado:
                  PENDIENTE
                  hoy 00:30: 201
 
@@ -1128,7 +1128,7 @@ CP-165  El cargo pendiente se genera solo cuando cobros vuelve        [ PASA ]
        Verifica: RNF-13
        Esperado: La visita programada durante la caída recibe su cargo
                  automáticamente, en menos de un minuto, y un solo cargo
-       Obtenido: visita 16 a los 9 s: cargo_generado=True, cargo_id=35 ·
+       Obtenido: visita 16 a los 15 s: cargo_generado=True, cargo_id=35 ·
                  cargos con la referencia VISITA-16: 1
 
 
@@ -1294,9 +1294,9 @@ CP-176  Remisión con correo del familiar                              [ PASA ]
                  el nombre del interno en el asunto y la especialidad en el
                  texto
        Obtenido: remisión: 201 · mensajes para
-                 prueba.auto.20261018145754.l1@example.com: 1 · asunto
+                 prueba.auto.20261021210027.l1@example.com: 1 · asunto
                  «Solicitud de consulta médica para Prueba PRUEBA-AUTO
-                 20261018-145754 L correo» · especialidad en el texto: sí
+                 20261021-210027 L correo» · especialidad en el texto: sí
 
 CP-177  Remisión sin correo del familiar                              [ PASA ]
        Verifica: RF-44 (flujo alterno)
@@ -1314,7 +1314,7 @@ CP-179  Remisión con el servidor de correo desconectado de la red     [ PASA ]
        Verifica: RF-44 y RNF-11
        Esperado: 201 en menos de 2 s y la remisión queda guardada; al
                  reconectarlo, la bandeja conserva sus mensajes
-       Obtenido: remisión: 201 en 0.05 s · guardada: sí · mensajes en la
+       Obtenido: remisión: 201 en 0.04 s · guardada: sí · mensajes en la
                  bandeja antes 1, después 1 (sin contar el aviso de esta
                  remisión) · reconectado con los alias asilo-mailpit, mailpit
                  · el aviso se entregó al volver Mailpit a la red
@@ -1330,7 +1330,7 @@ CP-180  Las operaciones que modifican quedan registradas              [ PASA ]
        Verifica: Bitácora de auditoría (gateway)
        Esperado: Una fila con usuario caja, rol CAJA, POST /api/tarifas y
                  código 201
-       Obtenido: fila 306: 2026-10-18 14:58:45 · caja · CAJA · POST
+       Obtenido: fila 306: 2026-10-21 21:01:24 · caja · CAJA · POST
                  /api/tarifas · 201
 
 CP-181  Las lecturas exitosas no quedan registradas                   [ PASA ]
@@ -1368,7 +1368,7 @@ CP-185  Cada petición renueva la sesión                               [ PASA ]
        Verifica: RF-05
        Esperado: A una sesión que vencía en 5 minutos le quedan ocho horas
                  después de una petición
-       Obtenido: antes: 5 min · petición: 200 · después: 479 min
+       Obtenido: antes: 5 min · petición: 200 · después: 480 min
 
 CP-186  Una sesión vencida no entra ni se renueva                     [ PASA ]
        Verifica: RF-05
@@ -1407,15 +1407,15 @@ CP-189  La remisión guarda la especialidad del catálogo               [ PASA ]
        Verifica: CU-06 · RF-14
        Esperado: 201 con el identificador de la especialidad y su nombre como
                  está en el catálogo, aunque el texto enviado sea otro
-       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261018-145754 O»
+       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261021-210027 O»
 
 CP-190  Médico de otra especialidad                                   [ PASA ]
        Verifica: RN-05 (por identificador)
        Esperado: 422 que nombra la especialidad remitida y la del médico, y la
                  remisión sigue PENDIENTE
        Obtenido: 422 · «El médico general remitió a PRUEBA-AUTO
-                 20261018-145754 O, pero PRUEBA-AUTO 20261018-145754 Dr. O
-                 ajeno es de PRUEBA-AUTO 20261018-145754 O otra.» · estado:
+                 20261021-210027 O, pero PRUEBA-AUTO 20261021-210027 Dr. O
+                 ajeno es de PRUEBA-AUTO 20261021-210027 O otra.» · estado:
                  PENDIENTE
 
 CP-191  Médico retirado del catálogo                                  [ PASA ]
@@ -1435,9 +1435,9 @@ CP-193  Visita con médico y enfermero del catálogo                    [ PASA ]
        Esperado: 201: la visita guarda los identificadores y los nombres del
                  médico, su especialidad y el enfermero, y el cargo de la
                  consulta queda generado
-       Obtenido: 201 · visita 18: médico 13 «PRUEBA-AUTO 20261018-145754 Dr.
-                 O» (PRUEBA-AUTO 20261018-145754 O) · enfermero 5 «PRUEBA-AUTO
-                 20261018-145754 Enf. O» · cargo_generado=True
+       Obtenido: 201 · visita 18: médico 13 «PRUEBA-AUTO 20261021-210027 Dr.
+                 O» (PRUEBA-AUTO 20261021-210027 O) · enfermero 5 «PRUEBA-AUTO
+                 20261021-210027 Enf. O» · cargo_generado=True
 
 
 ------------------------------------------------------------------------------
@@ -1451,8 +1451,8 @@ CP-194  El administrador crea un usuario con contraseña temporal      [ PASA ]
        Esperado: 201 con el usuario en minúsculas, el nombre sin espacios de
                  más, una contraseña temporal y la marca de que debe
                  cambiarla; en la base no queda la temporal legible
-       Obtenido: 201 · usuario «prueba.20261018145754.p1» · nombre «PRUEBA-
-                 AUTO 20261018-145754 p1» · temporal de 14 caracteres ·
+       Obtenido: 201 · usuario «prueba.20261021210027.p1» · nombre «PRUEBA-
+                 AUTO 20261021-210027 p1» · temporal de 14 caracteres ·
                  debe_cambiar=True · en la base: sal$resumen
 
 CP-195  Datos rechazados al crear un usuario                          [ PASA ]
@@ -1461,7 +1461,7 @@ CP-195  Datos rechazados al crear un usuario                          [ PASA ]
                  espacios, para un rol que no existe y para un nombre en
                  blanco
        Obtenido: repetido: 409 · «Ya existe un usuario
-                 «prueba.20261018145754.p1».»
+                 «prueba.20261021210027.p1».»
                  con espacio: 422 · «usuario: Value error, Use solo letras sin
                  tildes, números, punto, guion o guion bajo, sin espacios.»
                  rol inventado: 422 · «rol: Input should be 'ADMIN',
@@ -1613,7 +1613,7 @@ CP-209  Un examen sin precio en el catálogo se registra sin cobro     [ PASA ]
        Esperado: 201 con el resultado guardado, cargo_generado falso y un
                  aviso de que el examen no tiene precio
        Obtenido: 201 · cargo_generado=False · «El examen «PRUEBA-AUTO
-                 20261018-145754 Q sin precio» no tiene precio en el catálogo
+                 20261021-210027 Q sin precio» no tiene precio en el catálogo
                  médico: no se generó cobro. La fundación puede asignarle uno
                  en el catálogo.»
 
@@ -1659,7 +1659,7 @@ CP-213  Donación registrada y sus validaciones                        [ PASA ]
        Esperado: 201 con el origen sin espacios de más, la fecha de hoy y el
                  monto exacto; 422 para un tipo de donante que no existe, un
                  monto de cero y una fecha futura
-       Obtenido: 201 · «PRUEBA-AUTO 20261018-145754 Rotary» · 2026-10-18 ·
+       Obtenido: 201 · «PRUEBA-AUTO 20261021-210027 Rotary» · 2026-10-21 ·
                  Q2,500.55
                  tipo inexistente: 422 · «tipo_donante: Input should be
                  'EMPRESA_INTERNACIONAL', 'EMPRESA_NACIONAL', 'GOBIERNO' or
@@ -1716,7 +1716,7 @@ CP-218  Egreso de un interno y su reingreso                           [ PASA ]
                  anterior a la fecha de ingreso.»
                  futura: 422 · «La fecha de egreso no puede ser posterior a
                  hoy.»
-                 egreso: 200 · EGRESADO · 2026-10-18 · «Traslado con su
+                 egreso: 200 · EGRESADO · 2026-10-21 · «Traslado con su
                  familia»
                  reingreso: 200 · ACTIVO · fecha None
 
@@ -1826,7 +1826,7 @@ CP-228  Solo el administrador consulta los informes                   [ PASA ]
  LIMPIEZA Y RESTAURACIÓN DEL SISTEMA
 ==============================================================================
 
- Marca de los datos de prueba: «PRUEBA-AUTO 20261018-145754».
+ Marca de los datos de prueba: «PRUEBA-AUTO 20261021-210027».
 
  1. Contenedores: ninguno quedó detenido, pausado ni desconectado.
 
