@@ -360,6 +360,7 @@ async function listar(){
           ${p.alergias ? `<span>Alergias: ${texto(p.alergias)}</span>` : ""}
           ${p.estado !== "ACTIVO" ? `<span><b>${p.estado === "FALLECIDO" ? "Falleció" : "Egresó"} el ${texto(p.fecha_egreso) || "—"}</b>${p.motivo_egreso ? " · " + texto(p.motivo_egreso) : ""}</span>` : ""}
         </div>
+        ${puedeModificar && p.estado === "ACTIVO" ? bloqueEdicion(p) : ""}
         ${puedeModificar ? bloqueEgreso(p) : ""}
         ${puedeEliminar ? `<button class="mini peligro"
                 onclick="eliminar('${texto(p.codigo)}','${texto(p.nombres + " " + p.apellidos).replace(/'/g, "\\'")}')">
@@ -380,6 +381,90 @@ const ESTADO_INTERNO = { EGRESADO: "Egresado", FALLECIDO: "Fallecido" };
 let puedeRegistrar = false;
 let puedeModificar = false;
 let puedeEliminar = false;
+
+// Los datos que cambian durante la estadia (CU-05): habitacion, familiar
+// responsable, padecimientos, alergias y si lo cubre la fundacion. Lo
+// demas -nombre, DPI, nacimiento- identifica al interno y no se edita.
+const PARENTESCOS = ["Hijo","Hija","Nieto","Nieta","Sobrino","Sobrina","Hermano","Hermana","Otro"];
+
+function formEdicion(c){
+  return {
+    aviso: "aviso-lista",
+    ids: {
+      habitacion: `ed-hab-${c}`, familiar_nombre: `ed-fam-${c}`, familiar_parentesco: `ed-par-${c}`,
+      familiar_telefono: `ed-tel-${c}`, familiar_email: `ed-mail-${c}`,
+      padecimientos: `ed-pad-${c}`, alergias: `ed-ale-${c}`
+    },
+    ETIQUETAS: {
+      habitacion: "Habitación", familiar_nombre: "Familiar responsable", familiar_parentesco: "Parentesco",
+      familiar_telefono: "Teléfono", familiar_email: "Correo electrónico",
+      padecimientos: "Padecimientos", alergias: "Alergias"
+    },
+    OBLIGATORIOS: ["familiar_nombre", "familiar_telefono"],
+    MINIMOS: { familiar_nombre: 3, familiar_telefono: 8 }
+  };
+}
+
+function bloqueEdicion(p){
+  const c = texto(p.codigo);
+  const campo = (id, etiqueta, valor, extra = "") => `
+        <div class="campo">
+          <label for="${id}">${etiqueta}</label>
+          <input id="${id}" value="${texto(valor || "")}" autocomplete="off" ${extra}>
+          <div class="error-campo" id="e-${id}"></div>
+        </div>`;
+  return `
+    <details class="plegable">
+      <summary>Actualizar datos</summary>
+      <div class="rejilla">
+        ${campo(`ed-hab-${c}`, "Habitación", p.habitacion)}
+        ${campo(`ed-fam-${c}`, "Familiar responsable *", p.familiar_nombre)}
+        <div class="campo">
+          <label for="ed-par-${c}">Parentesco</label>
+          <select id="ed-par-${c}"><option value="">—</option>${PARENTESCOS.map(x =>
+            `<option ${x === p.familiar_parentesco ? "selected" : ""}>${x}</option>`).join("")}</select>
+        </div>
+        ${campo(`ed-tel-${c}`, "Teléfono *", p.familiar_telefono)}
+        ${campo(`ed-mail-${c}`, "Correo electrónico", p.familiar_email, 'type="email"')}
+        ${campo(`ed-pad-${c}`, "Padecimientos", p.padecimientos)}
+        ${campo(`ed-ale-${c}`, "Alergias", p.alergias)}
+      </div>
+      <div class="check">
+        <input type="checkbox" id="ed-fund-${c}" ${p.cubierto_fundacion ? "checked" : ""}>
+        <label for="ed-fund-${c}">Cubierto por la fundación</label>
+      </div>
+      <button class="mini" onclick="guardarCambios('${c}')">Guardar cambios</button>
+    </details>`;
+}
+
+async function guardarCambios(codigo){
+  const form = formEdicion(codigo);
+  limpiarErrores(form);
+  const faltantes = validarLocalmente(form);
+  if(faltantes.length){
+    avisoResumen(form, "No se guardaron los cambios. Falta corregir:", faltantes, false);
+    irAlPrimerError(form);
+    return;
+  }
+  const valor = (campo) => porId(form.ids[campo]).value.trim();
+  const cuerpo = {
+    habitacion: valor("habitacion") || null,
+    familiar_nombre: valor("familiar_nombre"),
+    familiar_parentesco: valor("familiar_parentesco") || null,
+    familiar_telefono: valor("familiar_telefono"),
+    familiar_email: valor("familiar_email") || null,
+    padecimientos: valor("padecimientos") || null,
+    alergias: valor("alergias") || null,
+    cubierto_fundacion: porId(`ed-fund-${codigo}`).checked
+  };
+  try{
+    const p = await api("/api/pacientes/" + encodeURIComponent(codigo), { method: "PUT", body: JSON.stringify(cuerpo) });
+    avisar("aviso-lista", `Se actualizaron los datos de ${p.nombres} ${p.apellidos}.`);
+    listar();
+  }catch(e){
+    mostrarFallo(form, "No se guardaron los cambios:", e);
+  }
+}
 
 function bloqueEgreso(p){
   const c = texto(p.codigo);

@@ -88,6 +88,7 @@
 <script src="/comun.js"></script>
 <script>
 let puedeCobrar = false;
+let puedeAnular = false;
 
 const FORM_CARGO = {
   aviso: "aviso-cargo",
@@ -186,6 +187,8 @@ async function cargarCuenta(){
             <td>${insignia(c.estado, ESTADO_CARGO)}</td>
             <td class="num">${c.estado === "PENDIENTE" && puedeCobrar
               ? `<button class="mini secundario" onclick="registrarPago(${c.id}, ${c.monto_neto})">Registrar pago</button>`
+              : ""}${c.estado === "PENDIENTE" && puedeAnular
+              ? ` <button class="mini peligro" onclick="anularCargo(${c.id}, '${texto(c.concepto).replace(/'/g, "\\'")}')">Anular</button>`
               : ""}</td>
           </tr>`).join("")}
         </tbody>
@@ -201,6 +204,19 @@ async function registrarPago(id, monto){
   try{
     const c = await api(`/api/cargos/${id}/pagar`, { method: "POST" });
     avisar("aviso-cuenta", `Queda anotado el pago de ${q(c.monto_neto)} por «${c.concepto}».`);
+    cargarCuenta();
+  }catch(e){
+    avisar("aviso-cuenta", e.message, false);
+  }
+}
+
+// Un cobro cargado por equivocacion se anula mientras no este pagado
+// (CU-14). El sistema rechaza anular uno pagado.
+async function anularCargo(id, concepto){
+  if(!confirm(`¿Anular el cobro «${concepto}»?\n\nSe quita de la cuenta del interno.`)) return;
+  try{
+    await api(`/api/cargos/${id}`, { method: "DELETE" });
+    avisar("aviso-cuenta", `Se anuló el cobro «${concepto}». El estado de cuenta ya no lo incluye.`);
     cargarCuenta();
   }catch(e){
     avisar("aviso-cuenta", e.message, false);
@@ -300,6 +316,7 @@ async function agregarCargo(){
 
   // Cargar cobros y anotar pagos es de caja; la secretaria consulta.
   puedeCobrar = permite(yo, "cargos", "POST");
+  puedeAnular = permite(yo, "cargos", "DELETE");
   if(!puedeCobrar){
     porId("seccion-cobro").hidden = true;
     porId("ayuda-cuenta").textContent = "Escoja al interno para ver lo que su familiar responsable "
