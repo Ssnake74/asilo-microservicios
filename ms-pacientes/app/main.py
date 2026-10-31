@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 
 from . import db
+from .historial import NoDisponible, registros_del_interno
 from .reglas import calcular_edad, fecha_de_egreso, ingreso_es_coherente
 from .schemas import Paciente, PacienteActualizar, PacienteCrear
 
@@ -145,6 +146,28 @@ def actualizar_paciente(codigo: str, datos: PacienteActualizar):
 
 @app.delete("/pacientes/{codigo}", status_code=204, tags=["Pacientes"])
 def eliminar_paciente(codigo: str):
-    """Elimina el registro de un anciano."""
-    if not db.eliminar(codigo):
+    """Elimina la ficha de un interno registrado por error.
+
+    Solo si no tiene historial en los otros servicios: remisiones, cobros
+    ni cuotas. Con historial, la baja es el egreso (RF-13); borrar la ficha
+    dejaria esos registros apuntando a un codigo que ya no existe.
+    """
+    paciente = db.obtener_por_codigo(codigo)
+    if paciente is None:
+        raise HTTPException(status_code=404, detail="No existe un interno con ese código.")
+    try:
+        registros = registros_del_interno(paciente["codigo"])
+    except NoDisponible as error:
+        raise HTTPException(
+            status_code=503,
+            detail=f"El servicio de {error.modulo} no respondió y no se pudo comprobar el "
+                   "historial del interno. La ficha no se eliminó.",
+        )
+    if registros:
+        raise HTTPException(
+            status_code=409,
+            detail=f"No se puede eliminar la ficha: el interno tiene {', '.join(registros)}. "
+                   "Registre su egreso en lugar de eliminarla.",
+        )
+    if not db.eliminar(paciente["codigo"]):
         raise HTTPException(status_code=404, detail="No existe un interno con ese código.")

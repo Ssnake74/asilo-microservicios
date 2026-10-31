@@ -527,7 +527,7 @@ async function cambiarEstado(codigo, estado){
 
 async function eliminar(codigo, nombre){
   if(!await preguntar({ titulo: "Eliminar ficha", texto: `¿Eliminar la ficha de ${nombre} (${codigo})?`,
-                        advertencia: "Esta acción no se puede deshacer.", aceptar: "Eliminar", peligro: true })) return;
+                        advertencia: "Esta acción no se puede deshacer. Solo se puede eliminar un interno sin remisiones, cobros ni cuotas registrados.", aceptar: "Eliminar", peligro: true })) return;
   try{
     await api("/api/pacientes/" + encodeURIComponent(codigo), { method:"DELETE" });
     avisar("aviso-lista", `Se eliminó la ficha de ${nombre}.`);

@@ -222,6 +222,9 @@ services:
       - DB_USER=u_pacientes
       - DB_PASSWORD=pacientes_2026
       - DB_NAME=asilo_pacientes
+      # Antes de eliminar una ficha pregunta si el interno tiene historial.
+      - MS_SOLICITUDES_URL=http://ms-solicitudes:8081
+      - MS_COBROS_URL=http://ms-cobros:8082
       - TZ=America/Guatemala
     depends_on:
       mysql:

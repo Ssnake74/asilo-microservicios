@@ -224,6 +224,39 @@ def ejecutar(ctx) -> None:
         )
 
     with rep.caso(
+        "Una ficha con historial no se elimina",
+        "RF-13 · integridad entre servicios",
+        "Eliminar un interno con una remisión responde 409 y otro con una cuota también; "
+        "las dos fichas siguen existiendo; un interno sin historial se elimina (204) y "
+        "después ya no existe (404)",
+    ) as c:
+        con_remision = ctx.interno("R borrar remision")
+        ctx.remision(con_remision, "Geriatría", etiqueta="R borrar remision")
+        con_cuota = ctx.interno("R borrar cuota")
+        cuota = gw.post(C, "/api/cuotas", json={
+            "paciente_id": con_cuota["codigo"],
+            "paciente_nombre": f"{con_cuota['nombres']} {con_cuota['apellidos']}",
+            "periodo": "2099-03", "monto": 1500})
+        limpio = ctx.interno("R borrar limpio")
+        r1 = gw.delete("ADMIN", f"/api/pacientes/{con_remision['codigo']}")
+        r2 = gw.delete("ADMIN", f"/api/pacientes/{con_cuota['codigo']}")
+        sigue1 = gw.get("SECRETARIA", f"/api/pacientes/{con_remision['codigo']}").status_code
+        sigue2 = gw.get("SECRETARIA", f"/api/pacientes/{con_cuota['codigo']}").status_code
+        r3 = gw.delete("ADMIN", f"/api/pacientes/{limpio['codigo']}")
+        despues = gw.get("SECRETARIA", f"/api/pacientes/{limpio['codigo']}").status_code
+        c.obtenido = (
+            f"con remisión: {resumen(r1)} · ficha {sigue1}\n"
+            f"con cuota (creada {cuota.status_code}): {resumen(r2)} · ficha {sigue2}\n"
+            f"sin historial: {r3.status_code} · después {despues}"
+        )
+        c.pasa = (
+            r1.status_code == 409 and "remisión" in (detalle(r1) or "")
+            and cuota.status_code == 201 and r2.status_code == 409 and "cuota" in (detalle(r2) or "")
+            and sigue1 == 200 and sigue2 == 200
+            and r3.status_code == 204 and despues == 404
+        )
+
+    with rep.caso(
         "Quién puede cada operación de entradas y salidas",
         "RNF-02 · RF-03",
         "Cada operación responde el servicio para los roles con permiso y 403 del gateway "

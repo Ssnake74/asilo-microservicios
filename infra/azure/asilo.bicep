@@ -118,7 +118,10 @@ var servicios = [
     esquema: 'pacientes'
     puerto: 8083
     externo: false
-    extra: []
+    extra: [
+      { name: 'MS_SOLICITUDES_URL', value: 'http://ms-solicitudes' }
+      { name: 'MS_COBROS_URL', value: 'http://ms-cobros' }
+    ]
   }
   {
     nombre: 'ms-solicitudes'
