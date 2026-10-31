@@ -188,7 +188,7 @@ async function cargarCuenta(){
             <td class="num">${c.estado === "PENDIENTE" && puedeCobrar
               ? `<button class="mini secundario" onclick="registrarPago(${c.id}, ${c.monto_neto})">Registrar pago</button>`
               : ""}${c.estado === "PENDIENTE" && puedeAnular
-              ? ` <button class="mini peligro" onclick="anularCargo(${c.id}, '${texto(c.concepto).replace(/'/g, "\\'")}')">Anular</button>`
+              ? ` <button class="mini peligro" data-id="${c.id}" data-concepto="${atributo(c.concepto)}" onclick="anularCargo(this)">Anular</button>`
               : ""}</td>
           </tr>`).join("")}
         </tbody>
@@ -212,7 +212,9 @@ async function registrarPago(id, monto){
 
 // Un cobro cargado por equivocacion se anula mientras no este pagado
 // (CU-14). El sistema rechaza anular uno pagado.
-async function anularCargo(id, concepto){
+async function anularCargo(boton){
+  const id = boton.dataset.id;
+  const concepto = boton.dataset.concepto;
   if(!confirm(`¿Anular el cobro «${concepto}»?\n\nSe quita de la cuenta del interno.`)) return;
   try{
     await api(`/api/cargos/${id}`, { method: "DELETE" });

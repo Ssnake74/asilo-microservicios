@@ -427,6 +427,11 @@ function texto(valor) {
   return caja.innerHTML;
 }
 
+/** Lo mismo, para ponerlo dentro de un atributo entre comillas: value="…". */
+function atributo(valor) {
+  return texto(valor).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 /** Fecha legible: «15 de septiembre de 2026, 09:30». */
 function fechaLegible(valor) {
   if (!valor) return "";

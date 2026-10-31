@@ -410,7 +410,7 @@ function bloqueEdicion(p){
   const campo = (id, etiqueta, valor, extra = "") => `
         <div class="campo">
           <label for="${id}">${etiqueta}</label>
-          <input id="${id}" value="${texto(valor || "")}" autocomplete="off" ${extra}>
+          <input id="${id}" value="${atributo(valor || "")}" autocomplete="off" ${extra}>
           <div class="error-campo" id="e-${id}"></div>
         </div>`;
   return `
@@ -421,8 +421,11 @@ function bloqueEdicion(p){
         ${campo(`ed-fam-${c}`, "Familiar responsable *", p.familiar_nombre)}
         <div class="campo">
           <label for="ed-par-${c}">Parentesco</label>
-          <select id="ed-par-${c}"><option value="">—</option>${PARENTESCOS.map(x =>
-            `<option ${x === p.familiar_parentesco ? "selected" : ""}>${x}</option>`).join("")}</select>
+          <select id="ed-par-${c}"><option value="">—</option>${
+            // Un parentesco que no esta en la lista se conserva como opcion.
+            (PARENTESCOS.includes(p.familiar_parentesco) || !p.familiar_parentesco
+              ? PARENTESCOS : [...PARENTESCOS, p.familiar_parentesco]).map(x =>
+            `<option value="${atributo(x)}" ${x === p.familiar_parentesco ? "selected" : ""}>${texto(x)}</option>`).join("")}</select>
         </div>
         ${campo(`ed-tel-${c}`, "Teléfono *", p.familiar_telefono)}
         ${campo(`ed-mail-${c}`, "Correo electrónico", p.familiar_email, 'type="email"')}
@@ -441,6 +444,11 @@ async function guardarCambios(codigo){
   const form = formEdicion(codigo);
   limpiarErrores(form);
   const faltantes = validarLocalmente(form);
+  const correo = porId(form.ids.familiar_email).value.trim();
+  if(correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){
+    marcarError(form, "familiar_email", "Escriba un correo válido, por ejemplo hija@correo.com.");
+    faltantes.push("Correo del familiar (no parece un correo)");
+  }
   if(faltantes.length){
     avisoResumen(form, "No se guardaron los cambios. Falta corregir:", faltantes, false);
     irAlPrimerError(form);
