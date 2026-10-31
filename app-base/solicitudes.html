@@ -250,7 +250,8 @@ function dibujar(s){
 }
 
 async function anular(id, nombre){
-  if(!confirm(`¿Anular la remisión de ${nombre}?\n\nEsta acción no se puede deshacer.`)) return;
+  if(!await preguntar({ titulo: "Anular remisión", texto: `¿Anular la remisión de ${nombre}?`,
+                        advertencia: "Esta acción no se puede deshacer.", aceptar: "Anular", peligro: true })) return;
   try{
     await api(`/api/solicitudes/${id}`, { method: "DELETE" });
     avisar("aviso-lista", `Se anuló la remisión de ${nombre}.`);

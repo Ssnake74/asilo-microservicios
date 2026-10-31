@@ -199,7 +199,7 @@ def ejecutar(ctx) -> None:
         "El fallecimiento conserva el historial",
         "RF-13",
         "Un interno con una visita pasa a FALLECIDO; su ficha, su remisión y su visita "
-        "siguen consultándose",
+        "siguen consultándose, y ya no puede reingresar (409)",
     ) as c:
         p = ctx.interno("R fallecido")
         solicitud = ctx.remision(p, "Geriatría", etiqueta="R fallecido")
@@ -209,14 +209,18 @@ def ejecutar(ctx) -> None:
         ficha = gw.get("SECRETARIA", f"/api/pacientes/{p['codigo']}")
         remisiones = gw.get("FUNDACION", "/api/solicitudes", params={"paciente_id": p["codigo"]}).json()
         visitas = gw.get("FUNDACION", "/api/visitas", params={"paciente_id": p["codigo"]}).json()
+        reingreso = gw.put("SECRETARIA", f"/api/pacientes/{p['codigo']}", json={"estado": "ACTIVO"})
+        sigue = gw.get("SECRETARIA", f"/api/pacientes/{p['codigo']}").json().get("estado")
         c.obtenido = (
             f"visita: {visita.status_code} · fallecimiento: {r.status_code} · ficha: {ficha.status_code} "
-            f"({ficha.json().get('estado')}) · remisiones: {len(remisiones)} · visitas: {len(visitas)}"
+            f"({ficha.json().get('estado')}) · remisiones: {len(remisiones)} · visitas: {len(visitas)} · "
+            f"reingreso: {reingreso.status_code} · queda {sigue}"
         )
         c.pasa = (
             visita.status_code == 201 and r.status_code == 200
             and ficha.status_code == 200 and ficha.json()["estado"] == "FALLECIDO"
             and len(remisiones) == 1 and len(visitas) == 1
+            and reingreso.status_code == 409 and sigue == "FALLECIDO"
         )
 
     with rep.caso(

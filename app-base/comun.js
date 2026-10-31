@@ -427,6 +427,41 @@ function texto(valor) {
   return caja.innerHTML;
 }
 
+/**
+ * Pide confirmacion con una ventana del sistema y devuelve true o false.
+ *
+ *   await preguntar({ titulo, texto, aceptar: "Eliminar", peligro: true,
+ *                     advertencia: "Esta acción no se puede deshacer." })
+ *
+ * Escape o «Cancelar» responden false. En una accion peligrosa el foco
+ * empieza en «Cancelar», para que un Enter distraido no borre nada.
+ */
+function preguntar({ titulo, texto: mensaje, aceptar = "Aceptar", peligro = false, advertencia = "" }) {
+  return new Promise((resolver) => {
+    const ventana = document.createElement("dialog");
+    ventana.className = "confirmacion";
+    ventana.innerHTML = `
+      <div class="cuerpo-confirmacion">
+        <h2>${texto(titulo)}</h2>
+        <p>${texto(mensaje)}</p>
+        ${advertencia ? `<p class="advertencia">${texto(advertencia)}</p>` : ""}
+      </div>
+      <div class="acciones">
+        <button type="button" class="secundario" data-respuesta="no">Cancelar</button>
+        <button type="button" class="${peligro ? "peligro-lleno" : ""}" data-respuesta="si">${texto(aceptar)}</button>
+      </div>`;
+    let respuesta = false;
+    ventana.addEventListener("click", (e) => {
+      const boton = e.target.closest("button[data-respuesta]");
+      if (boton) { respuesta = boton.dataset.respuesta === "si"; ventana.close(); }
+    });
+    ventana.addEventListener("close", () => { ventana.remove(); resolver(respuesta); });
+    document.body.appendChild(ventana);
+    ventana.showModal();
+    ventana.querySelector(peligro ? '[data-respuesta="no"]' : '[data-respuesta="si"]').focus();
+  });
+}
+
 /** Lo mismo, para ponerlo dentro de un atributo entre comillas: value="…". */
 function atributo(valor) {
   return texto(valor).replace(/"/g, "&quot;").replace(/'/g, "&#39;");

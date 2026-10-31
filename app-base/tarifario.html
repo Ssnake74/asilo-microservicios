@@ -246,7 +246,8 @@ async function cambiarUso(id, nombre){
 }
 
 async function eliminar(id, nombre){
-  if(!confirm(`¿Eliminar «${nombre}» del tarifario?\n\nEsta acción no se puede deshacer.`)) return;
+  if(!await preguntar({ titulo: "Eliminar del tarifario", texto: `¿Eliminar «${nombre}» del tarifario?`,
+                        advertencia: "Esta acción no se puede deshacer.", aceptar: "Eliminar", peligro: true })) return;
   try{
     await api(`/api/tarifas/${id}`, { method: "DELETE" });
     avisar("aviso-tarifas", `«${nombre}» se eliminó del tarifario.`);

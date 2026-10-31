@@ -291,3 +291,20 @@ details.plegable{
 details.plegable summary{cursor:pointer;font-size:15px;font-weight:600;color:var(--violeta-profundo);}
 details.plegable summary:focus-visible{outline:2px solid var(--violeta-medio);outline-offset:2px;}
 details.plegable .rejilla{margin-top:14px;}
+
+/* ---------------------------------------------------------------------
+   Ventana de confirmacion propia. Reemplaza al confirm() del navegador:
+   habla igual que el resto del sistema y dice que va a pasar.
+   --------------------------------------------------------------------- */
+dialog.confirmacion{
+  border:1px solid var(--borde); border-radius:12px; padding:0; width:min(440px, calc(100vw - 32px));
+  background:var(--superficie); color:var(--texto); box-shadow:0 18px 50px rgba(44,38,56,.25);
+}
+dialog.confirmacion::backdrop{background:rgba(44,38,56,.45);}
+dialog.confirmacion .cuerpo-confirmacion{padding:22px 24px 8px;}
+dialog.confirmacion h2{font-size:19px; color:var(--violeta-profundo); margin:0 0 10px;}
+dialog.confirmacion p{margin:0 0 8px; line-height:1.5;}
+dialog.confirmacion p.advertencia{color:var(--error); font-weight:600; font-size:14.5px;}
+dialog.confirmacion .acciones{display:flex; justify-content:flex-end; gap:10px; padding:14px 24px 20px; margin:0;}
+dialog.confirmacion button.peligro-lleno{background:var(--error); border-color:var(--error); color:#fff;}
+dialog.confirmacion button.peligro-lleno:hover{background:#86252F; border-color:#86252F;}

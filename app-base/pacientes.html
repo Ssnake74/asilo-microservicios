@@ -476,6 +476,8 @@ async function guardarCambios(codigo){
 
 function bloqueEgreso(p){
   const c = texto(p.codigo);
+  // El fallecimiento es definitivo; solo quien egreso puede reingresar.
+  if(p.estado === "FALLECIDO") return "";
   if(p.estado !== "ACTIVO"){
     return `<button class="mini secundario" onclick="cambiarEstado('${c}', 'ACTIVO')">Registrar reingreso</button>`;
   }
@@ -524,7 +526,8 @@ async function cambiarEstado(codigo, estado){
 }
 
 async function eliminar(codigo, nombre){
-  if(!confirm(`¿Eliminar la ficha de ${nombre} (${codigo})?\n\nEsta acción no se puede deshacer.`)) return;
+  if(!await preguntar({ titulo: "Eliminar ficha", texto: `¿Eliminar la ficha de ${nombre} (${codigo})?`,
+                        advertencia: "Esta acción no se puede deshacer.", aceptar: "Eliminar", peligro: true })) return;
   try{
     await api("/api/pacientes/" + encodeURIComponent(codigo), { method:"DELETE" });
     avisar("aviso-lista", `Se eliminó la ficha de ${nombre}.`);

@@ -45,6 +45,12 @@ def datos_de_egreso(actual: dict, cambios: dict) -> dict:
     ACTIVO (un reingreso) se borran. La ficha y su historial no se tocan
     en ningun caso (RF-13).
     """
+    # El fallecimiento es definitivo: no hay reingreso ni otro estado.
+    if actual["estado"] == "FALLECIDO" and cambios["estado"] != "FALLECIDO":
+        raise HTTPException(
+            status_code=409,
+            detail="El interno está registrado como fallecido: no puede reingresar ni cambiar de estado.",
+        )
     if cambios["estado"] == "ACTIVO":
         return {"fecha_egreso": None, "motivo_egreso": None}
     try:

@@ -200,7 +200,8 @@ async function cargarCuenta(){
 }
 
 async function registrarPago(id, monto){
-  if(!confirm(`¿Anotar que el familiar ya pagó ${q(monto)}?`)) return;
+  if(!await preguntar({ titulo: "Registrar pago", texto: `¿Anotar que el familiar ya pagó ${q(monto)}?`,
+                        aceptar: "Registrar pago" })) return;
   try{
     const c = await api(`/api/cargos/${id}/pagar`, { method: "POST" });
     avisar("aviso-cuenta", `Queda anotado el pago de ${q(c.monto_neto)} por «${c.concepto}».`);
@@ -215,7 +216,8 @@ async function registrarPago(id, monto){
 async function anularCargo(boton){
   const id = boton.dataset.id;
   const concepto = boton.dataset.concepto;
-  if(!confirm(`¿Anular el cobro «${concepto}»?\n\nSe quita de la cuenta del interno.`)) return;
+  if(!await preguntar({ titulo: "Anular cobro", texto: `¿Anular el cobro «${concepto}»? Se quita de la cuenta del interno.`,
+                        aceptar: "Anular", peligro: true })) return;
   try{
     await api(`/api/cargos/${id}`, { method: "DELETE" });
     avisar("aviso-cuenta", `Se anuló el cobro «${concepto}». El estado de cuenta ya no lo incluye.`);
