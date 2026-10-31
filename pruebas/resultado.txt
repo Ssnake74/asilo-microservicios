@@ -2,13 +2,13 @@
  SISTEMA PARA ADMINISTRACIÓN DEL ASILO DE ANCIANOS «CABEZA DE ALGODÓN»
  Reporte de pruebas automatizadas del sistema
 ==============================================================================
- Fecha y hora de ejecución: 30 de octubre de 2026, 20:57:22 (hora de Guatemala)
- Marca de los datos:        PRUEBA-AUTO 20261030-205722
+ Fecha y hora de ejecución: 30 de octubre de 2026, 21:31:38 (hora de Guatemala)
+ Marca de los datos:        PRUEBA-AUTO 20261030-213138
 
  Entorno
    Máquina:            Microsoft Windows 11 Home Single Language 10.0.26300
    Docker:             Docker Desktop 4.87.0 (236836) · motor 29.7.2 (linux/amd64)
-   Código probado:     commit 99b6fc8, sin cambios pendientes
+   Código probado:     commit af211a7, sin cambios pendientes
    Base de datos:      MySQL 8.0.46
    Punto de entrada:   gateway, http://localhost:8080 (desde la red interna, gateway:8080)
    Contenedores:       asilo-mysql (mysql:8.0), asilo-mailpit
@@ -176,7 +176,7 @@ CP-19  Un usuario inexistente se bloquea igual                        [ PASA ]
        Verifica: CU-01 (no revelar qué usuarios existen)
        Esperado: Cinco 401 y luego 429, con el mismo mensaje de bloqueo que un
                  usuario real
-       Obtenido: «fantasma20261030205722»: 401, 401, 401, 401, 401, 429 ·
+       Obtenido: «fantasma20261030213138»: 401, 401, 401, 401, 401, 429 ·
                  mensaje idéntico al de «caja»: «Por seguridad, el ingreso
                  quedó bloqueado tras varios intentos fallidos. Vuelva a
                  intentar en 15 minutos.»
@@ -835,12 +835,12 @@ CP-130  El microservicio nunca recibe una petición no autorizada      [ PASA ]
        Esperado: Las peticiones negadas no aparecen en el registro de acceso
                  del microservicio; una petición permitida de control sí
                  aparece
-       Obtenido: Caja DELETE /api/pacientes/PACX20261030205722: 403 · en el
+       Obtenido: Caja DELETE /api/pacientes/PACX20261030213138: 403 · en el
                  registro de ms-pacientes: no
-                 Médico general DELETE /api/tarifas/930205722: 403 · en el
+                 Médico general DELETE /api/tarifas/930213138: 403 · en el
                  registro de ms-cobros: no
                  Control, Administrador GET
-                 /api/pacientes/PACCTRL20261030205722: 404 · en el registro:
+                 /api/pacientes/PACCTRL20261030213138: 404 · en el registro:
                  sí
 
 
@@ -873,7 +873,7 @@ CP-134  DPI repetido                                                  [ PASA ]
        Verifica: RN-03
        Esperado: El primero 201; el segundo con el mismo DPI 409, indicando el
                  código del interno que ya lo tiene
-       Obtenido: DPI 9261030205722 · primero: 201 · PAC-008 · segundo: 409 ·
+       Obtenido: DPI 9261030213138 · primero: 201 · PAC-008 · segundo: 409 ·
                  «Ese DPI ya está registrado con el código PAC-008.»
 
 CP-135  Alta sin DPI                                                  [ PASA ]
@@ -1094,7 +1094,7 @@ CP-161  Programar una visita con el módulo de cobros apagado          [ PASA ]
        Verifica: RNF-12
        Esperado: 201: la visita se registra igual, con cargo_generado falso,
                  sin cargo, y con un aviso de que el cargo queda pendiente
-       Obtenido: 201 en 2.1 s · visita 16 · cargo_generado=False ·
+       Obtenido: 201 en 2.0 s · visita 16 · cargo_generado=False ·
                  cargo_id=None · «El servicio de cobros no respondió. La
                  visita quedó registrada y el cargo se generará solo cuando el
                  servicio vuelva a estar disponible.»
@@ -1128,7 +1128,7 @@ CP-165  El cargo pendiente se genera solo cuando cobros vuelve        [ PASA ]
        Verifica: RNF-13
        Esperado: La visita programada durante la caída recibe su cargo
                  automáticamente, en menos de un minuto, y un solo cargo
-       Obtenido: visita 16 a los 15 s: cargo_generado=True, cargo_id=35 ·
+       Obtenido: visita 16 a los 18 s: cargo_generado=True, cargo_id=35 ·
                  cargos con la referencia VISITA-16: 1
 
 
@@ -1294,9 +1294,9 @@ CP-176  Remisión con correo del familiar                              [ PASA ]
                  el nombre del interno en el asunto y la especialidad en el
                  texto
        Obtenido: remisión: 201 · mensajes para
-                 prueba.auto.20261030205722.l1@example.com: 1 · asunto
+                 prueba.auto.20261030213138.l1@example.com: 1 · asunto
                  «Solicitud de consulta médica para Prueba PRUEBA-AUTO
-                 20261030-205722 L correo» · especialidad en el texto: sí
+                 20261030-213138 L correo» · especialidad en el texto: sí
 
 CP-177  Remisión sin correo del familiar                              [ PASA ]
        Verifica: RF-44 (flujo alterno)
@@ -1330,7 +1330,7 @@ CP-180  Las operaciones que modifican quedan registradas              [ PASA ]
        Verifica: Bitácora de auditoría (gateway)
        Esperado: Una fila con usuario caja, rol CAJA, POST /api/tarifas y
                  código 201
-       Obtenido: fila 306: 2026-10-30 20:58:20 · caja · CAJA · POST
+       Obtenido: fila 306: 2026-10-30 21:32:40 · caja · CAJA · POST
                  /api/tarifas · 201
 
 CP-181  Las lecturas exitosas no quedan registradas                   [ PASA ]
@@ -1407,15 +1407,15 @@ CP-189  La remisión guarda la especialidad del catálogo               [ PASA ]
        Verifica: CU-06 · RF-14
        Esperado: 201 con el identificador de la especialidad y su nombre como
                  está en el catálogo, aunque el texto enviado sea otro
-       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261030-205722 O»
+       Obtenido: 201 · especialidad_id 13 · «PRUEBA-AUTO 20261030-213138 O»
 
 CP-190  Médico de otra especialidad                                   [ PASA ]
        Verifica: RN-05 (por identificador)
        Esperado: 422 que nombra la especialidad remitida y la del médico, y la
                  remisión sigue PENDIENTE
        Obtenido: 422 · «El médico general remitió a PRUEBA-AUTO
-                 20261030-205722 O, pero PRUEBA-AUTO 20261030-205722 Dr. O
-                 ajeno es de PRUEBA-AUTO 20261030-205722 O otra.» · estado:
+                 20261030-213138 O, pero PRUEBA-AUTO 20261030-213138 Dr. O
+                 ajeno es de PRUEBA-AUTO 20261030-213138 O otra.» · estado:
                  PENDIENTE
 
 CP-191  Médico retirado del catálogo                                  [ PASA ]
@@ -1435,9 +1435,9 @@ CP-193  Visita con médico y enfermero del catálogo                    [ PASA ]
        Esperado: 201: la visita guarda los identificadores y los nombres del
                  médico, su especialidad y el enfermero, y el cargo de la
                  consulta queda generado
-       Obtenido: 201 · visita 18: médico 13 «PRUEBA-AUTO 20261030-205722 Dr.
-                 O» (PRUEBA-AUTO 20261030-205722 O) · enfermero 5 «PRUEBA-AUTO
-                 20261030-205722 Enf. O» · cargo_generado=True
+       Obtenido: 201 · visita 18: médico 13 «PRUEBA-AUTO 20261030-213138 Dr.
+                 O» (PRUEBA-AUTO 20261030-213138 O) · enfermero 5 «PRUEBA-AUTO
+                 20261030-213138 Enf. O» · cargo_generado=True
 
 
 ------------------------------------------------------------------------------
@@ -1451,8 +1451,8 @@ CP-194  El administrador crea un usuario con contraseña temporal      [ PASA ]
        Esperado: 201 con el usuario en minúsculas, el nombre sin espacios de
                  más, una contraseña temporal y la marca de que debe
                  cambiarla; en la base no queda la temporal legible
-       Obtenido: 201 · usuario «prueba.20261030205722.p1» · nombre «PRUEBA-
-                 AUTO 20261030-205722 p1» · temporal de 14 caracteres ·
+       Obtenido: 201 · usuario «prueba.20261030213138.p1» · nombre «PRUEBA-
+                 AUTO 20261030-213138 p1» · temporal de 14 caracteres ·
                  debe_cambiar=True · en la base: sal$resumen
 
 CP-195  Datos rechazados al crear un usuario                          [ PASA ]
@@ -1461,7 +1461,7 @@ CP-195  Datos rechazados al crear un usuario                          [ PASA ]
                  espacios, para un rol que no existe y para un nombre en
                  blanco
        Obtenido: repetido: 409 · «Ya existe un usuario
-                 «prueba.20261030205722.p1».»
+                 «prueba.20261030213138.p1».»
                  con espacio: 422 · «usuario: Value error, Use solo letras sin
                  tildes, números, punto, guion o guion bajo, sin espacios.»
                  rol inventado: 422 · «rol: Input should be 'ADMIN',
@@ -1613,7 +1613,7 @@ CP-209  Un examen sin precio en el catálogo se registra sin cobro     [ PASA ]
        Esperado: 201 con el resultado guardado, cargo_generado falso y un
                  aviso de que el examen no tiene precio
        Obtenido: 201 · cargo_generado=False · «El examen «PRUEBA-AUTO
-                 20261030-205722 Q sin precio» no tiene precio en el catálogo
+                 20261030-213138 Q sin precio» no tiene precio en el catálogo
                  médico: no se generó cobro. La fundación puede asignarle uno
                  en el catálogo.»
 
@@ -1659,7 +1659,7 @@ CP-213  Donación registrada y sus validaciones                        [ PASA ]
        Esperado: 201 con el origen sin espacios de más, la fecha de hoy y el
                  monto exacto; 422 para un tipo de donante que no existe, un
                  monto de cero y una fecha futura
-       Obtenido: 201 · «PRUEBA-AUTO 20261030-205722 Rotary» · 2026-10-30 ·
+       Obtenido: 201 · «PRUEBA-AUTO 20261030-213138 Rotary» · 2026-10-30 ·
                  Q2,500.55
                  tipo inexistente: 422 · «tipo_donante: Input should be
                  'EMPRESA_INTERNACIONAL', 'EMPRESA_NACIONAL', 'GOBIERNO' or
@@ -1723,9 +1723,10 @@ CP-218  Egreso de un interno y su reingreso                           [ PASA ]
 CP-219  El fallecimiento conserva el historial                        [ PASA ]
        Verifica: RF-13
        Esperado: Un interno con una visita pasa a FALLECIDO; su ficha, su
-                 remisión y su visita siguen consultándose
+                 remisión y su visita siguen consultándose, y ya no puede
+                 reingresar (409)
        Obtenido: visita: 201 · fallecimiento: 200 · ficha: 200 (FALLECIDO) ·
-                 remisiones: 1 · visitas: 1
+                 remisiones: 1 · visitas: 1 · reingreso: 409 · queda FALLECIDO
 
 CP-220  Quién puede cada operación de entradas y salidas              [ PASA ]
        Verifica: RNF-02 · RF-03
@@ -1826,7 +1827,7 @@ CP-228  Solo el administrador consulta los informes                   [ PASA ]
  LIMPIEZA Y RESTAURACIÓN DEL SISTEMA
 ==============================================================================
 
- Marca de los datos de prueba: «PRUEBA-AUTO 20261030-205722».
+ Marca de los datos de prueba: «PRUEBA-AUTO 20261030-213138».
 
  1. Contenedores: ninguno quedó detenido, pausado ni desconectado.
 
@@ -1876,7 +1877,7 @@ CP-228  Solo el administrador consulta los informes                   [ PASA ]
 
  5. Sesiones: 21 abiertas por la corrida, cerradas con «cerrar sesión».
 
- 6. Bitácora: se BORRARON 583 filas generadas por esta corrida (id 79 a 661).
+ 6. Bitácora: se BORRARON 584 filas generadas por esta corrida (id 79 a 662).
  La tabla vuelve a sus 78 filas anteriores a la corrida. Si alguien usó el
  sistema mientras corrían las pruebas, sus filas de ese intervalo también se
  borraron: no hay forma de distinguirlas.
@@ -1890,7 +1891,7 @@ CP-228  Solo el administrador consulta los informes                   [ PASA ]
  asilo_clinico.resultados: 8 → 4; asilo_cobros.cargos: 46 → 15;
  asilo_cobros.cuotas_mensuales: 9 → 5; asilo_cobros.donaciones: 4 → 2;
  asilo_cobros.gastos: 4 → 2; asilo_cobros.pagos_fundacion: 4 → 2;
- asilo_cobros.tarifas: 20 → 10; asilo_gateway.bitacora: 662 → 79;
+ asilo_cobros.tarifas: 20 → 10; asilo_gateway.bitacora: 663 → 79;
  asilo_gateway.intentos_fallidos: 27 → 3; asilo_gateway.usuarios: 12 → 9;
  asilo_pacientes.pacientes: 30 → 7; asilo_solicitudes.solicitudes: 43 → 15;
  asilo_solicitudes.visitas: 22 → 8
